@@ -22,7 +22,7 @@
   var SPARE = [["#ff5fa2", "#ffa36b"], ["#5fd3c4", "#8fe36b"], ["#c7a6ff", "#ff8fd0"], ["#7fb2ff", "#b28cff"]];
   var MAX_BALLS = 8;
   // Shared with the shader below.
-  var SLANT = 27, PERSP = 0.36, MARGIN = 3; // degrees, perspective strength, vmin of slack for the drift
+  var SLANT = 27, PERSP = 0.24, MARGIN = 3; // degrees, perspective strength, vmin of slack for the drift
   var reduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
 
   function huesOf(source) {
@@ -86,7 +86,7 @@
     }
     if (mood === "call") {
       var first = waitingOf(state)[0];
-      return [{ key: "call:" + first.source + "\u0000" + first.session, x: 74 * m.vw, y: 42 * m.vh, r: 18 * m.vmin,
+      return [{ key: "call:" + first.source + "\u0000" + first.session, x: 76 * m.vw, y: 30 * m.vh, r: 15 * m.vmin,
         hues: huesOf(first.source), thread: 1, wake: 1.25 }];
     }
     var xs = cardCentres(state.cards.length, m);
@@ -122,7 +122,7 @@
     "const vec2 NORM = vec2(sin(SLANT), cos(SLANT));",
     "const vec2 FAR = vec2(0.70710678, 0.70710678);",
     "const float PERSP = " + PERSP.toFixed(3) + ";",
-    "const float DENSITY = 120.0;",
+    "const float DENSITY = 128.0;",
     "float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }",
     "float noise(vec2 p) {",
     "  vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);",
@@ -158,20 +158,34 @@
     "  float shadow = 1.0;",
     "  for (int i = 0; i < " + MAX_BALLS + "; i++) {",
     "    if (i >= uCount) break;",
-    "    vec4 b = uBall[i]; vec2 d = qw - b.xy; float a = b.z * 1.06, a2 = a * a;",
+    // the waterline wobbles, and the lines right at it lap in small ripples
+    "    vec4 b = uBall[i]; vec2 d = qw - b.xy; float ang = atan(d.y, d.x), fi = float(i);",
+    "    float wob = 1.0 + 0.05 * sin(3.0 * ang + uTime * 0.8 + fi * 1.7) + 0.03 * sin(5.0 * ang - uTime * 1.25 + fi);",
+    "    float a = b.z * 1.06 * wob, a2 = a * a;",
     "    float r2 = max(dot(d, d), a2 * 0.6);",
     "    psi -= a2 * dot(d, NORM) / r2;",
+    "    float rd = sqrt(r2);",
+    "    psi += b.z * 0.012 * sin(rd / b.z * 14.0 - uTime * 2.2) * exp(-max(rd - a, 0.0) / (0.4 * b.z));",
     "    float r = length(q - b.xy);",
     "    shadow *= mix(0.45, 1.0, smoothstep(b.z * 0.98, b.z * 1.3, r));",
     "  }",
     "  float x = psi * DENSITY + uTime / 45.0;",
     "  float fw = fwidth(x);",
-    "  float ridge = smoothstep(0.42, 0.95, 0.5 + 0.5 * cos(6.2831853 * x));",
-    "  ridge = mix(ridge, 0.3, clamp(fw * 2.2 - 0.45, 0.0, 1.0));",
-    "  vec3 ground = mix(vec3(0.055, 0.035, 0.075), uFloodHue * 0.2, uFlood);",
-    "  vec3 lilac = mix(vec3(0.68, 0.55, 0.78), mix(uFloodHue, vec3(1.0), 0.28), uFlood);",
+    // each line a soft-edged band, antialiased by its own pixel width; where lines
+    // get close to a pixel apart they fade to their average instead of shimmering
+    "  float dl = abs(fract(x + 0.5) - 0.5), half_ = 0.24;",
+    "  float edge = max(fw, 0.02);",
+    "  float ridge = 1.0 - smoothstep(half_ - edge, half_ + edge, dl);",
+    "  ridge *= mix(0.7, 1.0, 1.0 - dl / half_ * 0.5);",
+    "  ridge = mix(ridge, 2.0 * half_ * 0.85, smoothstep(0.22, 0.5, fw));",
+    "  vec3 ground = mix(vec3(0.055, 0.035, 0.075), uFloodHue * 0.14, uFlood);",
+    "  vec3 lilac = mix(vec3(0.68, 0.55, 0.78), mix(uFloodHue, vec3(0.5, 0.42, 0.55), 0.5) * 0.85, uFlood);",
     "  vec3 col = mix(ground, lilac, ridge) + vec3(1.0, 0.94, 1.0) * pow(ridge, 7.0) * 0.22;",
     "  col *= shadow;",
+    // the far edge of the surface sinks into the dark; the threads sink less
+    "  float far = dot(p, FAR);",
+    "  float vig = (1.0 - 0.7 * smoothstep(-0.1, 0.9, far)) * (1.0 - 0.25 * smoothstep(0.55, 1.0, length(p * vec2(0.75, 1.0))));",
+    "  col *= vig;",
     // one thread per ball: the stream line through its centre
     "  for (int i = 0; i < " + MAX_BALLS + "; i++) {",
     "    if (i >= uCount) break;",
@@ -179,18 +193,21 @@
     "    if (uHue[i].a <= 0.001) continue;",
     "    float lx = dot(qw - b.xy, FLOW);",
     "    float own = psi - dot(b.xy, NORM);",
-    "    float tw = a * (0.07 + 0.12 * smoothstep(0.0, 6.0 * a, lx));",
+    "    float tw = a * (0.07 + 0.12 * smoothstep(0.0, 6.0 * a, lx)) * (1.0 + 0.5 * uFlood);",
     "    float fp = fwidth(psi) + 1e-5;",
     "    float m = 1.0 - smoothstep(tw - fp, tw + fp, abs(own));",
     "    vec3 tc = mix(uHue[i].rgb, uHue2[i].rgb, smoothstep(0.0, 9.0 * a, lx));",
     "    float near = 1.0 - smoothstep(a, a * 1.5, length(q - b.xy));",
     "    tc = mix(tc, mix(uHue[i].rgb, vec3(1.0, 0.62, 0.78), 0.45), near * 0.7);",
-    "    col = mix(col, tc * mix(0.82, 1.0, near), m * uHue[i].a);",
+    "    tc = mix(tc, min(tc * 1.2 + vec3(0.06), vec3(1.0)), uFlood);",
+    "    col = mix(col, tc * mix(0.82, 1.0, near) * mix(1.0, vig, 0.35), m * uHue[i].a);",
+    // the pool the ball sits in: a wobbling disc of the thread's colour at its waterline
+    "    vec2 pd = q - b.xy - FLOW * a * 0.12; float pa = atan(pd.y, pd.x);",
+    "    float pr = length(pd) / (a * (1.0 + 0.06 * sin(4.0 * pa + uTime * 0.9 + float(i) * 2.3) + 0.04 * sin(7.0 * pa - uTime * 1.4)));",
+    "    float pool = (1.0 - smoothstep(1.1, 1.1 + 2.0 * fwidth(pr) + 0.02, pr)) * uHue[i].a;",
+    "    vec3 pc = mix(uHue[i].rgb, vec3(1.0, 0.6, 0.72), 0.4) * mix(0.95, 0.7, smoothstep(0.6, 1.1, pr));",
+    "    col = mix(col, pc, pool);",
     "  }",
-    // the far edge of the surface sinks into the dark
-    "  float far = dot(p, FAR);",
-    "  col *= 1.0 - 0.7 * smoothstep(-0.1, 0.9, far);",
-    "  col *= 1.0 - 0.25 * smoothstep(0.55, 1.0, length(p * vec2(0.75, 1.0)));",
     "  col *= mix(1.0, 0.5, uDim);",
     "  col += (hash(gl_FragCoord.xy + fract(uTime)) - 0.5) / 255.0;",
     "  outColor = vec4(col, 1.0);",
@@ -208,11 +225,11 @@
   // ---- the chrome balls -------------------------------------------------------
 
   // A dark gunmetal mirror, rendered once into a canvas when the ball appears or
-  // changes, never per frame. Each pixel follows the eye's ray off the mirror:
-  // rays going down see the lined surface (faint lilac lines that curve and
-  // squeeze toward the rim, and the coloured pool right at the ball's foot);
-  // rays going up see a near-black room with one hard window highlight and a
-  // softer second one. A dark horizon, a little Fresnel lift and a dark rim.
+  // changes, never per frame. Each pixel follows the eye's ray off the mirror into
+  // a soft room: near black above, a dim grey around the middle, and below, a
+  // faint blurred memory of the lilac lines and the coloured pool at the ball's
+  // foot, all blending with no hard horizon. One hard white window highlight
+  // upper left, a softer second one, a light Fresnel rim and a thin dark edge.
   function smooth(a, b, x) {
     var t = Math.min(1, Math.max(0, (x - a) / (b - a)));
     return t * t * (3 - 2 * t);
@@ -223,33 +240,27 @@
     return [v[0] / n, v[1] / n, v[2] / n];
   }
 
-  var L1 = unit([-0.5, -0.6, 0.62]), L2 = unit([-0.05, -0.58, 0.81]);
+  var L1 = unit([-0.42, -0.5, 0.76]), L2 = unit([0.2, -0.5, 0.84]);
 
   function seen(px, py, pool) {
     var r2 = px * px + py * py, nz = Math.sqrt(Math.max(0, 1 - r2));
     var rx = 2 * nz * px, ry = 2 * nz * py, rz = 2 * nz * nz - 1;
-    var c;
-    if (ry > 0.03) {
-      var t = (1.0 - py) / ry, hx = px + rx * t, hz = nz + rz * t;
-      var line = smooth(0.45, 0.95, 0.5 + 0.5 * Math.cos(((hx * 0.85 + hz * 0.52) / 0.16) * Math.PI * 2));
-      var haze = smooth(0.8, 5, t);
-      c = [22 + 92 * line, 16 + 76 * line, 30 + 102 * line];
-      c = [c[0] + (52 - c[0]) * haze, c[1] + (44 - c[1]) * haze, c[2] + (62 - c[2]) * haze];
-      if (pool) {
-        var foot = 1 - smooth(0.1, 0.85, t);
-        c = [c[0] + (pool[0] - c[0]) * foot, c[1] + (pool[1] - c[1]) * foot, c[2] + (pool[2] - c[2]) * foot];
-      }
-    } else if (ry > -0.03) {
-      c = [6, 5, 9];
-    } else {
-      var up = smooth(-0.03, -0.7, ry);
-      c = [74 - 62 * up, 70 - 59 * up, 82 - 66 * up];
+    // the room: dark above, dim grey in the middle, faint lines and the pool below
+    var mid = smooth(-0.95, 0.35, ry);
+    var c = [14 + 52 * mid, 12 + 48 * mid, 18 + 56 * mid];
+    var low = smooth(0.15, 0.85, ry);
+    var lines = 0.5 + 0.5 * Math.cos(((px * 0.9 + py * 0.45) / 0.11) * Math.PI * 2);
+    var faint = [80 + 12 * lines, 70 + 10 * lines, 94 + 14 * lines];
+    c = [c[0] + (faint[0] - c[0]) * low * 0.6, c[1] + (faint[1] - c[1]) * low * 0.6, c[2] + (faint[2] - c[2]) * low * 0.6];
+    if (pool) {
+      var foot = smooth(0.45, 0.95, ry) * 0.75;
+      c = [c[0] + (pool[0] - c[0]) * foot, c[1] + (pool[1] - c[1]) * foot, c[2] + (pool[2] - c[2]) * foot];
     }
-    var f = Math.pow(1 - nz, 2.6) * 0.26;
-    c = [c[0] + (170 - c[0]) * f, c[1] + (162 - c[1]) * f, c[2] + (182 - c[2]) * f];
+    var f = Math.pow(1 - nz, 3) * 0.42; // a light Fresnel rim
+    c = [c[0] + (150 - c[0]) * f, c[1] + (142 - c[1]) * f, c[2] + (166 - c[2]) * f];
     var s1 = rx * L1[0] + ry * L1[1] + rz * L1[2];
     var s2 = rx * L2[0] + ry * L2[1] + rz * L2[2];
-    var light = Math.min(1, smooth(0.952, 0.96, s1) + smooth(0.86, 0.975, s1) * 0.12 + smooth(0.93, 0.985, s2) * 0.5);
+    var light = Math.min(1, smooth(0.83, 0.875, s1) + smooth(0.6, 0.86, s1) * 0.12 + smooth(0.95, 0.98, s2) * 0.62);
     return [c[0] + (255 - c[0]) * light, c[1] + (255 - c[1]) * light, c[2] + (255 - c[2]) * light];
   }
 
@@ -272,7 +283,7 @@
           var c = seen(Math.max(-1, Math.min(1, px + (s & 1 ? half : -half))), Math.max(-1, Math.min(1, py + (s & 2 ? half : -half))), pool);
           sum[0] += c[0]; sum[1] += c[1]; sum[2] += c[2];
         }
-        var dark = smooth(0.95, 1, r) * 0.85;
+        var dark = smooth(0.965, 1, r) * 0.7;
         data[k] = (sum[0] / 4) * (1 - dark) + 4 * dark;
         data[k + 1] = (sum[1] / 4) * (1 - dark) + 3 * dark;
         data[k + 2] = (sum[2] / 4) * (1 - dark) + 6 * dark;
@@ -287,7 +298,7 @@
   function poolOf(ball) {
     if (!ball.hues || ball.thread < 0.5) return null;
     var h = rgbOf(ball.hues[0]);
-    return [h[0] * 0.75 + 60, h[1] * 0.75 + 35, h[2] * 0.75 + 45];
+    return [h[0] * 0.6 + 40, h[1] * 0.6 + 22, h[2] * 0.6 + 30];
   }
 
   var STYLE = [
@@ -298,8 +309,11 @@
     "  height: calc(100% + " + 2 * MARGIN + "vmin); display: block; }",
     ".csg .fallback { position: absolute; inset: -" + MARGIN + "vmin; background: #0e0913 repeating-linear-gradient(-27deg, #0e0913 0 0.5vmin, #6f5a7e 0.5vmin 0.8vmin); }",
     ".csg .balls { position: absolute; inset: 0; transition: opacity 320ms " + EASE_OUT + "; }",
-    ".csg .ball { position: absolute; border-radius: 50%; box-shadow: 0 0.6vmin 1.4vmin rgba(4, 2, 8, 0.6); }",
-    ".csg .ball canvas { display: block; width: 100%; height: 100%; border-radius: 50%; }",
+    ".csg .ball { position: absolute; border-radius: 50%; }",
+    ".csg .ball .swim { width: 100%; height: 100%; border-radius: 50%; will-change: transform; }",
+    // the ball sits sunk in its pool: its foot fades into the surface
+    ".csg .ball canvas { display: block; width: 100%; height: 100%; border-radius: 50%;",
+    "  -webkit-mask-image: linear-gradient(to bottom, #000 80%, rgba(0,0,0,0.15) 97%); mask-image: linear-gradient(to bottom, #000 80%, rgba(0,0,0,0.15) 97%); }",
     "@media (prefers-reduced-motion: reduce) { .csg .drift { animation: none; } }",
   ].join("\n");
 
@@ -343,11 +357,11 @@
         var item = flow.find(function (f) { return f.key === ball.key; });
         var h1 = ball.hues ? rgbOf(ball.hues[0]) : [200, 170, 220], h2 = ball.hues ? rgbOf(ball.hues[1]) : h1;
         if (!item) {
-          item = { key: ball.key, x: at.x, y: at.y, r: 0, thread: 0, wake: 0 };
+          item = { key: ball.key, x: at.x, y: at.y, r: 0, thread: 0, wake: 0, wait: 140 };
           if (mood === "" || reduce.matches) { item.r = goal.r; item.thread = goal.thread; item.wake = goal.wake; }
           flow.push(item);
         }
-        item.x = at.x; item.y = at.y; item.goal = goal;
+        item.x = at.x; item.y = at.y; item.goal = goal; item.f = at.f; item.size = 2 * ball.r; item.phase = phaseOf(ball.key);
         item.h1 = h1.map(function (c) { return c / 255; });
         item.h2 = h2.map(function (c) { return c / 255; });
       });
@@ -361,7 +375,8 @@
     function step(frameMs) {
       var still = reduce.matches;
       flow.forEach(function (item) {
-        item.r = still ? item.goal.r : ease(item.r, item.goal.r, frameMs, 160);
+        if (item.wait > 0 && !still) { item.wait -= frameMs; return; }
+        item.r = still ? item.goal.r : ease(item.r, item.goal.r, frameMs, 110);
         item.thread = still ? item.goal.thread : ease(item.thread, item.goal.thread, frameMs, 500);
         item.wake = still ? item.goal.wake : ease(item.wake, item.goal.wake, frameMs, 900);
       });
@@ -375,7 +390,9 @@
       var count = Math.min(MAX_BALLS, flow.length);
       for (var i = 0; i < MAX_BALLS; i++) {
         var item = i < count ? flow[i] : undefined, at = i * 4;
-        ballData[at] = item ? item.x : 0; ballData[at + 1] = item ? item.y : 0;
+        var sw = item && !reduce.matches ? swimOf(item.phase, seconds, item.size) : { x: 0, y: 0 };
+        // screen px to surface units (y flips)
+        ballData[at] = item ? item.x + sw.x * item.f : 0; ballData[at + 1] = item ? item.y - sw.y * item.f : 0;
         ballData[at + 2] = item ? item.r : 0; ballData[at + 3] = item ? item.wake : 0;
         hueData[at] = item ? item.h1[0] : 0; hueData[at + 1] = item ? item.h1[1] : 0; hueData[at + 2] = item ? item.h1[2] : 0;
         hueData[at + 3] = item ? item.thread : 0;
@@ -404,6 +421,12 @@
       if (!reduce.matches) seconds += frameMs / 1000;
       step(frameMs);
       render();
+      if (!reduce.matches) {
+        balls.forEach(function (entry) {
+          var sw = swimOf(entry.phase, seconds, 2 * entry.r);
+          entry.swim.style.transform = "translate(" + sw.x.toFixed(2) + "px," + sw.y.toFixed(2) + "px) rotate(" + sw.turn.toFixed(2) + "deg)";
+        });
+      }
     }
 
     function fit() {
@@ -449,6 +472,23 @@
 
     // ---- the DOM balls ----
 
+    // Each ball floats: a slow drift and bob of about 1.5% of its size and a tiny
+    // rock, from a few sines with periods 4 to 9 s, its own phases per ball.
+    function phaseOf(key) {
+      var hash = 0;
+      for (var i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) | 0;
+      return [0, 1, 2, 3, 4].map(function (k) { return (((hash >>> (k * 5)) & 31) / 31) * Math.PI * 2; });
+    }
+
+    function swimOf(phase, t, size) {
+      var A = 0.015 * size, T = Math.PI * 2;
+      return {
+        x: A * (0.6 * Math.sin((T * t) / 6.1 + phase[0]) + 0.4 * Math.sin((T * t) / 8.7 + phase[1])),
+        y: A * (0.6 * Math.sin((T * t) / 5.3 + phase[2]) + 0.4 * Math.sin((T * t) / 4.1 + phase[3])),
+        turn: 0.9 * Math.sin((T * t) / 6.7 + phase[4]),
+      };
+    }
+
     function placeBall(node, ball) {
       node.style.width = node.style.height = (2 * ball.r).toFixed(1) + "px";
       node.style.left = (ball.x - ball.r).toFixed(1) + "px";
@@ -479,12 +519,15 @@
         wanted.add(ball.key);
         var entry = balls.get(ball.key);
         if (!entry) {
-          entry = { node: document.createElement("div"), holder: holder, x: ball.x, y: ball.y, r: ball.r, looks: looksOf(ball) };
+          entry = { node: document.createElement("div"), swim: document.createElement("div"), holder: holder, x: ball.x, y: ball.y, r: ball.r,
+            looks: looksOf(ball), phase: phaseOf(ball.key) };
           entry.node.className = "ball";
+          entry.swim.className = "swim";
+          entry.node.appendChild(entry.swim);
           balls.set(ball.key, entry);
           holder.appendChild(entry.node);
           placeBall(entry.node, ball);
-          entry.node.replaceChildren(mirror(2 * ball.r, poolOf(ball)));
+          entry.swim.replaceChildren(mirror(2 * ball.r, poolOf(ball)));
           if (mood !== "") arrive(entry.node, fresh++, motion);
           return;
         }
@@ -498,7 +541,7 @@
         placeBall(entry.node, ball);
         var looks = looksOf(ball);
         if (looks !== entry.looks) {
-          entry.node.replaceChildren(mirror(2 * ball.r, poolOf(ball)));
+          entry.swim.replaceChildren(mirror(2 * ball.r, poolOf(ball)));
           entry.looks = looks;
         }
         entry.x = ball.x; entry.y = ball.y; entry.r = ball.r;

@@ -46,10 +46,10 @@
     ".csb .sub[hidden] { display: none; }",
     ".csb .dots { display: flex; gap: 1vmin; }",
     ".csb .dots:empty { display: none; }",
-    // tiny chrome balls: dark mirror, a hard highlight, a light floor and a dark rim
-    ".csb .dots span { width: 3vmin; height: 3vmin; border-radius: 50%; box-shadow: inset 0 0 0 0.25vmin #0b0812;",
-    "  background: radial-gradient(circle at 34% 28%, #ffffff 0 9%, rgba(255,255,255,0) 15%),",
-    "  linear-gradient(180deg, #24212c 0%, #4c4856 44%, #100d16 47%, #100d16 52%, #a19dab 56%, #d6d2de 92%); }",
+    // tiny gunmetal balls: near black, one hard highlight, a soft lift toward the foot
+    ".csb .dots span { width: 3vmin; height: 3vmin; border-radius: 50%; box-shadow: inset 0 0 0 0.2vmin #0b0812;",
+    "  background: radial-gradient(circle at 34% 30%, #ffffff 0 12%, rgba(255,255,255,0) 20%),",
+    "  radial-gradient(circle at 50% 85%, #6a6276 0%, #2a2532 45%, #111017 75%); }",
     ".csb.time .hero { top: 18vh; height: 36vmin; padding: 0 12vmin 0 9vmin; }",
     ".csb.time .hero .word { font-size: 31vmin; letter-spacing: -0.04em; font-weight: 800; padding-bottom: 0.04em; }",
     ".csb.time .sub { top: calc(18vh + 37.6vmin); height: 9vmin; }",

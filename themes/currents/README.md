@@ -18,12 +18,13 @@ Each agent owns one thread colour: Claude vermilion to orange, Codex lilac to bl
 
 ## Motion
 
-- The lines upstream of each ball stand still and the balls stand still. The wakes churn all the time: loops form, stretch, fold and drift downstream, and the threads wobble with them.
+- Each ball sits sunk in a pool of its thread's colour and floats: it drifts and bobs by about 1.5% of its size and rocks very slightly, each ball on its own slow rhythm. The pool's edge wobbles, the lines at its waterline ripple, and the wake follows the ball. The lines upstream stand still.
+- The wakes churn all the time: loops form, stretch, fold and drift downstream, and the threads wobble with them.
 - The line pattern slides sideways by one line every 45 seconds, and the whole surface drifts a few pixels over 4 minutes (option `drift`). Both move pixels against burn-in.
 - Balls and cards rise in with a spring, 70 ms apart. When a task finishes, its card takes a small press, the new word rises in, the ball shrinks and its thread fades.
 - An approval is one move: the agent's colour floods the surface, the large ball lands, and the card slides in from the left and holds. Nothing pulses.
 - The surface is a WebGL fragment shader. It renders at half size (option `scale`) and at most 30 frames a second (option `fps`), and stops when the screen saver stops. The balls are pictures rendered once per change. Cards and words animate only transform and opacity.
-- With "Reduce motion" on in macOS, the surface is drawn once and stands still, and things fade instead of moving.
+- With "Reduce motion" on in macOS, the surface is drawn once and stands still, the balls do not float, and things fade instead of moving.
 
 ## What is in this folder
 
