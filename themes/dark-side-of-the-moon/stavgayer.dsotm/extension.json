@@ -1,0 +1,17 @@
+{
+  "id": "stavgayer.dsotm",
+  "name": "Prism",
+  "version": "1.0.0",
+  "type": "theme",
+  "api": 1,
+  "theme": {
+    "background": { "id": "stavgayer.dsotm-ground" },
+    "layout": "stavgayer.dsotm-layout",
+    "style": {
+      "--accent": "#e8ecee",
+      "--attention": "#ff5a4f",
+      "--done": "#e8ecee",
+      "--warn": "#f9dd00"
+    }
+  }
+}

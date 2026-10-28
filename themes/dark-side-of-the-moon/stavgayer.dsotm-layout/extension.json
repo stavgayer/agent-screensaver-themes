@@ -1,0 +1,20 @@
+{
+  "id": "stavgayer.dsotm-layout",
+  "name": "Prism layout",
+  "version": "1.0.0",
+  "type": "layout",
+  "api": 1,
+  "layout": {
+    "modes": {
+      "idle": {
+        "center": [{ "id": "stavgayer.dsotm-board" }, { "id": "stavgayer.dsotm-clock" }, { "id": "stavgayer.dsotm-rings" }]
+      },
+      "attention": {
+        "center": [{ "id": "stavgayer.dsotm-board" }, { "id": "stavgayer.dsotm-clock" }, { "id": "stavgayer.dsotm-rings" }]
+      },
+      "secondary": {
+        "center": [{ "id": "stavgayer.dsotm-board", "options": { "show": "time" } }]
+      }
+    }
+  }
+}

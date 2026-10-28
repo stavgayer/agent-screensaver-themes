@@ -1,0 +1,11 @@
+{
+  "id": "stavgayer.dsotm-board",
+  "name": "Prism board",
+  "version": "1.0.0",
+  "type": "component",
+  "api": 1,
+  "entry": "index.js",
+  "options": {
+    "show": { "type": "enum", "default": "agents", "values": ["agents", "time"], "label": "Show" }
+  }
+}

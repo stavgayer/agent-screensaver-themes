@@ -13,8 +13,9 @@ Themes here need agent-screensaver 0.3.0 or later. That release is not out yet.
 | Currents | ![Currents](themes/currents/media/working.jpg) | [themes/currents](themes/currents) |
 | Kid A | ![Kid A](themes/kid-a/media/working.jpg) | [themes/kid-a](themes/kid-a) |
 | Unknown Pleasures | ![Unknown Pleasures](themes/unknown-pleasures/media/working.jpg) | [themes/unknown-pleasures](themes/unknown-pleasures) |
+| Prism | ![Prism](themes/dark-side-of-the-moon/media/working.jpg) | [themes/dark-side-of-the-moon](themes/dark-side-of-the-moon) |
 
-All five are fan-made tributes, inspired by album covers. They include no album artwork or logos.
+All six are fan-made tributes, inspired by album covers. They include no album artwork or logos.
 
 ## Install a theme
 

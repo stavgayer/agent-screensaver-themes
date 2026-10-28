@@ -1,0 +1,8 @@
+{
+  "id": "stavgayer.dsotm-clock",
+  "name": "Prism clock",
+  "version": "1.0.0",
+  "type": "component",
+  "api": 1,
+  "entry": "index.js"
+}
