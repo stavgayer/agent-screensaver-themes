@@ -1,0 +1,24 @@
+{
+  "id": "stavgayer.pablo-layout",
+  "name": "Pablo layout",
+  "version": "2.1.0",
+  "type": "layout",
+  "api": 1,
+  "layout": {
+    "modes": {
+      "idle": {
+        "top-left": [{ "id": "stavgayer.pablo-clock" }],
+        "top-right": [{ "id": "stavgayer.pablo-rings" }],
+        "center": [{ "id": "stavgayer.pablo-rows" }]
+      },
+      "attention": {
+        "top-left": [{ "id": "stavgayer.pablo-clock" }],
+        "top-right": [{ "id": "stavgayer.pablo-rings" }],
+        "center": [{ "id": "stavgayer.pablo-rows" }]
+      },
+      "secondary": {
+        "center": [{ "id": "stavgayer.pablo-rows", "options": { "show": "time" } }]
+      }
+    }
+  }
+}

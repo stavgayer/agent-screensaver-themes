@@ -1,0 +1,8 @@
+{
+  "id": "stavgayer.pablo-rings",
+  "name": "Pablo rings",
+  "version": "2.1.0",
+  "type": "component",
+  "api": 1,
+  "entry": "index.js"
+}

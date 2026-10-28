@@ -1,0 +1,24 @@
+{
+  "id": "stavgayer.incolour-layout",
+  "name": "In Colour layout",
+  "version": "1.0.0",
+  "type": "layout",
+  "api": 1,
+  "layout": {
+    "modes": {
+      "idle": {
+        "top-left": [{ "id": "stavgayer.incolour-clock" }],
+        "top-right": [{ "id": "stavgayer.incolour-rings" }],
+        "center": [{ "id": "stavgayer.incolour-board" }]
+      },
+      "attention": {
+        "top-left": [{ "id": "stavgayer.incolour-clock" }],
+        "top-right": [{ "id": "stavgayer.incolour-rings" }],
+        "center": [{ "id": "stavgayer.incolour-board" }]
+      },
+      "secondary": {
+        "center": [{ "id": "stavgayer.incolour-board", "options": { "show": "time" } }]
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "stavgayer.pablo",
+  "name": "Pablo",
+  "version": "2.1.0",
+  "type": "theme",
+  "api": 1,
+  "theme": {
+    "background": { "id": "stavgayer.pablo-ground" },
+    "layout": "stavgayer.pablo-layout",
+    "style": {
+      "--accent": "#f58a3c",
+      "--attention": "#111111",
+      "--done": "#111111",
+      "--pablo-ground": "#f58a3c",
+      "--pablo-ink": "#111111"
+    }
+  }
+}

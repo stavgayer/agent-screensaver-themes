@@ -1,0 +1,11 @@
+{
+  "id": "stavgayer.pablo-ground",
+  "name": "Pablo ground",
+  "version": "2.1.0",
+  "type": "background",
+  "api": 1,
+  "entry": "index.js",
+  "options": {
+    "color": { "type": "color", "default": "#f58a3c", "label": "Color" }
+  }
+}

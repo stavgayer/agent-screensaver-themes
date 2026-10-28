@@ -1,0 +1,17 @@
+{
+  "id": "stavgayer.incolour",
+  "name": "In Colour",
+  "version": "1.0.0",
+  "type": "theme",
+  "api": 1,
+  "theme": {
+    "background": { "id": "stavgayer.incolour-ground" },
+    "layout": "stavgayer.incolour-layout",
+    "style": {
+      "--accent": "#e6471d",
+      "--attention": "#e6471d",
+      "--done": "#ffffff",
+      "--warn": "#f7a416"
+    }
+  }
+}
