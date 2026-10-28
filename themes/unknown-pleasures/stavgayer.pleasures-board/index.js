@@ -40,13 +40,19 @@
     // A card is a black plate in a hairline frame, like a label pinned beside the figure.
     ".upb .card { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: 0.45vmin;",
     "  padding: 1vmin 1.8vmin; background: var(--ground); box-shadow: inset 0 0 0 1px rgba(236, 235, 230, 0.6); overflow: hidden; }",
-    ".upb .card .agent { font-size: 2vmin; font-weight: 600; line-height: 1.1; color: var(--hue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
-    ".upb .card .since { font-family: 'UP Mono', ui-monospace, Menlo, monospace; font-size: 3.7vmin; font-weight: 520; line-height: 1; letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
-    ".upb .card .what { font-size: 2.4vmin; font-weight: 520; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
-    ".upb .card .where { font-size: 1.9vmin; line-height: 1.2; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+    ".upb .card .agent { font-size: 2vmin; font-weight: 600; line-height: 1.25; color: var(--hue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+    ".upb .card .since { font-family: 'UP Mono', ui-monospace, Menlo, monospace; font-size: 3.7vmin; font-weight: 520; line-height: 1.25; letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+    ".upb .card .what { font-size: 2.4vmin; font-weight: 520; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+    ".upb .card .where { font-size: 1.9vmin; line-height: 1.3; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
     ".upb .card .what[hidden], .upb .card .where[hidden] { display: none; }",
     ".upb .card.tight .where { display: none; }",
     ".upb .card.tight .since { font-size: 3.2vmin; }",
+    // Lines need their full height or the overflow clip cuts descenders; very short plates drop to two lines.
+    ".upb .card.tighter { gap: 0.2vmin; padding-block: 0.6vmin; }",
+    ".upb .card.tighter .agent { display: none; }",
+    ".upb .card.tighter .since { font-size: 2.6vmin; color: var(--hue); }",
+    ".upb .card.done.tighter .since { color: var(--muted); }",
+    ".upb .card.tighter .what { font-size: 2.1vmin; }",
     ".upb .card.done { box-shadow: inset 0 0 0 1px rgba(236, 235, 230, 0.22); }",
     ".upb .card.done .agent, .upb .card.done .since { color: var(--muted); }",
     ".upb .card.done .what { color: #c9c7c0; }",
@@ -309,7 +315,8 @@
         entry.node.style.width = lay.colRight - lay.colLeft + "px";
         entry.node.style.top = top + "px";
         entry.node.style.height = height + "px";
-        entry.node.classList.toggle("tight", height < 0.11 * lay.h);
+        entry.node.classList.toggle("tight", height < 0.15 * lay.h);
+        entry.node.classList.toggle("tighter", height < 0.095 * lay.h);
         entry.lead.style.left = lay.right + 0.008 * lay.w + "px";
         entry.lead.style.width = lay.colLeft - lay.right - 0.008 * lay.w + "px";
         entry.lead.style.top = Math.round(band.lead) + "px";
