@@ -1,0 +1,17 @@
+{
+  "id": "stavgayer.pleasures",
+  "name": "Unknown Pleasures",
+  "version": "1.1.0",
+  "type": "theme",
+  "api": 1,
+  "theme": {
+    "background": { "id": "stavgayer.pleasures-ground" },
+    "layout": "stavgayer.pleasures-layout",
+    "style": {
+      "--accent": "#ecebe6",
+      "--attention": "#ff5b3d",
+      "--done": "#ecebe6",
+      "--warn": "#ffb52e"
+    }
+  }
+}

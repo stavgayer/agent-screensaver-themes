@@ -12,8 +12,9 @@ Themes here need agent-screensaver 0.3.0 or later. That release is not out yet.
 | In Colour | ![In Colour](themes/in-colour/media/working.jpg) | [themes/in-colour](themes/in-colour) |
 | Currents | ![Currents](themes/currents/media/working.jpg) | [themes/currents](themes/currents) |
 | Kid A | ![Kid A](themes/kid-a/media/working.jpg) | [themes/kid-a](themes/kid-a) |
+| Unknown Pleasures | ![Unknown Pleasures](themes/unknown-pleasures/media/working.jpg) | [themes/unknown-pleasures](themes/unknown-pleasures) |
 
-All four are fan-made tributes, inspired by album covers. They include no album artwork or logos.
+All five are fan-made tributes, inspired by album covers. They include no album artwork or logos.
 
 ## Install a theme
 
