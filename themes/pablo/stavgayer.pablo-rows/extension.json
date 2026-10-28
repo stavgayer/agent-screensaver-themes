@@ -1,7 +1,7 @@
 {
   "id": "stavgayer.pablo-rows",
   "name": "Pablo board",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "type": "component",
   "api": 1,
   "entry": "index.js",

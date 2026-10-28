@@ -41,6 +41,8 @@
   }
 
   // Wedge widths vary a little, as on a hand-cut fan; the same every time.
+  var SEAM = 0.004; // radians
+
   function angles(count) {
     var weights = [], sum = 0;
     for (var i = 0; i < count; i++) {
@@ -62,13 +64,16 @@
     svg.setAttribute("viewBox", "-1 -1 2 2");
     svg.setAttribute("class", className);
     svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("shape-rendering", "geometricPrecision");
     angles(SPECTRUM.length).forEach(function (span) {
       var r = 1.5; // past the corners of the square (1.414), so the edge never shows
+      // Each wedge runs a hair under the next one, which closes the seams without a stroke
+      // (a stroke is wider than the wedges near the centre and smears the apex).
+      var end = span[1] + SEAM;
       var path = document.createElementNS(NS, "path");
       path.setAttribute("d", "M0 0L" + (r * Math.cos(span[0])).toFixed(4) + " " + (r * Math.sin(span[0])).toFixed(4) +
-        "L" + (r * Math.cos(span[1])).toFixed(4) + " " + (r * Math.sin(span[1])).toFixed(4) + "Z");
-      // The stroke in the same colour closes the hairline seams between wedges.
-      path.setAttribute("stroke-width", "0.006");
+        "L" + (r * Math.cos(end)).toFixed(4) + " " + (r * Math.sin(end)).toFixed(4) + "Z");
+      path.setAttribute("stroke", "none");
       svg.appendChild(path);
     });
     return svg;
@@ -77,7 +82,6 @@
   function paint(svg, colours) {
     Array.prototype.forEach.call(svg.children, function (path, i) {
       path.setAttribute("fill", colours[i]);
-      path.setAttribute("stroke", colours[i]);
     });
   }
 

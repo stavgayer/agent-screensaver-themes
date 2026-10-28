@@ -1,7 +1,7 @@
 {
   "id": "stavgayer.currents-clock",
   "name": "Currents clock",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "component",
   "api": 1,
   "entry": "index.js"

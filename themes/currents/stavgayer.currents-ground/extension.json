@@ -1,7 +1,7 @@
 {
   "id": "stavgayer.currents-ground",
   "name": "Currents surface",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "background",
   "api": 1,
   "entry": "index.js",
