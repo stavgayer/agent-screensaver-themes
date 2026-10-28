@@ -1,0 +1,17 @@
+{
+  "id": "stavgayer.kida",
+  "name": "Kid A",
+  "version": "1.1.0",
+  "type": "theme",
+  "api": 1,
+  "theme": {
+    "background": { "id": "stavgayer.kida-ground" },
+    "layout": "stavgayer.kida-layout",
+    "style": {
+      "--accent": "#ff4b33",
+      "--attention": "#ff4b33",
+      "--done": "#e9edef",
+      "--warn": "#ffb21f"
+    }
+  }
+}

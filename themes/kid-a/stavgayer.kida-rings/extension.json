@@ -1,0 +1,8 @@
+{
+  "id": "stavgayer.kida-rings",
+  "name": "Kid A rings",
+  "version": "1.1.0",
+  "type": "component",
+  "api": 1,
+  "entry": "index.js"
+}
