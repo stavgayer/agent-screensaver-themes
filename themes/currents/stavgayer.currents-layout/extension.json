@@ -1,0 +1,24 @@
+{
+  "id": "stavgayer.currents-layout",
+  "name": "Currents layout",
+  "version": "1.1.0",
+  "type": "layout",
+  "api": 1,
+  "layout": {
+    "modes": {
+      "idle": {
+        "top-left": [{ "id": "stavgayer.currents-clock" }],
+        "top-right": [{ "id": "stavgayer.currents-rings" }],
+        "center": [{ "id": "stavgayer.currents-board" }]
+      },
+      "attention": {
+        "top-left": [{ "id": "stavgayer.currents-clock" }],
+        "top-right": [{ "id": "stavgayer.currents-rings" }],
+        "center": [{ "id": "stavgayer.currents-board" }]
+      },
+      "secondary": {
+        "center": [{ "id": "stavgayer.currents-board", "options": { "show": "time" } }]
+      }
+    }
+  }
+}

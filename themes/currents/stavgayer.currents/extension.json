@@ -1,0 +1,17 @@
+{
+  "id": "stavgayer.currents",
+  "name": "Currents",
+  "version": "1.1.0",
+  "type": "theme",
+  "api": 1,
+  "theme": {
+    "background": { "id": "stavgayer.currents-ground" },
+    "layout": "stavgayer.currents-layout",
+    "style": {
+      "--accent": "#ff6a3d",
+      "--attention": "#ff6a3d",
+      "--done": "#f4ecdf",
+      "--warn": "#ffc94a"
+    }
+  }
+}
