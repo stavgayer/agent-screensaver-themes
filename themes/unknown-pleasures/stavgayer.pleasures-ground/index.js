@@ -24,7 +24,7 @@
 // program removed them. The heights are worked out on the GPU in a vertex
 // shader from a few numbers per line, so a frame costs one draw call and no
 // geometry upload. It runs at 24 frames a second (option fps) through the runtime's
-// frame clock (12 when only the calm stack breathes) and stops when the screen
+// frame clock and stops when the screen
 // saver stops. The slow sway against burn-in is part of the same draw, not a CSS
 // animation, so nothing else on the page has to be composited every frame. With reduced motion it is drawn once per change and stands still.
 (function () {
@@ -43,10 +43,10 @@
   }
   var PERIOD_S = 1.337; // CP 1919
   var MARGIN = 3; // vmin of slack around the plot for the drift
-  var DRIFT_S = 240; // one slow sway of the whole picture against burn-in; the board sways with it
+  var DRIFT_S = 240; // one slow sway of the plot against burn-in; the words stand still
 
-  // Where the picture stands in its sway, in css px. The board works out the same
-  // from the same clock, so each card stays beside its band.
+  // Where the plot stands in its sway, in css px. It is a few pixels at most, so
+  // each card of the board, which does not sway, still stands beside its band.
   function driftAt(nowMs, vmin) {
     if (reduce.matches) return { x: 0, y: 0 };
     var t = (nowMs / 1000 / DRIFT_S) * Math.PI;
@@ -250,7 +250,7 @@
 
   window.agentScreensaver.register(function () {
     var box, drift, surface, style, lastState, lay, mood = "";
-    var gl, program, uniforms = {}, cancelFrame, lastMs, seconds = 0, tick = 0;
+    var gl, program, uniforms = {}, cancelFrame, lastMs, seconds = 0;
     var fps = 24, scale = 0.5, ratio = 1, dirty = true, area = { x: 0, y: 0, w: 1, h: 1 };
     var rows = [];
     var hues = [INK.slice()]; // index 0 is the ink
@@ -439,7 +439,6 @@
       gl.drawElements(gl.TRIANGLES, ROWS * (SAMPLES - 1) * 12, gl.UNSIGNED_INT, 0);
     }
 
-    var moving = true;
     function frame(nowMs) {
       var ms = Math.min(100, nowMs - (lastMs === undefined ? nowMs - 1000 / fps : lastMs));
       lastMs = nowMs;
@@ -451,13 +450,11 @@
         render();
         return;
       }
-      tick++;
-      // Only the calm stack breathing: half the frames are enough for so slow a wave.
-      var slow = !moving && !dirty && (mood === "idle" || mood === "rest" || mood === "away" && !rows.some(function (r) { return r.rate > 0.002; }));
-      if (slow && tick % 2 === 1) { return; }
+      // Every frame at the full rate, the calm breathing too: at half the rate the
+      // slow wave moved in visible steps on a 1x screen.
       dirty = false;
-      seconds += (slow ? 2 : 1) * ms / 1000;
-      moving = step(slow ? 2 * ms : ms);
+      seconds += ms / 1000;
+      step(ms);
       render();
     }
 

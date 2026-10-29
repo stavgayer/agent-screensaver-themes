@@ -22,8 +22,8 @@ Each agent owns one colour of the spectrum: Claude red, Codex blue, Cursor yello
 - When a task finishes, its band thins and fades toward white, and its card moves a hair as its time line rises in.
 - An approval is one move: the bands fold into one beam, the prism glows, and `NEEDS YOU` lands above the beam a beat later, then who, what and where under it. Nothing pulses.
 - The white beam shimmers slowly while agents work. At rest a heartbeat passes along the bands every 26 seconds.
-- The whole picture sways a little over 4 minutes, so no pixel stays lit in one place.
-- The light is one WebGL draw of one triangle over the screen. It draws only when something changes or moves, at most 30 frames a second (option `fps`), at half the screen's pixels (option `scale`), and not at all while the page is hidden. Cards and words animate only transform and opacity.
+- The prism and the beam sway a few pixels over 4 minutes, drawn with the light itself so they glide, so no pixel stays lit in one place. The words do not sway, since text moved by fractions of a pixel shimmers, and the bands still end at their cards.
+- The light is one WebGL draw of one triangle over the screen. It draws 30 frames a second (option `fps`) while something changes or moves, and 10 while the light stands still, so the sway glides, at half the screen's pixels (option `scale`), and not at all while the page is hidden. Cards and words animate only transform and opacity.
 - With "Reduce motion" on in macOS, the light is drawn once for each change and stands still: no shimmer, no heartbeat, no sway, and words fade instead of moving.
 
 ## What is in this folder

@@ -22,7 +22,6 @@
   var SPARE = ["#ff6fae", "#5fe0b4", "#b9a4ff", "#ffd36a", "#7fa8ff", "#ff8a4c"];
   var WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  var DRIFT_S = 240;
   var reduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
 
   var STYLE = [
@@ -30,7 +29,6 @@
     "@font-face { font-family: 'UP Mono'; src: url('" + base + "fonts/GeistMono.ttf') format('truetype'); font-weight: 100 900; }",
     ".upb { --ink: #ecebe6; --muted: #9c9a93; --ground: #0b0b0a; position: absolute; inset: 0; overflow: hidden; color: var(--ink);",
     "  font-family: 'UP Sans', 'Helvetica Neue', sans-serif; font-weight: 500; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }",
-    // the same slow drift as the plot, so each card stays beside its band
     ".upb .stage { position: absolute; inset: 0; }",
     ".upb .col { position: absolute; left: 70.5vw; right: 4.5vw; }",
     // the display voice: Instrument Sans at its narrowest, in capitals, set tight
@@ -128,14 +126,6 @@
     return p;
   }
 
-  // The same sway as the plot, from the same clock. It moves a fraction of a pixel a
-  // second, so setting it once a second is smooth enough and costs nothing.
-  function driftAt(nowMs, vmin) {
-    if (reduce.matches) return { x: 0, y: 0 };
-    var t = (nowMs / 1000 / DRIFT_S) * Math.PI;
-    return { x: 1.2 * vmin * Math.sin(t), y: 0.5 * vmin * Math.sin(0.73 * t + 1) };
-  }
-
   function pad2(value) {
     return String(value).padStart(2, "0");
   }
@@ -206,7 +196,7 @@
   }
 
   window.agentScreensaver.register(function () {
-    var cancelDrift, box, stage, say, sub, cardsBox, more, call, time, clock, date, lastState;
+    var box, stage, say, sub, cardsBox, more, call, time, clock, date, lastState;
     var show = "agents", mood = "", sayKey = "", callKey = "";
     var cards = new Map();
 
@@ -507,12 +497,9 @@
         box.appendChild(stage);
         root.append(style, box);
         setShow(ctx.options);
-        var sway = function () {
-          var d = driftAt(Date.now(), Math.min(window.innerWidth, window.innerHeight) / 100);
-          stage.style.transform = "translate(" + d.x.toFixed(2) + "px, " + d.y.toFixed(2) + "px)";
-        };
-        sway();
-        cancelDrift = ctx.requestFrame(sway, 1);
+        // The words do not sway with the plot: moved by fractions of a pixel, text
+        // is painted again at each step and its edges shimmer. Only the plot sways,
+        // a few pixels at most, so each card still stands beside its band.
         if (document.fonts && document.fonts.load) document.fonts.load("600 40px 'UP Sans'").then(onResize, function () {});
         window.addEventListener("resize", onResize);
       },
@@ -526,8 +513,6 @@
       },
       unmount: function () {
         window.removeEventListener("resize", onResize);
-        if (cancelDrift) cancelDrift();
-        cancelDrift = undefined;
         if (box && box.parentElement) box.parentElement.replaceChildren();
         box = stage = say = sub = cardsBox = more = call = time = clock = date = lastState = undefined;
         cards.clear();

@@ -86,7 +86,6 @@
   // ---- end of the shared part ----
 
   var MINUTE = 60000;
-  var DRIFT_S = 240;
   var scriptSrc = (document.currentScript && document.currentScript.src) || "";
   var base = scriptSrc.replace(/[^/]*$/, "");
   var WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -170,13 +169,6 @@
   var LAND = spring(170, 17);
   var EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
 
-  // The same sway as the light, from the same clock, so each card stays at the end of its band.
-  function driftAt(nowMs, vmin) {
-    if (reduce.matches) return { x: 0, y: 0 };
-    var t = (nowMs / 1000 / DRIFT_S) * Math.PI;
-    return { x: 1.0 * vmin * Math.sin(t), y: 0.45 * vmin * Math.sin(0.73 * t + 1) };
-  }
-
   function pad2(value) {
     return String(value).padStart(2, "0");
   }
@@ -255,13 +247,9 @@
   }
 
   window.agentScreensaver.register(function () {
-    var cancelDrift, box, stage, say, word, sub, cardsBox, more, callTop, callBody, clock, date, lastState;
+    var box, stage, say, word, sub, cardsBox, more, callTop, callBody, clock, date, lastState;
     var show = "agents", mood = "", sayKey = "", callKey = "";
     var cards = new Map();
-
-    function vmin() {
-      return Math.min(window.innerWidth, window.innerHeight) / 100;
-    }
 
     function rise(node, delay, distance) {
       if (reduce.matches) {
@@ -576,12 +564,9 @@
         root.append(style, box);
         setShow(ctx.options);
         onResize();
-        var sway = function () {
-          var d = driftAt(Date.now(), vmin());
-          stage.style.transform = "translate(" + d.x.toFixed(2) + "px, " + d.y.toFixed(2) + "px)";
-        };
-        sway();
-        if (!reduce.matches) cancelDrift = ctx.requestFrame(sway, 1);
+        // The words do not sway with the light: moved by fractions of a pixel, text
+        // is painted again at each step and its edges shimmer. The ground keeps the
+        // ends of the bands still, so each band still meets its card.
         if (document.fonts && document.fonts.load) document.fonts.load("600 40px 'Prism Sans'").then(onResize, function () {});
         window.addEventListener("resize", onResize);
       },
@@ -595,8 +580,6 @@
       },
       unmount: function () {
         window.removeEventListener("resize", onResize);
-        if (cancelDrift) cancelDrift();
-        cancelDrift = undefined;
         if (box && box.parentElement) box.parentElement.replaceChildren();
         box = stage = say = word = sub = cardsBox = more = callTop = callBody = clock = date = lastState = undefined;
         cards.clear();

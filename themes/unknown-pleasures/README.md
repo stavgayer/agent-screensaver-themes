@@ -22,7 +22,7 @@ Each agent owns one colour: Claude red, Codex blue, Cursor amber. Other agents g
 - When a task finishes, its band goes flat with a small overshoot, its card moves a hair and its time line rises in.
 - An approval is one move: the burst rises with a spring, the other lines dim, the words of the column step aside, and `NEEDS YOU` lands a beat later, then who, what and where. Nothing pulses.
 - Cards rise in from the right with a spring, 70 ms apart, after their leader draws out from the band.
-- The whole picture sways a little over 4 minutes, so no pixel stays lit in one place.
+- The plot sways a few pixels over 4 minutes, drawn with the plot itself so it glides, so no pixel stays lit in one place. The words do not sway: text moved by fractions of a pixel shimmers.
 - The plot is one WebGL draw call: the heights of the lines are worked out on the GPU from a few numbers per line. Each line is filled with black before it is drawn, so it hides the lines behind it. It runs at 24 frames a second (option `fps`), at half the screen's pixels (option `scale`), and only over the plot. It stops when the screen saver stops. Cards and words animate only transform and opacity.
 - With "Reduce motion" on in macOS, the plot is drawn once for each change and stands still, nothing sways, and words fade instead of moving.
 

@@ -19,11 +19,13 @@
 //         colour that runs across the screen, and the prism glows with it.
 //
 // It is one WebGL draw of one triangle over the screen: every pixel works out
-// what light falls on it from a few numbers per band. It draws only when
-// something changes or moves, at most 30 frames a second (option fps), at half
-// the screen's pixels (option scale) but never less than one pixel per point,
-// so the edges stay crisp, and not at all while the page is hidden. The slow
-// sway against burn-in moves the finished canvas once a second. With reduced
+// what light falls on it from a few numbers per band. It draws every frame,
+// 30 a second (option fps), while something changes or moves, and a third of
+// them while the light stands still, at half the screen's pixels (option scale)
+// but never less than one pixel per point, so the edges stay crisp, and not at
+// all while the page is hidden. The slow sway of the prism against burn-in is
+// part of the same draw, so it glides instead of stepping once a second; the
+// far ends of the bands stay at the cards, which do not sway. With reduced
 // motion it is drawn once per change: no heartbeat, no shimmer, no sway.
 (function () {
   // ---- shared with the board and the rings: keep these in step ----
@@ -146,7 +148,7 @@
     "precision highp float;",
     "uniform vec2 uSize;", // canvas size in device px
     "uniform float uRatio, uMargin, uTime, uVmin, uSide, uBeamW;",
-    "uniform vec2 uL, uR, uA, uE, uB0, uFanA, uFanB;",
+    "uniform vec2 uL, uR, uA, uE, uB0, uFanA, uFanB, uShift;", // uShift: the sway against burn-in, css px
     "uniform vec4 uLight;", // incoming beam, rim, call glow, shimmer
     "uniform vec3 uHot, uField;",
     "uniform vec4 uBeat;", // amount, position x, height px, half width px
@@ -168,7 +170,7 @@
     "    - 0.32 * exp(-pow((u - 0.1) / 0.05, 2.0)) + 0.2 * exp(-pow((u - 0.5) / 0.13, 2.0));",
     "}",
     "void main() {",
-    "  vec2 p = vec2(gl_FragCoord.x, uSize.y - gl_FragCoord.y) / uRatio - uMargin;",
+    "  vec2 p = vec2(gl_FragCoord.x, uSize.y - gl_FragCoord.y) / uRatio - uMargin - uShift;",
     "  vec3 col = uField;",
     "  float e1 = side(p, uL, uR), e2 = side(p, uR, uA), e3 = side(p, uA, uL);",
     "  float de = min(e1, min(e2, e3));",
@@ -235,7 +237,7 @@
 
   var STYLE = [
     ".dsg { position: absolute; inset: 0; overflow: hidden; background: #090d0c; }",
-    ".dsg canvas { position: absolute; display: block; will-change: transform; }",
+    ".dsg canvas { position: absolute; display: block; }",
   ].join("\n");
 
   var GEO = ["ax", "ay", "bx", "by", "fx", "ft", "fb"];
@@ -243,7 +245,7 @@
 
   window.agentScreensaver.register(function () {
     var box, surface, style, lastState, geo, mood = "", ctxRef;
-    var gl, program, uniforms = {}, cancelFrame, cancelSway, lastMs, seconds = 0, tick = 0;
+    var gl, program, uniforms = {}, cancelFrame, lastMs, seconds = 0, tick = 0;
     var fps = 30, scale = 0.5, ratio = 1, margin = 0, dirty = true, moving = true;
     var bands = new Map(); // key -> { cur, goal, reach, vel, goalReach, order }
     var light = { cur: { beam: 1, rim: 1, glow: 0, shimmer: 0 }, goal: { beam: 1, rim: 1, glow: 0, shimmer: 0 } };
@@ -429,12 +431,15 @@
       var list = Array.from(bands.values()).sort(function (a, b) { return a.order - b.order; }).slice(0, MAX_BANDS);
       // the beam of a call is drawn last, over the bands folding into it
       list.sort(function (a, b) { return (a.goal.glow > 0.5 ? 1 : 0) - (b.goal.glow > 0.5 ? 1 : 0); });
+      // The prism sways; the far ends of the bands stay where the cards stand,
+      // since the words do not sway.
+      var shift = driftAt(Date.now(), g.vmin);
       for (var i = 0; i < MAX_BANDS; i++) {
         var band = list[i], at = i * 4;
         if (!band) { dataC[at + 3] = 0; continue; }
         var c = band.cur;
         dataA[at] = c.ax; dataA[at + 1] = c.ay; dataA[at + 2] = c.bx; dataA[at + 3] = c.by;
-        dataB[at] = c.fx; dataB[at + 1] = c.ft; dataB[at + 2] = c.fb; dataB[at + 3] = Math.max(0, band.reach);
+        dataB[at] = c.fx - shift.x; dataB[at + 1] = c.ft - shift.y; dataB[at + 2] = c.fb - shift.y; dataB[at + 3] = Math.max(0, band.reach);
         dataC[at] = c.r; dataC[at + 1] = c.g; dataC[at + 2] = c.b; dataC[at + 3] = Math.max(0, Math.min(1, c.a));
         dataD[at] = c.glow; dataD[at + 1] = c.core;
       }
@@ -444,6 +449,7 @@
       gl.uniform2f(uniforms.uSize, surface.width, surface.height);
       gl.uniform1f(uniforms.uRatio, ratio);
       gl.uniform1f(uniforms.uMargin, margin);
+      gl.uniform2f(uniforms.uShift, shift.x, shift.y);
       gl.uniform1f(uniforms.uTime, seconds);
       gl.uniform1f(uniforms.uVmin, g.vmin);
       gl.uniform1f(uniforms.uSide, g.side);
@@ -482,10 +488,11 @@
       tick++;
       seconds += ms / 1000;
       var beat = beatNow();
-      // Still light costs nothing: draw only while something moves. The shimmer of
-      // work is slow, so a third of the frames carry it.
-      var shimmer = light.cur.shimmer > 0.01 && tick % 3 === 0;
-      if (!dirty && !moving && !beat.active && !shimmer && !wasBeat) return;
+      // Every frame while something moves, the shimmer of work too: drawn on fewer
+      // frames it moved in visible steps. Still light is drawn a third of the
+      // frames, for the sway alone: at most 0.03 px a step, so it glides.
+      var shimmer = light.cur.shimmer > 0.01;
+      if (!dirty && !moving && !beat.active && !shimmer && !wasBeat && tick % 3 !== 0) return;
       wasBeat = beat.active;
       dirty = false;
       moving = step(ms);
@@ -507,13 +514,6 @@
       dirty = true;
     }
 
-    function sway() {
-      if (!surface) return;
-      var s = size();
-      var d = driftAt(Date.now(), Math.min(s.w, s.h) / 100);
-      surface.style.transform = "translate(" + d.x.toFixed(2) + "px, " + d.y.toFixed(2) + "px)";
-    }
-
     function setUpGl() {
       surface = document.createElement("canvas");
       box.appendChild(surface);
@@ -526,7 +526,7 @@
       gl.linkProgram(program);
       if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) || "link failed");
       ["uSize", "uRatio", "uMargin", "uTime", "uVmin", "uSide", "uBeamW", "uL", "uR", "uA", "uE", "uB0", "uFanA", "uFanB",
-        "uLight", "uHot", "uField", "uBeat", "uCount", "uBA", "uBB", "uBC", "uBD"].forEach(function (name) {
+        "uShift", "uLight", "uHot", "uField", "uBeat", "uCount", "uBA", "uBB", "uBC", "uBD"].forEach(function (name) {
         uniforms[name] = gl.getUniformLocation(program, name);
       });
       var vao = gl.createVertexArray();
@@ -566,13 +566,11 @@
           surface = gl = undefined;
         }
         fit();
-        sway();
         window.addEventListener("resize", onResize);
         document.addEventListener("visibilitychange", onVisible);
         draw({ display: ctx.display, cards: [], nowMs: ctx.now() });
         if (gl) {
           cancelFrame = ctx.requestFrame(frame, fps);
-          if (!reduce.matches) cancelSway = ctx.requestFrame(sway, 1);
         }
       },
       update: function (state) {
@@ -583,8 +581,7 @@
         window.removeEventListener("resize", onResize);
         document.removeEventListener("visibilitychange", onVisible);
         if (cancelFrame) cancelFrame();
-        if (cancelSway) cancelSway();
-        cancelFrame = cancelSway = undefined;
+        cancelFrame = undefined;
         if (gl) {
           var lose = gl.getExtension("WEBGL_lose_context");
           if (lose) lose.loseContext();
