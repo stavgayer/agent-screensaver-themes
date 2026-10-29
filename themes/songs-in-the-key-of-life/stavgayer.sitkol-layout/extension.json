@@ -1,0 +1,20 @@
+{
+  "id": "stavgayer.sitkol-layout",
+  "name": "Key of Life layout",
+  "version": "1.0.0",
+  "type": "layout",
+  "api": 1,
+  "layout": {
+    "modes": {
+      "idle": {
+        "center": [{ "id": "stavgayer.sitkol-board" }, { "id": "stavgayer.sitkol-bar" }]
+      },
+      "attention": {
+        "center": [{ "id": "stavgayer.sitkol-board" }, { "id": "stavgayer.sitkol-bar" }]
+      },
+      "secondary": {
+        "center": [{ "id": "stavgayer.sitkol-board", "options": { "show": "time" } }]
+      }
+    }
+  }
+}

@@ -14,8 +14,9 @@ Themes here need agent-screensaver 0.3.0 or later. That release is not out yet.
 | Kid A | ![Kid A](themes/kid-a/media/working.jpg) | [themes/kid-a](themes/kid-a) |
 | Unknown Pleasures | ![Unknown Pleasures](themes/unknown-pleasures/media/working.jpg) | [themes/unknown-pleasures](themes/unknown-pleasures) |
 | Prism | ![Prism](themes/dark-side-of-the-moon/media/working.jpg) | [themes/dark-side-of-the-moon](themes/dark-side-of-the-moon) |
+| Key of Life | ![Key of Life](themes/songs-in-the-key-of-life/media/working.jpg) | [themes/songs-in-the-key-of-life](themes/songs-in-the-key-of-life) |
 
-All six are fan-made tributes, inspired by album covers. They include no album artwork or logos.
+All seven are fan-made tributes, inspired by album covers. They include no album artwork or logos.
 
 ## Install a theme
 

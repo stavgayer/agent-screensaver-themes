@@ -1,0 +1,17 @@
+{
+  "id": "stavgayer.sitkol",
+  "name": "Key of Life",
+  "version": "1.0.0",
+  "type": "theme",
+  "api": 1,
+  "theme": {
+    "background": { "id": "stavgayer.sitkol-ground" },
+    "layout": "stavgayer.sitkol-layout",
+    "style": {
+      "--accent": "#fcefd4",
+      "--attention": "#e4472c",
+      "--done": "#fcefd4",
+      "--warn": "#f3b33a"
+    }
+  }
+}

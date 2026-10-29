@@ -1,0 +1,8 @@
+{
+  "id": "stavgayer.sitkol-bar",
+  "name": "Key of Life bar",
+  "version": "1.0.0",
+  "type": "component",
+  "api": 1,
+  "entry": "index.js"
+}
