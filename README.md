@@ -2,7 +2,7 @@
 
 Community themes for [agent-screensaver](https://github.com/stavgayer/agent-screensaver), a macOS screen saver that shows what AI coding agents are doing.
 
-Themes here need agent-screensaver 0.3.0 or later. That release is not out yet.
+Themes here need [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.3.0) or later.
 
 ## Themes
 
