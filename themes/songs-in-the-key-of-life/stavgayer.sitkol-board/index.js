@@ -159,7 +159,6 @@
   // ---- end of the shared part ----
 
   var MINUTE = 60000;
-  var DRIFT_S = 240;
   var scriptSrc = (document.currentScript && document.currentScript.src) || "";
   var base = scriptSrc.replace(/[^/]*$/, "");
   var WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -209,6 +208,12 @@
     ".skb .call .more { margin-top: 1.6vmin; font-size: 2.4vmin; font-weight: 700; line-height: 1.25; color: var(--muted); }",
     // a card is a cream label at the end of its ring's leader
     ".skb .cards { position: absolute; inset: 0; }",
+    // a leader: a cream line with a dark rim, and a cream dot on the ring
+    ".skb .leaders { position: absolute; inset: 0; }",
+    ".skb .leader { position: absolute; height: 1vmin; transform-origin: 0 50%; background: rgba(60, 25, 15, 0.9); border-radius: 1vmin; }",
+    ".skb .leader::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 0.34vmin; transform: translateY(-50%); background: #fdf1d5; }",
+    ".skb .dot { position: absolute; width: 2.5vmin; height: 2.5vmin; margin: -1.25vmin 0 0 -1.25vmin; box-sizing: border-box; border-radius: 50%;",
+    "  background: #fdf1d5; border: 0.3vmin solid rgba(60, 25, 15, 0.9); }",
     ".skb .card { position: absolute; box-sizing: border-box; display: flex; align-items: center; gap: 2vmin; padding: 0 3vmin 0 1.8vmin;",
     "  background: var(--cream); border-radius: 999px; box-shadow: 0 0.5vmin 2.2vmin rgba(58, 16, 6, 0.32); }",
     ".skb .card .mark { flex: none; display: block; }",
@@ -251,13 +256,6 @@
   var SETTLE = spring(200, 21);
   var LAND = spring(150, 15);
   var EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
-
-  // The same sway as the field, from the same clock, so each card stays at the end of its leader.
-  function driftAt(nowMs, vmin) {
-    if (reduce.matches) return { x: 0, y: 0 };
-    var t = (nowMs / 1000 / DRIFT_S) * Math.PI;
-    return { x: 1.0 * vmin * Math.sin(t), y: 0.45 * vmin * Math.sin(0.73 * t + 1) };
-  }
 
   function pad2(value) {
     return String(value).padStart(2, "0");
@@ -344,7 +342,7 @@
   }
 
   window.agentScreensaver.register(function () {
-    var cancelDrift, box, stage, centre, layers = {}, parts = {}, cardsBox, more, lastState;
+    var cancelDrift, box, stage, centre, layers = {}, parts = {}, cardsBox, leadersBox, more, lastState;
     var show = "agents", mood = "", sayKey = "", callKey = "", restKey = "";
     var cards = new Map();
 
@@ -522,7 +520,11 @@
       bits.words.append(bits.head, bits.what, bits.where);
       node.append(bits.mark, bits.words);
       node.style.setProperty("--hue", entry.hue.ink);
-      return { node: node, parts: bits, done: undefined };
+      // The leader from the task's ring to the card, and its dot on the ring. They
+      // live here, with the card, so they come and go with it.
+      var line = el("div", "leader"), dot = el("div", "dot");
+      leadersBox.append(line, dot);
+      return { node: node, parts: bits, done: undefined, line: line, dot: dot };
     }
 
     function fillCard(entry, card, state) {
@@ -552,8 +554,13 @@
     function enter(entry, order) {
       if (reduce.matches) {
         entry.node.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: order * 60, easing: "ease-out", fill: "backwards" });
+        [entry.line, entry.dot].forEach(function (node) { node.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: order * 60, easing: "ease-out", fill: "backwards" }); });
         return;
       }
+      // the leader draws in as the ring settles, just before its card lands
+      [entry.line, entry.dot].forEach(function (node) {
+        node.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, delay: 200 + order * 60, easing: EASE_OUT, fill: "backwards" });
+      });
       // The ring moves into place first (the field does that), then its card lands at the end of its leader.
       entry.node.animate([{ opacity: 0, transform: "translateX(3.2vmin) scale(0.97)" }, { opacity: 1, transform: "none" }],
         { duration: SETTLE.duration, delay: 240 + order * 60, easing: SETTLE.easing, fill: "backwards" });
@@ -563,6 +570,34 @@
       var to = reduce.matches ? { opacity: 0 } : { opacity: 0, transform: "translateX(2vmin)" };
       var motion = entry.node.animate([{}, to], { duration: 200, easing: EASE_OUT, fill: "forwards" });
       motion.onfinish = function () { entry.node.remove(); };
+      [entry.line, entry.dot].forEach(function (node) {
+        var gone = node.animate([{}, { opacity: 0 }], { duration: 140, easing: EASE_OUT, fill: "forwards" });
+        gone.onfinish = function () { node.remove(); };
+      });
+    }
+
+    // The leader runs along the ray from the task's ring to the left end of its
+    // card: from the middle of the ring, found with the same wobble the field
+    // draws, so the dot sits on the ring. Every leader is on its own ray from the
+    // centre, so no two cross.
+    function placeLeader(entry, g, ring, slot) {
+      var ax = g.colL + 0.6 * g.vmin, ay = slot.mid;
+      var outer = g.centreOf(ring), inner = g.centreOf(ring - 1);
+      if (ring - 1 === 0) inner = [g.cx, g.cy];
+      var theta = Math.atan2(ay - outer[1], ax - outer[0]);
+      var rin = edgeAt(g.r[ring - 1], wobbleOf(ring - 1), Math.atan2(ay - inner[1], ax - inner[0]));
+      var rout = edgeAt(g.r[ring], wobbleOf(ring), theta);
+      var mid = 0.5 * (rin + rout);
+      var px = outer[0] + Math.cos(theta) * mid, py = outer[1] + Math.sin(theta) * mid;
+      var length = Math.hypot(ax - px, ay - py), angle = Math.atan2(ay - py, ax - px);
+      entry.line.style.left = px + "px";
+      entry.line.style.top = py + "px";
+      entry.line.style.width = length + "px";
+      entry.line.style.transform = "translateY(-50%) rotate(" + angle.toFixed(4) + "rad)";
+      entry.dot.style.left = px + "px";
+      entry.dot.style.top = py + "px";
+      var faint = entry.done ? "0.55" : "";
+      entry.line.style.opacity = entry.dot.style.opacity = faint;
     }
 
     function placeCards() {
@@ -570,9 +605,11 @@
       var g = geometry(window.innerWidth, window.innerHeight, "work", shown);
       var i = 0;
       cards.forEach(function (entry) {
-        var slot = g.slots[i++];
+        var ring = ++i, slot = g.slots[ring - 1];
+        entry.line.style.display = entry.dot.style.display = slot ? "" : "none";
         if (!slot) { entry.node.style.display = "none"; return; }
         entry.node.style.display = "";
+        placeLeader(entry, g, ring, slot);
         entry.node.style.left = g.colL + "px";
         entry.node.style.width = g.colR - g.colL + "px";
         entry.node.style.top = slot.top + "px";
@@ -710,6 +747,8 @@
         layers.call.append(parts.big, parts.callBody);
         centre.append(layers.rest, layers.work, layers.call);
         cardsBox = el("div", "cards");
+        leadersBox = el("div", "leaders");
+        cardsBox.appendChild(leadersBox);
         more = el("div", "more");
         more.hidden = true;
         cardsBox.appendChild(more);
@@ -717,12 +756,8 @@
         box.appendChild(stage);
         root.append(style, box);
         setShow(ctx.options);
-        var sway = function () {
-          var d = driftAt(Date.now(), vmin());
-          stage.style.transform = "translate(" + d.x.toFixed(2) + "px, " + d.y.toFixed(2) + "px)";
-        };
-        sway();
-        if (!reduce.matches) cancelDrift = ctx.requestFrame(sway, 1);
+        // The words stand still. Only the field sways against burn-in: moving text
+        // by a fraction of a pixel resamples it, and by whole pixels it visibly steps.
         if (document.fonts && document.fonts.load) {
           Promise.all([document.fonts.load("400 40px 'Key Display'"), document.fonts.load("700 40px 'Key Sans'"), document.fonts.load("500 40px 'Key Sans'")]).then(onResize, function () {});
         }
@@ -741,7 +776,7 @@
         if (cancelDrift) cancelDrift();
         cancelDrift = undefined;
         if (box && box.parentElement) box.parentElement.replaceChildren();
-        box = stage = centre = cardsBox = more = lastState = undefined;
+        box = stage = centre = cardsBox = leadersBox = more = lastState = undefined;
         layers = {};
         parts = {};
         cards.clear();

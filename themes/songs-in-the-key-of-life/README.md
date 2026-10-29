@@ -22,8 +22,8 @@ Each agent owns a warm colour: Claude vermilion, Codex gold, Cursor crimson. Oth
 - When a task finishes, its ring fades back into the palette over about a second, and its card moves a hair as its time line rises in.
 - An approval is one move: the centre opens on a spring, a wave runs out through the rings, and `Needs you` lands in the centre a beat later, then who, what and where under it. While the agent waits, a softer wave runs out every 9 seconds.
 - At rest the rings breathe outward, a fraction of a percent over 40 seconds.
-- The whole picture sways a little over 4 minutes, so no pixel stays lit in one place.
-- The rings are one WebGL draw of one triangle over the screen. It draws only when something changes or moves, at most 30 frames a second (option `fps`), at half the screen's pixels (option `scale`), and not at all while the page is hidden. The breathing takes a quarter of those frames, the light in a working ring a third. Cards and words animate only transform and opacity.
+- The rings sway a little over 8 minutes, so no pixel stays lit in one place. The words stand still: moving text by a fraction of a pixel makes it shimmer.
+- The rings are one WebGL draw of one triangle over the screen. It draws only when something changes or moves, at most 30 frames a second (option `fps`), at half the screen's pixels (option `scale`), and not at all while the page is hidden. The breathing, the sway and the light in a working ring take every second frame, so they glide. Cards and words animate only transform and opacity.
 - With "Reduce motion" on in macOS, the rings are drawn once for each change and stand still: no breathing, no light, no wave, no sway, and words fade instead of moving.
 
 ## What is in this folder

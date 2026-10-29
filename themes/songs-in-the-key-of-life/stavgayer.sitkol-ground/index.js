@@ -9,7 +9,7 @@
 //         centre left empty for the clock. The rings breathe outward, slowly;
 //   work: the field moves left and each task owns one ring, tinted toward its
 //         agent's colour, with a light that runs outward through it while the
-//         task works. A leader runs from the ring to the task's card;
+//         task works. The board draws a leader from the ring to the task's card;
 //   done: a finished task's ring settles and fades back into the palette;
 //   call: an agent waits: the centre opens wide in a glow of that agent's
 //         colour, a wave bursts outward through the rings, and the field warms
@@ -18,8 +18,8 @@
 // It is one WebGL draw of one triangle over the screen. It draws only when
 // something moves, at most 30 frames a second (option fps), at half the
 // screen's pixels (option scale) but never less than one pixel per point, and
-// not at all while the page is hidden. The slow breathing is drawn at a quarter of
-// that rate. With reduced motion it is drawn once per change: no breathing, no
+// not at all while the page is hidden. The slow breathing, the sway and the
+// light in a working ring are drawn at half that rate, continuously. With reduced motion it is drawn once per change: no breathing, no
 // pulse, no wave, no sway.
 (function () {
   // ---- shared by the ground, the board and the bar: keep these in step ----
@@ -176,7 +176,7 @@
   function driftAt(nowMs, vmin) {
     if (reduce.matches) return { x: 0, y: 0 };
     var t = (nowMs / 1000 / DRIFT_S) * Math.PI;
-    return { x: 1.0 * vmin * Math.sin(t), y: 0.45 * vmin * Math.sin(0.73 * t + 1) };
+    return { x: 0.6 * vmin * Math.sin(t), y: 0.3 * vmin * Math.sin(0.73 * t + 1) };
   }
 
   // Where a ring sits on the sleeve's palette, from its size, as measured on
@@ -216,21 +216,17 @@
       "precision highp float;",
       "uniform vec2 uSize;",
       "uniform float uRatio, uMargin, uTime, uVmin, uH, uBreath;",
-      "uniform int uLeaders;",
+      "uniform vec2 uDrift;",
       "uniform vec4 uDA[" + MAX_DISCS + "];", // centre xy, radius, palette low
       "uniform vec4 uDB[" + MAX_DISCS + "];", // palette high, tint, pulse, pulse phase
       "uniform vec4 uDC[" + MAX_DISCS + "];", // tint rgb, dim
       "uniform vec4 uDW[" + MAX_DISCS + "];", // wobble amplitudes, harmonics 2 3 4 6
       "uniform vec4 uDP[" + MAX_DISCS + "];", // wobble phases
-      "uniform vec4 uLA[" + MAX_CARDS + "];", // leader: ring point xy, card point xy
-      "uniform float uLB[" + MAX_CARDS + "];", // leader alpha
       "uniform vec4 uCall;", // amount, wave radius, wave amount, wave width
       "uniform vec3 uHot;",
       "uniform float uTeeth[" + MAX_DISCS + "];", // teeth around each disc
       "out vec4 outColor;",
       "const vec3 STOPS[12] = vec3[12](" + stops + ");",
-      "const vec3 INK = vec3(0.235, 0.098, 0.059);",
-      "const vec3 CREAM = vec3(0.992, 0.945, 0.835);",
       "float hash(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }",
       "float vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);",
       "  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }",
@@ -289,9 +285,8 @@
       "  c = mix(c, mix(uHot, vec3(1.0, 0.97, 0.9), 0.4), uCall.x * smoothstep(0.78, 1.0, t) * 0.75);",
       "  return c + (grain - 0.5) * 0.02;",
       "}",
-      "float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; float t = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * t); }",
       "void main() {",
-      "  vec2 p = vec2(gl_FragCoord.x, uSize.y - gl_FragCoord.y) / uRatio - uMargin;",
+      "  vec2 p = vec2(gl_FragCoord.x, uSize.y - gl_FragCoord.y) / uRatio - uMargin - uDrift;",
       "  float grain = hash(floor(gl_FragCoord.xy));",
       "  float mott = vnoise(p / (11.0 * uVmin)) * 0.55 + vnoise(p / (3.5 * uVmin) + 5.0) * 0.3 + vnoise(p / (1.1 * uVmin) + 9.0) * 0.15;",
       "  float prev = 1e4, e = 0.0, calm = 0.0, calmPrev = 1e4; int k = 0;",
@@ -311,20 +306,6 @@
       "    float r = length(p - uDA[0].xy);",
       "    float w = uCall.z * exp(-pow((r - uCall.y) / uCall.w, 2.0));",
       "    col = mix(col, mix(uHot, vec3(1.0, 0.96, 0.86), 0.5), clamp(w, 0.0, 1.0) * 0.9);",
-      "  }",
-      // leaders from each task's ring to its card: a cream line with a dark rim, a dot on the ring
-      "  for (int i = 0; i < " + MAX_CARDS + "; i++) {",
-      "    if (i >= uLeaders) break;",
-      "    float a = uLB[i];",
-      "    if (a < 0.003) continue;",
-      "    vec4 L = uLA[i];",
-      "    float dl = seg(p, L.xy, L.zw);",
-      "    float dd = length(p - L.xy);",
-      "    float rim = 0.5 * uVmin, core = 0.17 * uVmin, dotR = 0.95 * uVmin;",
-      "    col = mix(col, INK, a * clamp((rim - dl) * uRatio + 0.5, 0.0, 1.0) * 0.9);",
-      "    col = mix(col, CREAM, a * clamp((core - dl) * uRatio + 0.5, 0.0, 1.0));",
-      "    col = mix(col, INK, a * clamp((dotR + 0.3 * uVmin - dd) * uRatio + 0.5, 0.0, 1.0) * 0.9);",
-      "    col = mix(col, CREAM, a * clamp((dotR - dd) * uRatio + 0.5, 0.0, 1.0));",
       "  }",
       "  col += (hash(gl_FragCoord.xy * 1.37 + 3.1) - 0.5) / 255.0;",
       "  outColor = vec4(clamp(col, 0.0, 1.0), 1.0);",
@@ -360,20 +341,18 @@
 
   window.agentScreensaver.register(function () {
     var box, surface, style, lastState, geo, mood = "", waitKey = "", goalKey = "";
-    var gl, program, uniforms = {}, cancelFrame, cancelSway, lastMs, seconds = 0, tick = 0;
+    var gl, program, uniforms = {}, cancelFrame, lastMs, seconds = 0, tick = 0;
     var fps = 30, scale = 0.5, ratio = 1, margin = 0, dirty = true, moving = true;
-    var discs = [], leaders = [];
+    var discs = [];
     var call = { cur: 0, goal: 0 }, hot = { cur: [1, 0.6, 0.3], goal: [1, 0.6, 0.3] };
     var wave = { start: -1 };
     var dataA = new Float32Array(MAX_DISCS * 4), dataB = new Float32Array(MAX_DISCS * 4), dataC = new Float32Array(MAX_DISCS * 4);
     var dataW = new Float32Array(MAX_DISCS * 4), dataP = new Float32Array(MAX_DISCS * 4);
-    var dataL = new Float32Array(MAX_CARDS * 4), dataLB = new Float32Array(MAX_CARDS);
 
     for (var k = 0; k < MAX_DISCS; k++) {
       discs.push({ cur: null, goal: null, vel: { cx: 0, cy: 0, r: 0 } });
       for (var j = 0; j < 4; j++) { dataW[k * 4 + j] = WOBBLE[k].a[j]; dataP[k * 4 + j] = WOBBLE[k].p[j]; }
     }
-    for (var m = 0; m < MAX_CARDS; m++) leaders.push({ cur: 0, goal: 0, card: null, slot: null, ring: 0 });
 
     function size() {
       return { w: box.clientWidth || window.innerWidth, h: box.clientHeight || window.innerHeight };
@@ -411,13 +390,6 @@
         if (goal.tint === 0 && d.cur.tint > 0.01 && !hue) { goal.tr = d.cur.tr; goal.tg = d.cur.tg; goal.tb = d.cur.tb; }
         d.goal = goal;
       }
-      // leaders: from the middle of each task's ring to the left end of its card
-      for (var i = 0; i < MAX_CARDS; i++) {
-        var leader = leaders[i];
-        leader.goal = i < list.length ? (list[i].card.kind === "finished" ? 0.55 : 1) : 0;
-        leader.slot = i < list.length ? g.slots[i] : leader.slot;
-        leader.ring = i + 1;
-      }
       call.goal = hue ? 1 : 0;
       if (hue) {
         hot.goal = hue;
@@ -431,7 +403,7 @@
       if (mood === "" || reduce.matches) settle();
       mood = next;
       // The state is written often with nothing new for the rings; draw only when a goal moved.
-      var key = JSON.stringify([discs.map(function (d) { return d.goal; }), leaders.map(function (l) { return [l.goal, l.slot && l.slot.mid]; }), call.goal, waitKey, g.w, g.h]);
+      var key = JSON.stringify([discs.map(function (d) { return d.goal; }), call.goal, waitKey, g.w, g.h]);
       if (key !== goalKey) dirty = true;
       goalKey = key;
     }
@@ -441,7 +413,6 @@
         d.cur = Object.assign({}, d.goal);
         d.vel = { cx: 0, cy: 0, r: 0 };
       });
-      leaders.forEach(function (l) { l.cur = l.goal; });
       call.cur = call.goal;
       hot.cur = hot.goal.slice();
     }
@@ -469,10 +440,6 @@
           if (Math.abs(d.cur[name] - d.goal[name]) > 0.003) still = false;
         });
       });
-      leaders.forEach(function (l) {
-        l.cur = ease(l.cur, l.goal, ms, l.goal > l.cur ? 260 : 140);
-        if (Math.abs(l.cur - l.goal) > 0.003) still = false;
-      });
       call.cur = ease(call.cur, call.goal, ms, 300);
       if (Math.abs(call.cur - call.goal) > 0.003) still = false;
       for (var i = 0; i < 3; i++) hot.cur[i] = ease(hot.cur[i], hot.goal[i], ms, 250);
@@ -498,23 +465,6 @@
         dataB[at] = range.hi; dataB[at + 1] = c.tint; dataB[at + 2] = c.pulse; dataB[at + 3] = k * 0.29;
         dataC[at] = c.tr; dataC[at + 1] = c.tg; dataC[at + 2] = c.tb; dataC[at + 3] = c.dim;
       }
-      var count = 0;
-      for (var i = 0; i < MAX_CARDS; i++) {
-        var l = leaders[i];
-        if (l.cur < 0.003 || !l.slot || g.colL === undefined) { dataLB[i] = 0; continue; }
-        count = i + 1;
-        var ring = discs[l.ring], inner = discs[l.ring - 1];
-        var ax = g.colL, ay = l.slot.mid;
-        var theta = Math.atan2(ay - ring.cur.cy, ax - ring.cur.cx);
-        var rin = edgeAt(inner.cur.r, WOBBLE[l.ring - 1], Math.atan2(ay - inner.cur.cy, ax - inner.cur.cx));
-        var rout = edgeAt(ring.cur.r, WOBBLE[l.ring], theta);
-        var mid = 0.5 * (rin + rout);
-        dataL[i * 4] = ring.cur.cx + Math.cos(theta) * mid;
-        dataL[i * 4 + 1] = ring.cur.cy + Math.sin(theta) * mid;
-        dataL[i * 4 + 2] = ax + 0.6 * g.vmin;
-        dataL[i * 4 + 3] = ay;
-        dataLB[i] = l.cur;
-      }
       var w = waveNow();
       gl.viewport(0, 0, surface.width, surface.height);
       gl.useProgram(program);
@@ -525,14 +475,15 @@
       gl.uniform1f(uniforms.uVmin, g.vmin);
       gl.uniform1f(uniforms.uH, g.h);
       gl.uniform1f(uniforms.uBreath, reduce.matches ? 0 : 0.006);
-      gl.uniform1i(uniforms.uLeaders, count);
+      // The sway against burn-in is drawn here, at the render rate, so it glides at
+      // any size: moving the canvas itself would resample it and make every edge shimmer.
+      var drift = driftAt(Date.now(), g.vmin);
+      gl.uniform2f(uniforms.uDrift, drift.x, drift.y);
       gl.uniform4fv(uniforms.uDA, dataA);
       gl.uniform4fv(uniforms.uDB, dataB);
       gl.uniform4fv(uniforms.uDC, dataC);
       gl.uniform4fv(uniforms.uDW, dataW);
       gl.uniform4fv(uniforms.uDP, dataP);
-      gl.uniform4fv(uniforms.uLA, dataL);
-      gl.uniform1fv(uniforms.uLB, dataLB);
       gl.uniform4f(uniforms.uCall, call.cur, w.r, w.amount, 6 * g.vmin);
       gl.uniform3f(uniforms.uHot, hot.cur[0], hot.cur[1], hot.cur[2]);
       gl.uniform1fv(uniforms.uTeeth, TEETH);
@@ -554,10 +505,9 @@
       tick++;
       seconds += ms / 1000;
       var w = waveNow();
-      // The breathing is very slow: a quarter of the frames carry it. A light
-      // running through a working ring takes every third frame.
-      var pulsing = discs.some(function (d) { return d.cur.pulse > 0.01; });
-      var slow = pulsing ? tick % 3 === 0 : tick % 4 === 0;
+      // The breathing, the sway and the light in a working ring move slowly and
+      // continuously: every second frame carries them, so nothing moves in steps.
+      var slow = tick % 2 === 0;
       // a wave takes two frames in three
       var waving = (w.active || wasWave) && tick % 3 !== 0;
       if (!dirty && !moving && !waving && !slow) return;
@@ -581,13 +531,6 @@
       dirty = true;
     }
 
-    function sway() {
-      if (!surface) return;
-      var s = size();
-      var d = driftAt(Date.now(), Math.min(s.w, s.h) / 100);
-      surface.style.transform = "translate(" + d.x.toFixed(2) + "px, " + d.y.toFixed(2) + "px)";
-    }
-
     function setUpGl() {
       surface = document.createElement("canvas");
       box.appendChild(surface);
@@ -599,8 +542,8 @@
       gl.attachShader(program, compile(gl, gl.FRAGMENT_SHADER, fragment()));
       gl.linkProgram(program);
       if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) || "link failed");
-      ["uSize", "uRatio", "uMargin", "uTime", "uVmin", "uH", "uBreath", "uLeaders", "uDA", "uDB", "uDC", "uDW", "uDP",
-        "uLA", "uLB", "uCall", "uHot", "uTeeth"].forEach(function (name) {
+      ["uSize", "uRatio", "uMargin", "uTime", "uVmin", "uH", "uBreath", "uDA", "uDB", "uDC", "uDW", "uDP",
+        "uCall", "uHot", "uTeeth", "uDrift"].forEach(function (name) {
         uniforms[name] = gl.getUniformLocation(program, name);
       });
       var vao = gl.createVertexArray();
@@ -639,13 +582,11 @@
           surface = gl = undefined;
         }
         fit();
-        sway();
         window.addEventListener("resize", onResize);
         document.addEventListener("visibilitychange", onVisible);
         draw({ display: ctx.display, cards: [], nowMs: ctx.now() });
         if (gl) {
           cancelFrame = ctx.requestFrame(frame, fps);
-          if (!reduce.matches) cancelSway = ctx.requestFrame(sway, 1);
         }
       },
       update: function (state) {
@@ -656,8 +597,7 @@
         window.removeEventListener("resize", onResize);
         document.removeEventListener("visibilitychange", onVisible);
         if (cancelFrame) cancelFrame();
-        if (cancelSway) cancelSway();
-        cancelFrame = cancelSway = undefined;
+        cancelFrame = undefined;
         if (gl) {
           var lose = gl.getExtension("WEBGL_lose_context");
           if (lose) lose.loseContext();

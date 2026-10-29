@@ -157,7 +157,6 @@
   var MINUTE = 60000;
   var HOUR = 60 * MINUTE;
   var DAY = 24 * HOUR;
-  var DRIFT_S = 240;
   var WINDOW_ORDER = ["5h", "week", "plan"];
   var STALE_AFTER = { "5h": 30 * MINUTE, week: 6 * HOUR, plan: 6 * HOUR };
   var WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -197,12 +196,6 @@
 
   function pad2(value) {
     return String(value).padStart(2, "0");
-  }
-
-  function driftAt(nowMs, vmin) {
-    if (reduce.matches) return { x: 0, y: 0 };
-    var t = (nowMs / 1000 / DRIFT_S) * Math.PI;
-    return { x: 1.0 * vmin * Math.sin(t), y: 0.45 * vmin * Math.sin(0.73 * t + 1) };
   }
 
   function displayName(source) {
@@ -365,12 +358,8 @@
         root.append(style, box);
         tick(ctx.now());
         cancelTick = ctx.requestFrame(function () { tick(ctx.now()); }, 1);
-        var sway = function () {
-          var d = driftAt(Date.now(), Math.min(window.innerWidth, window.innerHeight) / 100);
-          stage.style.transform = "translate(" + d.x.toFixed(2) + "px, " + d.y.toFixed(2) + "px)";
-        };
-        sway();
-        if (!reduce.matches) cancelDrift = ctx.requestFrame(sway, 1);
+        // The words stand still. Only the field sways against burn-in: moving text
+        // by a fraction of a pixel resamples it, and by whole pixels it visibly steps.
         window.addEventListener("resize", place);
         lastKey = "";
         low = undefined;

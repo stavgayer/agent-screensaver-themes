@@ -1,7 +1,7 @@
 {
   "id": "stavgayer.sitkol-ground",
   "name": "Key of Life rings",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "type": "background",
   "api": 1,
   "entry": "index.js",
