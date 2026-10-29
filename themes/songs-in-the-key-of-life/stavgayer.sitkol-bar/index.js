@@ -177,6 +177,8 @@
     ".skr .label { background: var(--cream); border-radius: 999px; box-shadow: 0 0.4vmin 1.8vmin rgba(58, 16, 6, 0.3); }",
     ".skr .when { flex: none; display: flex; align-items: baseline; gap: 1.6vmin; padding: 1.2vmin 2.6vmin 1.1vmin; white-space: nowrap; transition: opacity 400ms cubic-bezier(0.23, 1, 0.32, 1); }",
     ".skr .when .time { font-family: 'Key Display', 'Cooper Black', Georgia, serif; font-size: 3.8vmin; line-height: 1.05; }",
+    ".td { display: inline-block; width: 0.66em; text-align: center; }",
+    ".tc { display: inline-block; width: 0.32em; text-align: center; }",
     ".skr .when .date { font-size: 2.2vmin; line-height: 1.2; color: var(--muted); }",
     ".skr .when.away { opacity: 0; }",
     ".skr .limits { --size: 4.4vmin; min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 1.4vmin 2.8vmin; padding: 1vmin 2.6vmin 1vmin 1.2vmin; }",
@@ -299,6 +301,20 @@
     return item;
   }
 
+  // The display face has digits of different widths, so the time is set one
+  // character per fixed cell: changing digits never shift the others.
+  function setClock(node, text) {
+    if (node.getAttribute("data-t") === text) return;
+    node.setAttribute("data-t", text);
+    node.textContent = "";
+    for (var i = 0; i < text.length; i++) {
+      var cell = document.createElement("span");
+      cell.className = text[i] === ":" ? "tc" : "td";
+      cell.textContent = text[i];
+      node.appendChild(cell);
+    }
+  }
+
   window.agentScreensaver.register(function () {
     var box, stage, row, when, time, date, limits, lastKey = "", low, cancelTick, cancelDrift;
 
@@ -306,7 +322,7 @@
       var moment = new Date(nowMs);
       var t = pad2(moment.getHours()) + ":" + pad2(moment.getMinutes());
       var d = WEEKDAYS[moment.getDay()] + " " + moment.getDate() + " " + MONTHS[moment.getMonth()];
-      if (time.textContent !== t) time.textContent = t;
+      setClock(time, t);
       if (date.textContent !== d) date.textContent = d;
     }
 

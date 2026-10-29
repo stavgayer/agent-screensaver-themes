@@ -184,6 +184,8 @@
     ".skb .layer.on { visibility: visible; }",
     ".skb .display { font-family: " + DISPLAY + "; font-weight: 400; line-height: 1; white-space: nowrap; letter-spacing: -0.01em; }",
     ".skb .rest .time { font-size: 12vmin; line-height: 1.02; }",
+    ".td { display: inline-block; width: 0.66em; text-align: center; }",
+    ".tc { display: inline-block; width: 0.32em; text-align: center; }",
     ".skb .rest .date { margin-top: 1.2vmin; font-size: 2.7vmin; font-weight: 700; line-height: 1.25; color: var(--muted); white-space: nowrap; }",
     ".skb .work .count { font-size: 15vmin; line-height: 0.95; }",
     ".skb .work .word { margin-top: 0.2vmin; font-size: 4.4vmin; line-height: 1.1; }",
@@ -306,6 +308,20 @@
     return node;
   }
 
+  // The display face has digits of different widths, so the time is set one
+  // character per fixed cell: changing digits never shift the others.
+  function setClock(node, text) {
+    if (node.getAttribute("data-t") === text) return;
+    node.setAttribute("data-t", text);
+    node.textContent = "";
+    for (var i = 0; i < text.length; i++) {
+      var cell = document.createElement("span");
+      cell.className = text[i] === ":" ? "tc" : "td";
+      cell.textContent = text[i];
+      node.appendChild(cell);
+    }
+  }
+
   function setText(node, text) {
     if (node.textContent !== text) node.textContent = text;
   }
@@ -392,7 +408,7 @@
       var key = pad2(moment.getHours()) + ":" + pad2(moment.getMinutes()) + "|" + WEEKDAYS[moment.getDay()] + " " + moment.getDate() + " " + MONTHS[moment.getMonth()];
       if (key === restKey) return false;
       restKey = key;
-      setText(parts.time, key.split("|")[0]);
+      setClock(parts.time, key.split("|")[0]);
       setText(parts.date, key.split("|")[1]);
       return true;
     }
