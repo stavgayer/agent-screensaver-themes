@@ -2,6 +2,8 @@
 
 A fan-made tribute theme for agent-screensaver. It is inspired by an album cover about turbulent flow: hundreds of thin lilac lines on a dark liquid surface, one dark chrome ball sitting in it, one red thread running into the ball, and a marbled wake behind it (vortex shedding). Here every agent is a ball in the surface, with its own coloured thread. The surface is drawn in code by a shader. No album artwork or logos are included.
 
+![Currents working, looping demo](media/demo.gif)
+
 Needs agent-screensaver 0.3.0 or later. That release is not out yet.
 
 ## What the screen shows

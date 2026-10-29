@@ -2,6 +2,8 @@
 
 A fan-made tribute theme for agent-screensaver. It is inspired by a record sleeve from 1973, designed by Hipgnosis with the line work by George Hardie: a thin white beam on a black field enters a glass prism and leaves it as six flat bands of colour. Hardie based his drawing on a photograph of a prism in a physics book. Inside the gatefold the bands run on and turn into the blip of a heart monitor. Here the spectrum is the graph of your agents: each task owns one band in its agent's colour, its card stands at the end of that band like an entry in a legend, and when an agent needs you the spectrum folds into one beam across the screen. Everything is drawn in code, in a shader, from the proportions of the sleeve. No album artwork, lettering or logos are included.
 
+![Prism working, looping demo](media/demo.gif)
+
 Needs agent-screensaver 0.3.0 or later. That release is not out yet.
 
 ## What the screen shows

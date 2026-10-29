@@ -2,6 +2,8 @@
 
 A fan-made tribute theme for agent-screensaver. It is inspired by a record sleeve from 1976, a double album on Motown's Tamla label, with art direction by the Motown Graphics Department and illustration credited to Tony Warren. The sleeve is a field of torn, wavy rings painted in soft airbrush gradients: deep red and burnt orange at the edge, then orange, amber and a pale glow at the centre, where a small portrait sits. Each ring is lifted off the one below it: dark in the shadow of the next ring in, bright at its own torn edge. Here the rings carry your agents: each task owns one ring, a leader runs from the ring to the task's card, and when an agent needs you the centre opens wide and a wave runs out through the rings. Everything is drawn in code, in a shader, from the proportions and colours of the sleeve. No album artwork, portrait, lettering or logos are included.
 
+![Key of Life working, looping demo](media/demo.gif)
+
 Needs agent-screensaver 0.3.0 or later. That release is not out yet.
 
 ## What the screen shows

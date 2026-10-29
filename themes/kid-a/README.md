@@ -2,6 +2,8 @@
 
 A fan-made tribute theme for agent-screensaver. It is inspired by an album cover that was made in a strange way: thick putty, soot and red stain were painted onto canvas and scraped with knives and sticks, the paintings were photographed, and software turned the brightness of each picture into a landscape, so bright became peak and dark became valley. The result is a range of cracked, ice-white peaks under a black sky with a red band and small fires. Here the data of your agents raises the range: every agent is one ridge, right above its card. The ridges carry the material of the paintings: grain and putty relief, soot rubbed into the valleys, a few red oil stains, and hairline scratches from a stick. The big words look printed and scanned: worn at the edges, with small pits and two rows dragged sideways. The range is drawn in code by a shader. No album artwork or logos are included.
 
+![Kid A working, looping demo](media/demo.gif)
+
 Needs agent-screensaver 0.3.0 or later. That release is not out yet.
 
 ## What the screen shows

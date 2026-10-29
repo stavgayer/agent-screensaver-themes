@@ -2,6 +2,8 @@
 
 A fan-made tribute theme for agent-screensaver. It is inspired by a stacked-title album cover: a flat orange field, two flat photographs in the upper half, one statement repeated in huge black Arial Bold rows, and one printed card per task. No album artwork or logos are included.
 
+![Pablo working, looping demo](media/demo.gif)
+
 Needs agent-screensaver 0.3.0 or later. That release is not out yet.
 
 ## What the screen shows

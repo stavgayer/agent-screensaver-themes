@@ -6,6 +6,13 @@ Themes here need agent-screensaver 0.3.0 or later. That release is not out yet.
 
 ## Themes
 
+<table>
+<tr><td align="center"><a href="themes/pablo"><img src="themes/pablo/media/demo.gif" width="400" alt="Pablo"><br>Pablo</a></td><td align="center"><a href="themes/in-colour"><img src="themes/in-colour/media/demo.gif" width="400" alt="In Colour"><br>In Colour</a></td></tr>
+<tr><td align="center"><a href="themes/currents"><img src="themes/currents/media/demo.gif" width="400" alt="Currents"><br>Currents</a></td><td align="center"><a href="themes/kid-a"><img src="themes/kid-a/media/demo.gif" width="400" alt="Kid A"><br>Kid A</a></td></tr>
+<tr><td align="center"><a href="themes/unknown-pleasures"><img src="themes/unknown-pleasures/media/demo.gif" width="400" alt="Unknown Pleasures"><br>Unknown Pleasures</a></td><td align="center"><a href="themes/dark-side-of-the-moon"><img src="themes/dark-side-of-the-moon/media/demo.gif" width="400" alt="Prism"><br>Prism</a></td></tr>
+<tr><td align="center"><a href="themes/songs-in-the-key-of-life"><img src="themes/songs-in-the-key-of-life/media/demo.gif" width="400" alt="Key of Life"><br>Key of Life</a></td><td></td></tr>
+</table>
+
 | Theme | Still | Folder |
 |---|---|---|
 | Pablo | ![Pablo](themes/pablo/media/working.jpg) | [themes/pablo](themes/pablo) |

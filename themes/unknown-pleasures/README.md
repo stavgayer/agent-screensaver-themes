@@ -2,6 +2,8 @@
 
 A fan-made tribute theme for agent-screensaver. It is inspired by an album cover that was already a graph. In 1970 the radio astronomer Harold D. Craft, Jr. plotted 80 successive radio pulses of the pulsar CP 1919 at the Arecibo Observatory for his Cornell PhD thesis. Each pulse is one short trace, peaking in the middle, and each trace is drawn in front of the one before it, so the nearer peaks hide the lines behind them. The designer of the sleeve found the plot in an astronomy encyclopedia, turned it white on black, printed it on textured card, and put no words on the front. Here the stacked lines are the graph of your agents: each agent owns a band of lines, and its card stands beside that band like a label on the axis of the graph. The lines are drawn in code from our own numbers. No album artwork, plot data or logos are included.
 
+![Unknown Pleasures working, looping demo](media/demo.gif)
+
 Needs agent-screensaver 0.3.0 or later. That release is not out yet.
 
 ## What the screen shows

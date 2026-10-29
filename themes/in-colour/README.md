@@ -2,6 +2,8 @@
 
 A fan-made tribute theme for agent-screensaver. It is inspired by an album cover of hard-edged colour wedges fanned out from one point, with one white bar cut at 45 degrees. The wheel is drawn in code. No album artwork or logos are included.
 
+![In Colour working, looping demo](media/demo.gif)
+
 Needs agent-screensaver 0.3.0 or later. That release is not out yet.
 
 ## What the screen shows
