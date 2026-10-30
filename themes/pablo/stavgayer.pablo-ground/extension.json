@@ -1,7 +1,7 @@
 {
   "id": "stavgayer.pablo-ground",
   "name": "Pablo ground",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "type": "background",
   "api": 1,
   "entry": "index.js",

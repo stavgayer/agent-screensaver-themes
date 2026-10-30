@@ -80,6 +80,21 @@
     "  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }",
     ".pb .call .project { font-size: 3vmin; line-height: 1.1; text-transform: uppercase; overflow-wrap: anywhere; }",
     ".pb .measure { position: absolute; visibility: hidden; white-space: nowrap; letter-spacing: -0.035em; text-transform: uppercase; font-size: 100px; }",
+    // the song card: one more printed card, as wide as the small photo and under it (placeSong sets its top)
+    ".pb .song { position: absolute; z-index: 4; left: 58vw; top: calc(25vh + 25vw * 780 / 1200 + 2.4vmin); width: 25vw; container: song / inline-size;",
+    "  background: var(--pb-ink); color: var(--pb-ground); border: 0.6vmin solid var(--pb-ink); outline: 0.8vmin solid var(--pb-ground);",
+    "  transform: rotate(-0.9deg); transition: opacity 240ms var(--pb-ease-out); }",
+    ".pb .song[hidden], .pb .song .bar[hidden], .pb .song .who[hidden] { display: none; }",
+    ".pb.calling .song, .pb.bare .song { opacity: 0; }",
+    ".pb .song .band { display: flex; justify-content: space-between; gap: 1em; padding: 1vmin 1.6vmin; background: var(--pb-ground); color: var(--pb-ink);",
+    "  font-size: 2.1vmin; line-height: 1.2; text-transform: uppercase; white-space: nowrap; }",
+    ".pb .song .band .at { flex: none; font-variant-numeric: tabular-nums; }",
+    ".pb .song .title { padding: 1.3vmin 1.6vmin 0; font-size: min(4.2vmin, 11cqi); line-height: 1; letter-spacing: -0.035em; text-transform: uppercase;",
+    "  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+    ".pb .song .who { padding: 0.5vmin 1.6vmin 0; font-size: 2vmin; line-height: 1.25; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+    ".pb .song .bar { margin: 1.1vmin 1.6vmin 0; height: 0.6vmin; background: color-mix(in srgb, var(--pb-ground) 28%, transparent); overflow: hidden; }",
+    ".pb .song .fill { height: 100%; background: var(--pb-ground); transform-origin: left center; transform: scaleX(0); }",
+    ".pb .song .foot { height: 1.3vmin; }",
     ".pb.bare .rows { top: 0; }",
     "@media (prefers-reduced-motion: reduce) { .pb .track, .pb .photo img { animation: none; } }",
   ].join("\n");
@@ -171,6 +186,20 @@
     return working ? "Still working" : "All done";
   }
 
+  // m:ss for a song, built by hand so it never depends on locale data.
+  function songTime(ms) {
+    var seconds = Math.floor(ms / 1000);
+    return Math.floor(seconds / 60) + ":" + pad2(seconds % 60);
+  }
+
+  // What the song card shows at nowMs: the position moves on from when the
+  // service read it. No length (Music, for songs it streams) means no bar and no time.
+  function songNow(track, nowMs) {
+    if (!(track.duration_ms > 0)) return { progress: null, at: "" };
+    var at = Math.min(track.duration_ms, track.position_ms + Math.max(0, nowMs - track.at_ms));
+    return { progress: at / track.duration_ms, at: songTime(at) + " / " + songTime(track.duration_ms) };
+  }
+
   function el(tag, className, text) {
     var node = document.createElement(tag);
     if (className) node.className = className;
@@ -190,7 +219,7 @@
   }
 
   window.agentScreensaver.register(function () {
-    var box, rowsBox, cardsBox, call, measure, observer;
+    var box, rowsBox, cardsBox, call, measure, observer, song, track, cancelSong, now, brown;
     var show = "agents", lastState, rowsKey = "", rowsText = "";
     var cards = new Map(); // key -> { node, parts, tone, word }
     var calling = false, callKey = "";
@@ -395,6 +424,64 @@
       );
     }
 
+    // ---- the song card -----------------------------------------------------
+
+    function buildSong() {
+      var node = el("div", "song");
+      node.hidden = true;
+      var band = el("div", "band");
+      var app = el("span", "app");
+      var at = el("span", "at");
+      band.append(app, at);
+      var bar = el("div", "bar");
+      var fill = el("div", "fill");
+      bar.appendChild(fill);
+      var title = el("div", "title");
+      var who = el("div", "who");
+      node.append(band, title, who, bar, el("div", "foot"));
+      return { node: node, app: app, at: at, title: title, who: who, bar: bar, fill: fill };
+    }
+
+    // Under the small photo, unless the task cards reach that high: then just
+    // above them. Layout positions, not boxes, so a card that is still rising
+    // in or tilted does not move it.
+    function placeSong() {
+      if (!song || song.node.hidden) return;
+      var vmin = Math.min(box.clientWidth, box.clientHeight) / 100;
+      var gap = 2.4 * vmin;
+      var height = song.node.offsetHeight;
+      var top = brown.offsetTop + brown.offsetHeight + gap;
+      var cardsTop = Infinity;
+      Array.prototype.forEach.call(cardsBox.children, function (card) { cardsTop = Math.min(cardsTop, cardsBox.offsetTop + card.offsetTop); });
+      if (top + height + gap > cardsTop) top = Math.max(brown.offsetTop, cardsTop - gap - height);
+      song.node.style.top = top + "px";
+    }
+
+    // The time and the bar move on between the service's reads, a few times a second,
+    // and the card keeps its place.
+    function tickSong() {
+      if (!song || !track) return;
+      var shown = songNow(track, now());
+      setText(song.at, shown.at);
+      song.bar.hidden = shown.progress === null;
+      if (shown.progress !== null) song.fill.style.transform = "scaleX(" + shown.progress + ")";
+      placeSong(); // cheap, and it also follows a card that grew when its font arrived
+    }
+
+    function drawSong(next) {
+      var title = next && next.title ? next.title : "";
+      var appears = song.node.hidden && title !== "";
+      track = title === "" ? undefined : next;
+      song.node.hidden = title === "";
+      if (title === "") return;
+      setText(song.app, next.app === "Music" ? "Apple Music" : next.app);
+      setText(song.title, title);
+      setText(song.who, next.artist);
+      song.who.hidden = next.artist === "";
+      tickSong();
+      if (appears && !calling && show !== "time") song.node.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
+    }
+
     // ---- the whole board --------------------------------------------------
 
     function draw(state) {
@@ -409,6 +496,8 @@
       calling = nowCalling;
       drawRows(statement(state, show, waiting, tasks.concat(waiting)), flip);
       drawCards(tasks, state);
+      drawSong(state.nowPlaying);
+      placeSong();
     }
 
     function setShow(options) {
@@ -429,7 +518,11 @@
         call = el("div", "call");
         measure = el("span", "measure");
         measure.setAttribute("aria-hidden", "true");
-        box.append(rowsBox, photo("orange"), photo("brown"), cardsBox, call, measure);
+        song = buildSong();
+        brown = photo("brown");
+        box.append(rowsBox, photo("orange"), brown, song.node, cardsBox, call, measure);
+        now = function () { return ctx.now(); };
+        cancelSong = ctx.requestFrame(tickSong, 4);
         root.append(style, box);
         setShow(ctx.options);
         observer = new ResizeObserver(function () {
@@ -449,8 +542,9 @@
       },
       unmount: function () {
         if (observer) observer.disconnect();
+        if (cancelSong) cancelSong();
         if (box && box.parentElement) box.parentElement.replaceChildren();
-        box = rowsBox = cardsBox = call = measure = observer = undefined;
+        box = rowsBox = cardsBox = call = measure = observer = song = track = cancelSong = brown = undefined;
         cards.clear();
         rowsKey = "";
         callKey = "";
