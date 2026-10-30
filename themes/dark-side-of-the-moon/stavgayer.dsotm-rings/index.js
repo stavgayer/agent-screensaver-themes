@@ -6,6 +6,12 @@
 // reading is dimmed and says its age, an estimate says "est.", and a window
 // that reset since the reading is empty and says "Reset". Time comes from
 // state.nowMs.
+// The song that plays (state.nowPlaying, agent-screensaver 0.4.0 and later) is
+// set like one more ring: a thin ring that fills as the song plays, the song,
+// then its artist. While tasks run it stands in the top row, centred between
+// the clock and the limits; with no tasks, in the empty corner under the
+// prism, where the count stands while tasks run. It steps away while an agent
+// waits for you.
 (function () {
   // ---- shared with the board and the rings: keep these in step ----
   var MAX_CARDS = 7;
@@ -109,6 +115,22 @@
     ".dsr.big .caption { font-size: calc(var(--size) * 0.31); }",
     ".dsr .detail { font-size: calc(var(--size) * 0.31); color: #a2aaa8; }",
     ".dsr.big .detail { font-size: calc(var(--size) * 0.27); }",
+    // the song: placeSong sets where it stands and how wide it may grow
+    ".dsp { --size: 4.6vmin; position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: calc(var(--size) * 0.3); color: #e8ecee;",
+    "  font-family: 'Prism Sans', 'Gill Sans', 'Helvetica Neue', sans-serif; font-weight: 500; -webkit-font-smoothing: antialiased; transition: opacity 400ms cubic-bezier(0.23, 1, 0.32, 1); }",
+    ".dsp.big { --size: 5.4vmin; }",
+    ".dsp[hidden], .dsp .ring[hidden], .dsp .detail[hidden] { display: none; }",
+    ".dsp.away { opacity: 0; }",
+    ".dsp .ring { position: relative; width: var(--size); height: var(--size); flex: none; }",
+    ".dsp svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }",
+    ".dsp .track { fill: none; stroke: #e8ecee; stroke-width: 2.6; opacity: 0.18; }",
+    ".dsp .arc { fill: none; stroke: #e8ecee; stroke-width: 2.6; }",
+    ".dsp .caption { min-width: 0; display: flex; flex-direction: column; gap: 0.5vmin; font-size: calc(var(--size) * 0.36); line-height: 1.05; }",
+    ".dsp.big .caption { font-size: calc(var(--size) * 0.31); }",
+    ".dsp .detail { font-size: calc(var(--size) * 0.31); color: #a2aaa8; }",
+    ".dsp.big .detail { font-size: calc(var(--size) * 0.27); }",
+    ".dsp .name, .dsp .detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+    "@media (prefers-reduced-motion: reduce) { .dsp { transition: none; } }",
   ].join("\n");
 
   function pad2(value) {
@@ -211,8 +233,83 @@
     return item;
   }
 
+  // How far the song is, 0 to 1, moved on from when it was read; null when the
+  // app gives no length (Music, for songs it streams).
+  function songProgress(track, nowMs) {
+    if (!(track.duration_ms > 0)) return null;
+    var at = track.position_ms + Math.max(0, nowMs - track.at_ms);
+    return Math.min(1, Math.max(0, at / track.duration_ms));
+  }
+
+  function songItem() {
+    var node = document.createElement("div");
+    node.className = "dsp";
+    node.hidden = true;
+    var holder = document.createElement("div");
+    holder.className = "ring";
+    var svg = svgNode("svg", { viewBox: "0 0 48 48", "aria-hidden": "true" });
+    var arc = svgNode("circle", { class: "arc", cx: 24, cy: 24, r: RADIUS, "stroke-dasharray": "0 " + ARC.toFixed(2) });
+    svg.append(svgNode("circle", { class: "track", cx: 24, cy: 24, r: RADIUS }), arc);
+    holder.append(svg);
+    var caption = document.createElement("div");
+    caption.className = "caption";
+    var name = text("name", "");
+    var detail = text("detail", "");
+    caption.append(name, detail);
+    node.append(holder, caption);
+    return { node: node, ring: holder, arc: arc, name: name, detail: detail };
+  }
+
   window.agentScreensaver.register(function () {
-    var box, lastKey = "", big;
+    var box, lastKey = "", big, song, track, waiting = false, now, cancelSong;
+
+    // With no tasks: the empty corner under the prism, as far in from the left
+    // and up from the foot as the clock is from the top. While tasks run: the
+    // top row, centred in the room between the clock (the clock component, in
+    // the same full-screen layer) and the limits, cut with "…" when short.
+    function placeSong() {
+      if (!song || song.node.hidden) return;
+      var vw = window.innerWidth / 100, vh = window.innerHeight / 100, vmin = Math.min(vw, vh);
+      var node = song.node, ringsShown = !box.hidden;
+      node.classList.toggle("big", big === true);
+      if (big) {
+        node.style.maxWidth = 40 * vw + "px";
+        node.style.left = 5 * vw + "px";
+        node.style.top = window.innerHeight - 5 * vh - node.offsetHeight + "px";
+        return;
+      }
+      var clock = document.querySelector(".dsc");
+      var from = (clock ? clock.offsetLeft + clock.offsetWidth : 5 * vw + 30 * vmin) + 4 * vmin;
+      var to = (ringsShown ? box.offsetLeft : window.innerWidth - 4.5 * vw) - 4 * vmin;
+      node.style.maxWidth = Math.max(0, to - from) + "px";
+      node.style.left = from + Math.max(0, (to - from - node.offsetWidth) / 2) + "px";
+      var middle = ringsShown ? box.offsetTop + Math.min(box.offsetHeight, 6.6 * vmin) / 2 : 4.4 * vh + 2.3 * vmin;
+      node.style.top = middle - node.offsetHeight / 2 + "px";
+    }
+
+    // The ring of the song moves on between the service's reads, a few times a second, and the song keeps its place.
+    function drawSong() {
+      if (!song || !track) return;
+      var progress = songProgress(track, now());
+      song.ring.hidden = progress === null;
+      if (progress !== null) song.arc.setAttribute("stroke-dasharray", (ARC * progress).toFixed(2) + " " + ARC.toFixed(2));
+      placeSong();
+    }
+
+    function showSong(next) {
+      var title = next && next.title ? next.title : "";
+      var appears = song.node.hidden && title !== "";
+      track = title === "" ? undefined : next;
+      song.node.hidden = title === "";
+      song.node.classList.toggle("away", waiting);
+      if (title === "") return;
+      if (song.name.textContent !== title) song.name.textContent = title;
+      if (song.detail.textContent !== next.artist) song.detail.textContent = next.artist;
+      song.detail.hidden = next.artist === "";
+      drawSong();
+      if (appears && !waiting) song.node.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
+    }
+
     // Under the spectrum when nothing runs: the date sits under the violet, the rings under the date.
     function place() {
       if (!box) return;
@@ -223,14 +320,17 @@
       box.style.top = foot[1] + g.slope(1) * (g.colR - foot[0]) + 10 * g.vmin + "px";
     }
     return {
-      mount: function (root) {
+      mount: function (root, ctx) {
         root.style.position = "absolute";
         root.style.inset = "0";
         var style = document.createElement("style");
         style.textContent = STYLE;
         box = document.createElement("div");
         box.className = "dsr";
-        root.append(style, box);
+        song = songItem();
+        root.append(style, box, song.node);
+        now = function () { return ctx.now(); };
+        cancelSong = ctx.requestFrame(drawSong, 4);
         window.addEventListener("resize", place);
         lastKey = "";
         big = undefined;
@@ -247,16 +347,21 @@
         big = nowBig;
         box.classList.toggle("big", nowBig);
         place();
+        waiting = state.mode === "attention";
+        showSong(state.nowPlaying);
         var shown = order(state.limits, state.agentOrder).map(function (limit) { return view(limit, state.nowMs); });
         var key = JSON.stringify(shown);
         if (key === lastKey) return;
         lastKey = key;
         box.replaceChildren.apply(box, shown.map(ring));
+        placeSong();
       },
       unmount: function () {
         window.removeEventListener("resize", place);
+        if (cancelSong) cancelSong();
+        cancelSong = undefined;
         if (box && box.parentElement) box.parentElement.replaceChildren();
-        box = undefined;
+        box = song = track = undefined;
       },
     };
   });
