@@ -4,7 +4,7 @@ A fan-made tribute theme for agent-screensaver. It is inspired by a record sleev
 
 ![Key of Life working, looping demo](media/demo.gif)
 
-Needs agent-screensaver 0.3.0 or later. That release is not out yet.
+Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.3.0) or later.
 
 ## What the screen shows
 
