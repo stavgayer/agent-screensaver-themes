@@ -44,7 +44,9 @@ The `media` folder holds the stills for this page. It is not part of the pack zi
 
 ## Install
 
-Download `kid-a.zip` from the Releases page of this repo, then run:
+Download `kid-a.zip` from the Releases page of this repo. Open the agent-screensaver settings window (from the menu bar icon, or with Spotlight on 0.3.1 or later), go to Extensions, click Install… and choose `kid-a.zip`. Then pick the theme under Theme & background.
+
+Or in Terminal:
 
 ```
 agent-screensaver ext install kid-a.zip
