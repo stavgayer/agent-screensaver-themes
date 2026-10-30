@@ -1,7 +1,7 @@
 {
   "id": "stavgayer.pleasures-rings",
   "name": "Unknown Pleasures rings",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "type": "component",
   "api": 1,
   "entry": "index.js"
