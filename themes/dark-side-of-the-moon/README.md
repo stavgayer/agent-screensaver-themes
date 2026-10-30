@@ -43,7 +43,9 @@ The `media` folder holds the stills for this page. It is not part of the pack zi
 
 ## Install
 
-Download `dark-side-of-the-moon.zip` from the Releases page of this repo, then run:
+Download `dark-side-of-the-moon.zip` from the Releases page of this repo. Open the agent-screensaver settings window (from the menu bar icon, or with Spotlight on 0.3.1 or later), go to Extensions, click Install… and choose `dark-side-of-the-moon.zip`. Then pick the theme under Theme & background.
+
+Or in Terminal:
 
 ```
 agent-screensaver ext install dark-side-of-the-moon.zip

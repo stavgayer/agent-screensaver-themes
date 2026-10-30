@@ -42,12 +42,16 @@ The `media` folder holds the stills for this page. It is not part of the pack zi
 
 ## Install
 
-Install the pack from this folder:
+Download `songs-in-the-key-of-life.zip` from the Releases page of this repo. Open the agent-screensaver settings window (from the menu bar icon, or with Spotlight on 0.3.1 or later), go to Extensions, click Install… and choose `songs-in-the-key-of-life.zip`. Then pick the theme under Theme & background.
+
+Or in Terminal:
 
 ```
-agent-screensaver ext install ./agent-screensaver-sitkol
+agent-screensaver ext install songs-in-the-key-of-life.zip
 agent-screensaver theme set stavgayer.sitkol
 ```
+
+To build the zip yourself, run `scripts/pack.sh songs-in-the-key-of-life` from the root of this repo.
 
 On a release that installs one extension at a time, run this from this folder instead, one folder per install:
 
