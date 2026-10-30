@@ -1,7 +1,7 @@
 {
   "id": "stavgayer.kida-ground",
   "name": "Kid A range",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "type": "background",
   "api": 1,
   "entry": "index.js",
