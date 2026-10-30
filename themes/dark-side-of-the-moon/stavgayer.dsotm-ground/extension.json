@@ -1,7 +1,7 @@
 {
   "id": "stavgayer.dsotm-ground",
   "name": "Prism light",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "type": "background",
   "api": 1,
   "entry": "index.js",
