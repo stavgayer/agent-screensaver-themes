@@ -16,6 +16,8 @@ Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/r
 | Nothing running: the time, repeated. The corner shows the date. | ![Idle](media/idle.jpg) |
 | Second display: the time, repeated. | ![Second display](media/secondary.jpg) |
 
+With "Show what's playing" on in agent-screensaver 0.4.0 or later, the song that Spotify or Music plays gets one more printed card, as wide as the small photo and right under it: the app and the time in the orange band, the song in large type, the artist, and a bar that fills as the song plays. When the task cards reach that high, the song card moves up to stay clear of them; on a very wide screen it then covers the foot of the photo. It steps away while an agent waits for you. A song that Music streams has no time and no bar, because Music gives no length for it.
+
 Privacy mode keeps working. With privacy on, the title and the command are left out.
 
 With "Reduce motion" on in macOS, the rows and the photos stand still, and cards fade in and out without moving.
@@ -27,7 +29,7 @@ With "Reduce motion" on in macOS, the rows and the photos stand still, and cards
 | `stavgayer.pablo` | theme | Picks the ground and the layout. |
 | `stavgayer.pablo-layout` | layout | Clock top left, rings top right, the board in the center. A second display shows the board with the time only. |
 | `stavgayer.pablo-ground` | background | The flat orange (option `color`), and the black field while an agent waits. |
-| `stavgayer.pablo-rows` | component | The board: rows, photos, task cards and the approval card. Option `show`: `agents` (default) or `time`. |
+| `stavgayer.pablo-rows` | component | The board: rows, photos, task cards, the song card and the approval card. Option `show`: `agents` (default) or `time`. |
 | `stavgayer.pablo-clock` | component | The time and the date. |
 | `stavgayer.pablo-rings` | component | The usage limits as flat rings. |
 
