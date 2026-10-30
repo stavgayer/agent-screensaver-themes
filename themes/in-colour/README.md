@@ -16,6 +16,8 @@ Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/r
 | Nothing running: the dark wheel, the time very large, and the date. | ![Idle](media/idle.jpg) |
 | Second display: the time and the date only. | ![Second display](media/secondary.jpg) |
 
+With "Show what's playing" on in agent-screensaver 0.4.0 or later, the song that Spotify or Music plays gets a white leg of its own, cut at 45 degrees like the others: a small ring that fills as the song plays, the song, and its artist. It hangs under the lowest leg shown and stays above the task cards. On the dark wheel at rest it drops its white bar and turns white, like the rest. It steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
+
 Each agent owns one hue: Claude vermilion, Codex blue, Cursor green. Other agents get a hue by their name. Privacy mode keeps working: titles, commands, names and branches are shown only when the service sends them.
 
 With "Reduce motion" on in macOS, the wheel and the words stand still, and things fade instead of moving.
@@ -27,7 +29,7 @@ With "Reduce motion" on in macOS, the wheel and the words stand still, and thing
 | `stavgayer.incolour` | theme | Picks the wheel and the layout. |
 | `stavgayer.incolour-layout` | layout | Clock top left, rings top right, the board over the whole screen. A second display shows the board with the time only. |
 | `stavgayer.incolour-ground` | background | The wheel, the one-hue wheel for an approval, and the dark veil. Option `turn`: minutes per turn. |
-| `stavgayer.incolour-board` | component | The statement, the task cards and the approval card. Option `show`: `agents` (default) or `time`. |
+| `stavgayer.incolour-board` | component | The statement, the task cards, the song and the approval card. Option `show`: `agents` (default) or `time`. |
 | `stavgayer.incolour-clock` | component | The time and the date in the corner. |
 | `stavgayer.incolour-rings` | component | The usage limits as rings in each agent's hue. |
 
