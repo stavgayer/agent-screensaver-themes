@@ -1,7 +1,7 @@
 {
   "id": "stavgayer.incolour-rings",
   "name": "In Colour rings",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "type": "component",
   "api": 1,
   "entry": "index.js"

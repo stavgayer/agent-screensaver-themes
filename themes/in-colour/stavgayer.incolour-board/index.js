@@ -50,6 +50,17 @@
     ".icb.time .sub { --h: 9vmin; top: calc(25vh + 40vmin - 1px); }",
     ".icb.time .sub .word { font-size: 5vmin; }",
     ".icb .sub[hidden] { display: none; }",
+    // the song (state.nowPlaying, agent-screensaver 0.4.0): one more leg, under the lowest one shown (placeSong sets its top)
+    ".icb .song { --h: 8vmin; top: calc(18.5vh + 21vmin + 2vmin); gap: 1.6vmin; max-width: 64vw; transition: background-color 900ms var(--ease-out), color 900ms var(--ease-out), opacity 260ms var(--ease-out); }",
+    ".icb .song[hidden], .icb .song .ring[hidden], .icb .song .who[hidden] { display: none; }",
+    ".icb.call .song, .icb.bare .song { opacity: 0; }",
+    ".icb .song .ring { flex: none; width: 4.6vmin; height: 4.6vmin; }",
+    ".icb .song svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }",
+    ".icb .song circle { fill: none; stroke: currentColor; stroke-width: 6; }",
+    ".icb .song .track { opacity: 0.2; }",
+    ".icb .song .words { min-width: 0; display: flex; flex-direction: column; gap: 0.3vmin; line-height: 1.1; }",
+    ".icb .song .title { font-size: 3vmin; letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; }",
+    ".icb .song .who { font-size: 2.2vmin; font-weight: 500; overflow: hidden; text-overflow: ellipsis; }",
     // all done: the spectrum settles into the hues of the agents that did the work
     ".icb .chord { display: flex; gap: 1.4vmin; margin: 0 3.4vmin 0 2vmin; }",
     ".icb .chord:empty { display: none; }",
@@ -209,6 +220,7 @@
 
   window.agentScreensaver.register(function () {
     var box, stage, hero, heroWord, sub, subWord, chord, cardsBox, call, lastState;
+    var song, track, cancelSong, now;
     var show = "agents", mood = "", heroKey = "", callKey = "";
     var cards = new Map();
 
@@ -393,6 +405,79 @@
 
     // ---- the whole board ------------------------------------------------
 
+    // ---- the song --------------------------------------------------------
+
+    var RADIUS = 19;
+    var ARC = 2 * Math.PI * RADIUS;
+
+    function svgNode(tag, attributes) {
+      var node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      Object.keys(attributes).forEach(function (key) { node.setAttribute(key, attributes[key]); });
+      return node;
+    }
+
+    function buildSong() {
+      var leg = el("div", "leg song");
+      leg.hidden = true;
+      var ring = el("div", "ring");
+      var svg = svgNode("svg", { viewBox: "0 0 48 48", "aria-hidden": "true" });
+      var arc = svgNode("circle", { class: "arc", cx: 24, cy: 24, r: RADIUS, "stroke-dasharray": "0 " + ARC.toFixed(2) });
+      svg.append(svgNode("circle", { class: "track", cx: 24, cy: 24, r: RADIUS }), arc);
+      ring.appendChild(svg);
+      var words = el("div", "words");
+      var title = el("div", "title");
+      var who = el("div", "who");
+      words.append(title, who);
+      leg.append(ring, words);
+      return { leg: leg, ring: ring, arc: arc, title: title, who: who };
+    }
+
+    // How far the song is, 0 to 1, moved on from when it was read; null when the
+    // app gives no length (Music, for songs it streams).
+    function songProgress(next, nowMs) {
+      if (!(next.duration_ms > 0)) return null;
+      var at = next.position_ms + Math.max(0, nowMs - next.at_ms);
+      return Math.min(1, Math.max(0, at / next.duration_ms));
+    }
+
+    // Under the lowest leg shown, unless the task cards reach that high: then
+    // just above them. Layout positions, so the drift and a card rising in do not move it.
+    function placeSong() {
+      if (!song || song.leg.hidden) return;
+      var vmin = Math.min(box.clientWidth, box.clientHeight) / 100;
+      var gap = 2 * vmin;
+      var above = sub.hidden ? hero : sub;
+      var top = above.offsetTop + above.offsetHeight + gap;
+      var height = song.leg.offsetHeight;
+      var cardsTop = Infinity;
+      Array.prototype.forEach.call(cardsBox.children, function (card) { cardsTop = Math.min(cardsTop, cardsBox.offsetTop + card.offsetTop); });
+      if (top + height + gap > cardsTop) top = Math.max(above.offsetTop + above.offsetHeight, cardsTop - gap - height);
+      song.leg.style.top = top + "px";
+    }
+
+    // The ring moves on between the service's reads, a few times a second, and the leg keeps its place.
+    function tickSong() {
+      if (!song || !track) return;
+      var progress = songProgress(track, now());
+      song.ring.hidden = progress === null;
+      if (progress !== null) song.arc.setAttribute("stroke-dasharray", (ARC * progress).toFixed(2) + " " + ARC.toFixed(2));
+      placeSong();
+    }
+
+    function drawSong(next) {
+      var title = next && next.title ? next.title : "";
+      var appears = song.leg.hidden && title !== "";
+      track = title === "" ? undefined : next;
+      song.leg.hidden = title === "";
+      box.classList.toggle("bare", show === "time");
+      if (title === "") return;
+      setText(song.title, title);
+      setText(song.who, next.artist);
+      song.who.hidden = next.artist === "";
+      tickSong();
+      if (appears && mood !== "call" && show !== "time") song.leg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
+    }
+
     function draw(state) {
       if (!box) return;
       var waiting = show === "time" || state.display !== "main" ? [] : approvals(state.cards);
@@ -410,6 +495,8 @@
       mood = next;
       drawHero(statement(state, waiting, tasks));
       drawCards(tasks, state);
+      drawSong(state.nowPlaying);
+      placeSong();
     }
 
     function setShow(options) {
@@ -435,7 +522,10 @@
         sub.hidden = true;
         cardsBox = el("div", "cards");
         call = el("div", "call");
-        stage.append(hero, sub, cardsBox, call);
+        song = buildSong();
+        stage.append(hero, sub, song.leg, cardsBox, call);
+        now = function () { return ctx.now(); };
+        cancelSong = ctx.requestFrame(tickSong, 4);
         box.appendChild(stage);
         root.append(style, box);
         setShow(ctx.options);
@@ -450,8 +540,9 @@
         if (lastState) draw(lastState);
       },
       unmount: function () {
+        if (cancelSong) cancelSong();
         if (box && box.parentElement) box.parentElement.replaceChildren();
-        box = stage = hero = heroWord = sub = subWord = chord = cardsBox = call = undefined;
+        box = stage = hero = heroWord = sub = subWord = chord = cardsBox = call = song = track = cancelSong = undefined;
         cards.clear();
         mood = heroKey = callKey = "";
       },
