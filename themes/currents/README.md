@@ -16,6 +16,8 @@ Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/r
 | Nothing running: one chrome ball in a dim, calm surface. The time very large, the date, and the limit rings grow. | ![Idle](media/idle.jpg) |
 | Second display: the surface and its one ball, with the time and the date only. | ![Second display](media/secondary.jpg) |
 
+With "Show what's playing" on in agent-screensaver 0.4.0 or later, the song that Spotify or Music plays gets a smaller dark plate right under the limits: a lilac ring that fills as the song plays, the song, and its artist. It grows with the limits when nothing runs, a long name is cut with "…", and it steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
+
 Each agent owns one thread colour: Claude vermilion to orange, Codex lilac to blue, Cursor marigold to orange. Other agents get colours by their name. All text sits on dark plates or paper cards, so it reads everywhere on the surface. The approval command keeps one line and gets smaller to fit; only a very long command breaks, at spaces, into up to four lines. Privacy mode keeps working: titles, commands, names and branches are shown only when the service sends them. Without a command the approval card says "Look at the terminal".
 
 ## Motion
@@ -37,7 +39,7 @@ Each agent owns one thread colour: Claude vermilion to orange, Codex lilac to bl
 | `stavgayer.currents-ground` | background | The lined surface, the balls, their threads and wakes, and the flood for an approval. Options: `drift` (minutes for one drift), `fps`, `scale`. |
 | `stavgayer.currents-board` | component | The statement, the task cards and the approval card. Option `show`: `agents` (default) or `time`. |
 | `stavgayer.currents-clock` | component | The time and the date in the corner. |
-| `stavgayer.currents-rings` | component | The usage limits as rings in each agent's hue. |
+| `stavgayer.currents-rings` | component | The usage limits as rings in each agent's hue, and the song that plays, when the service sends one. |
 
 The `media` folder holds the stills for this page. It is not part of the pack zip.
 
