@@ -7,7 +7,11 @@
 // its title. Order, numbers and captions follow builtin.limit-rings: an old
 // reading is dimmed and says its age, an estimate says "est.", and a window
 // that reset since the reading is empty and says "Reset". Time comes from
-// state.nowMs.
+// state.nowMs. The song that plays (state.nowPlaying, agent-screensaver 0.4.0
+// and later) gets a label of its own: while tasks run, centred in the room
+// between the time and the limits, cut with "…" when that room is short, and
+// at the top of the field at rest. Its ring fills as the song plays. It steps away
+// while an agent waits for you, like everything but the open centre.
 (function () {
   // ---- shared by the ground, the board and the bar: keep these in step ----
   var MAX_CARDS = 7;
@@ -192,6 +196,16 @@
     ".skr .value { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--size) * 0.27); font-weight: 500; line-height: 1.2; }",
     ".skr .caption { display: flex; flex-direction: column; gap: 0.3vmin; font-size: calc(var(--size) * 0.37); line-height: 1.2; }",
     ".skr .detail { font-size: calc(var(--size) * 0.31); color: var(--muted); line-height: 1.2; }",
+    // The slot takes only the room the time and the limits leave, so the song never makes the limits wrap.
+    ".skr .slot { flex: 1 1 0; min-width: 0; display: flex; justify-content: center; }",
+    ".skr .song { --size: 4.4vmin; --hue: #8a3b07; min-width: 0; max-width: 100%; display: flex; align-items: center; gap: calc(var(--size) * 0.28);",
+    "  padding: 1vmin 2.6vmin 1vmin 1.2vmin; transition: opacity 400ms cubic-bezier(0.23, 1, 0.32, 1); }",
+    ".skr .song[hidden], .skr .song .ring[hidden], .skr .song .detail[hidden] { display: none; }",
+    ".skr .song.away { opacity: 0; }",
+    ".skr .song.top { position: absolute; left: 50%; top: 4.2vh; transform: translateX(-50%); max-width: 46vw; }",
+    ".skr .song .caption { min-width: 0; }",
+    ".skr .song .name, .skr .song .detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+    "@media (prefers-reduced-motion: reduce) { .skr .song { transition: none; } }",
   ].join("\n");
 
   function pad2(value) {
@@ -308,8 +322,58 @@
     }
   }
 
+  // How far the song is, 0 to 1, moved on from when it was read; null when the
+  // app gives no length (Music, for songs it streams).
+  function songProgress(track, nowMs) {
+    if (!(track.duration_ms > 0)) return null;
+    var at = track.position_ms + Math.max(0, nowMs - track.at_ms);
+    return Math.min(1, Math.max(0, at / track.duration_ms));
+  }
+
+  // The song label: a ring like the limits, the song, then its artist.
+  function songLabel() {
+    var label = document.createElement("div");
+    label.className = "label song";
+    label.hidden = true;
+    var holder = document.createElement("div");
+    holder.className = "ring";
+    var svg = svgNode("svg", { viewBox: "0 0 48 48", "aria-hidden": "true" });
+    var arc = svgNode("circle", { class: "arc", cx: 24, cy: 24, r: RADIUS, "stroke-dasharray": "0 " + ARC.toFixed(2) });
+    svg.append(svgNode("circle", { class: "track", cx: 24, cy: 24, r: RADIUS }), arc);
+    holder.append(svg);
+    var caption = document.createElement("div");
+    caption.className = "caption";
+    var name = text("name", "");
+    var detail = text("detail", "");
+    caption.append(name, detail);
+    label.append(holder, caption);
+    return { label: label, ring: holder, arc: arc, name: name, detail: detail };
+  }
+
   window.agentScreensaver.register(function () {
-    var box, stage, row, when, time, date, limits, lastKey = "", low, cancelTick, cancelDrift;
+    var box, stage, row, when, slot, time, date, limits, song, track, lastKey = "", low, cancelTick, cancelDrift, cancelSong, now;
+
+    // The ring of the song moves on between the service's reads, a few times a second.
+    function drawSong() {
+      if (!song || !track) return;
+      var progress = songProgress(track, now());
+      song.ring.hidden = progress === null;
+      if (progress !== null) song.arc.setAttribute("stroke-dasharray", (ARC * progress).toFixed(2) + " " + ARC.toFixed(2));
+    }
+
+    function showSong(next, mood) {
+      var title = next && next.title ? next.title : "";
+      var appears = song.label.hidden && title !== "";
+      track = title === "" ? undefined : next;
+      song.label.hidden = title === "";
+      song.label.classList.toggle("away", mood === "call");
+      if (title === "") return;
+      if (song.name.textContent !== title) song.name.textContent = title;
+      if (song.detail.textContent !== next.artist) song.detail.textContent = next.artist;
+      song.detail.hidden = next.artist === "";
+      drawSong();
+      if (appears && !song.label.classList.contains("away")) song.label.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
+    }
 
     function tick(nowMs) {
       var moment = new Date(nowMs);
@@ -319,9 +383,17 @@
       if (date.textContent !== d) date.textContent = d;
     }
 
-    // At rest the limits stand under the centre of the field, across the lower rings.
+    // At rest the limits stand under the centre of the field, across the lower
+    // rings, and the song at the top of the field; while tasks run the song
+    // stands in the row between the time and the limits.
     function place() {
       if (!box) return;
+      song.label.classList.toggle("top", low === true);
+      if (low) {
+        if (song.label.parentElement !== stage) stage.appendChild(song.label);
+      } else if (song.label.parentElement !== slot) {
+        slot.appendChild(song.label);
+      }
       if (!low) {
         if (limits.parentElement !== row) row.appendChild(limits);
         limits.style.left = limits.style.top = "";
@@ -352,12 +424,18 @@
         when.append(time, date);
         limits = document.createElement("div");
         limits.className = "label limits";
-        row.append(when, limits);
+        song = songLabel();
+        slot = document.createElement("div");
+        slot.className = "slot";
+        slot.appendChild(song.label);
+        row.append(when, slot, limits);
         stage.appendChild(row);
         box.appendChild(stage);
         root.append(style, box);
+        now = function () { return ctx.now(); };
         tick(ctx.now());
         cancelTick = ctx.requestFrame(function () { tick(ctx.now()); }, 1);
+        cancelSong = ctx.requestFrame(drawSong, 4);
         // The words stand still. Only the field sways against burn-in: moving text
         // by a fraction of a pixel resamples it, and by whole pixels it visibly steps.
         window.addEventListener("resize", place);
@@ -380,6 +458,7 @@
         low = resting;
         limits.classList.toggle("low", resting);
         place();
+        showSong(state.nowPlaying, moodOf(state));
         var shown = order(state.limits, state.agentOrder || []).map(function (limit) { return view(limit, state.nowMs); });
         var key = JSON.stringify(shown);
         if (key === lastKey) return;
@@ -390,9 +469,10 @@
         window.removeEventListener("resize", place);
         if (cancelTick) cancelTick();
         if (cancelDrift) cancelDrift();
-        cancelTick = cancelDrift = undefined;
+        if (cancelSong) cancelSong();
+        cancelTick = cancelDrift = cancelSong = undefined;
         if (box && box.parentElement) box.parentElement.replaceChildren();
-        box = stage = row = when = time = date = limits = undefined;
+        box = stage = row = when = slot = time = date = limits = song = track = undefined;
       },
     };
   });
