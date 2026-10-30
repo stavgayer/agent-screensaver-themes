@@ -4,7 +4,11 @@
 // they are then half of what the screen says. Order, numbers and captions follow
 // builtin.limit-rings: an old reading is dimmed and says its age, an estimate
 // says "est.", and a window that reset since the reading is empty and says
-// "Reset". Time comes from state.nowMs.
+// "Reset". Time comes from state.nowMs. The song that plays (state.nowPlaying,
+// agent-screensaver 0.4.0 and later) gets a smaller plate of the same cut right
+// under it: an ice-white ring that fills as the song plays, the song, then its
+// artist. It never reaches the big word on the left, and steps away while an
+// agent waits for you.
 (function () {
   var scriptSrc = (document.currentScript && document.currentScript.src) || "";
   var base = scriptSrc.replace(/[^/]*$/, "");
@@ -37,6 +41,24 @@
     ".kar .value { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--size) * 0.28); font-stretch: 85%; }",
     ".kar .caption { display: flex; flex-direction: column; gap: 0.5vmin; font-size: calc(var(--size) * 0.29); line-height: 1.05; }",
     ".kar .detail { font-weight: 500; font-size: calc(var(--size) * 0.26); color: #a3adb8; }",
+    ".kar-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 1.8vmin; }",
+    // the big word takes up to about 100vmin from the left, so on a narrow screen the plate stops short of it
+    ".kap { --size: 5.2vmin; --hue: #e9edef; display: flex; align-items: center; gap: calc(var(--size) * 0.3); height: calc(var(--size) + 2.6vmin); box-sizing: border-box;",
+    "  max-width: min(36vw, calc(100vw - 100vmin)); margin-right: -8vmin; padding: 0 8vmin 0 2.4vmin; background: #0c0f13; color: #eef1f3; border-radius: 0 0 0 0.8vmin;",
+    "  box-shadow: 0 1vmin 2.6vmin rgba(0, 0, 0, 0.35); transition: opacity 400ms cubic-bezier(0.23, 1, 0.32, 1);",
+    "  font-family: 'KA Type', 'Helvetica Neue', sans-serif; font-weight: 600; -webkit-font-smoothing: antialiased; }",
+    ".kar.big + .kap { --size: 6.8vmin; }",
+    ".kap[hidden], .kap .ring[hidden], .kap .detail[hidden] { display: none; }",
+    ".kap.away { opacity: 0; }",
+    ".kap .ring { position: relative; width: var(--size); height: var(--size); flex: none; }",
+    ".kap svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }",
+    ".kap .track { fill: none; stroke: #eef1f3; stroke-width: 6; opacity: 0.16; }",
+    ".kap .arc { fill: none; stroke: var(--hue); stroke-width: 6; }",
+    ".kap .caption { min-width: 0; display: flex; flex-direction: column; gap: 0.4vmin; line-height: 1.1; }",
+    ".kap .name { font-size: calc(var(--size) * 0.38); }",
+    ".kap .detail { font-weight: 500; font-size: calc(var(--size) * 0.33); color: #a3adb8; }",
+    ".kap .name, .kap .detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+    "@media (prefers-reduced-motion: reduce) { .kap { transition: none; } }",
   ].join("\n");
 
   function hueOf(source) {
@@ -148,19 +170,76 @@
     return item;
   }
 
+  // How far the song is, 0 to 1, moved on from when it was read; null when the
+  // app gives no length (Music, for songs it streams).
+  function songProgress(track, nowMs) {
+    if (!(track.duration_ms > 0)) return null;
+    var at = track.position_ms + Math.max(0, nowMs - track.at_ms);
+    return Math.min(1, Math.max(0, at / track.duration_ms));
+  }
+
+  function songPlate() {
+    var plate = document.createElement("div");
+    plate.className = "kap";
+    plate.hidden = true;
+    var holder = document.createElement("div");
+    holder.className = "ring";
+    var svg = svgNode("svg", { viewBox: "0 0 48 48", "aria-hidden": "true" });
+    var arc = svgNode("circle", { class: "arc", cx: 24, cy: 24, r: RADIUS, "stroke-dasharray": "0 " + ARC.toFixed(2) });
+    svg.append(svgNode("circle", { class: "track", cx: 24, cy: 24, r: RADIUS }), arc);
+    holder.append(svg);
+    var caption = document.createElement("div");
+    caption.className = "caption";
+    var name = text("name", "");
+    var detail = text("detail", "");
+    caption.append(name, detail);
+    plate.append(holder, caption);
+    return { plate: plate, ring: holder, arc: arc, name: name, detail: detail };
+  }
+
   window.agentScreensaver.register(function () {
-    var box, lastKey = "";
+    var box, song, track, now, cancelSong, lastKey = "";
+
+    // The ring of the song moves on between the service's reads, a few times a second.
+    function drawSong() {
+      if (!song || !track) return;
+      var progress = songProgress(track, now());
+      song.ring.hidden = progress === null;
+      if (progress !== null) song.arc.setAttribute("stroke-dasharray", (ARC * progress).toFixed(2) + " " + ARC.toFixed(2));
+    }
+
+    function showSong(next, waiting) {
+      var title = next && next.title ? next.title : "";
+      var appears = song.plate.hidden && title !== "";
+      track = title === "" ? undefined : next;
+      song.plate.hidden = title === "";
+      song.plate.classList.toggle("away", waiting);
+      if (title === "") return;
+      if (song.name.textContent !== title) song.name.textContent = title;
+      if (song.detail.textContent !== next.artist) song.detail.textContent = next.artist;
+      song.detail.hidden = next.artist === "";
+      drawSong();
+      if (appears && !waiting) song.plate.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
+    }
+
     return {
-      mount: function (root) {
+      mount: function (root, ctx) {
         var style = document.createElement("style");
         style.textContent = STYLE;
+        var stack = document.createElement("div");
+        stack.className = "kar-stack";
         box = document.createElement("div");
         box.className = "kar";
-        root.append(style, box);
+        song = songPlate();
+        stack.append(box, song.plate);
+        root.append(style, stack);
         lastKey = "";
+        now = function () { return ctx.now(); };
+        cancelSong = ctx.requestFrame(drawSong, 4);
       },
       update: function (state) {
         if (!box) return;
+        showSong(state.nowPlaying, state.mode === "attention");
         box.classList.toggle("big", state.cards.length === 0);
         box.hidden = state.limits.length === 0;
         var shown = order(state.limits, state.agentOrder).map(function (limit) { return view(limit, state.nowMs); });
@@ -170,8 +249,10 @@
         box.replaceChildren.apply(box, shown.map(ring));
       },
       unmount: function () {
-        if (box && box.parentElement) box.parentElement.replaceChildren();
-        box = undefined;
+        if (cancelSong) cancelSong();
+        cancelSong = undefined;
+        if (box && box.parentElement && box.parentElement.parentElement) box.parentElement.parentElement.replaceChildren();
+        box = song = track = undefined;
       },
     };
   });
