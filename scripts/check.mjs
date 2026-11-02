@@ -20,6 +20,14 @@ function git(...args) {
   return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
+// Whether an x.y.z version is at least min, comparing each number.
+function atLeast(version, min) {
+  if (!/^\d+\.\d+\.\d+$/.test(version ?? "")) return false;
+  const [a, b] = [version, min].map((v) => v.split(".").map(Number));
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] > b[i];
+  return true;
+}
+
 // The version of each extension folder of a theme, from the working tree or from a tag.
 function versionsOf(theme, ref) {
   const versions = new Map();
@@ -60,7 +68,10 @@ for (const theme of readdirSync(themesDir).sort()) {
     if (manifest.id !== folder) problems.push(`${where}: id "${manifest.id}" is not the folder name`);
     if (!/^\d+\.\d+\.\d+$/.test(manifest.version ?? "")) problems.push(`${where}: version "${manifest.version}" is not x.y.z`);
     if (!TYPES.has(manifest.type)) problems.push(`${where}: type "${manifest.type}" is not one of ${[...TYPES].join(", ")}`);
-    if (manifest.api !== 1) problems.push(`${where}: api is ${manifest.api}, not 1`);
+    if (manifest.api !== 1 && manifest.api !== 2) problems.push(`${where}: api is ${manifest.api}, not 1 or 2`);
+    if (manifest.requires !== undefined && !/^\d+\.\d+\.\d+$/.test(manifest.requires)) problems.push(`${where}: requires "${manifest.requires}" is not x.y.z`);
+    // api 2 parts use the shared helpers from 0.5.0; requires gives people on 0.5+ a clear message.
+    if (manifest.api === 2 && !atLeast(manifest.requires, "0.5.0")) problems.push(`${where}: api 2 needs "requires": "0.5.0" or later`);
     if (manifest.type === "theme") {
       pointsAt(where, "background", manifest.theme?.background?.id);
       pointsAt(where, "layout", manifest.theme?.layout);
