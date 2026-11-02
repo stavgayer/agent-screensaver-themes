@@ -248,6 +248,54 @@
     ".upg .paper { position: absolute; inset: 0; background-size: 160px 160px; pointer-events: none; }",
   ].join("\n");
 
+  // A lost WebGL context (sleep and wake, a GPU reset) leaves the surface black
+  // or frozen. Start again on a fresh canvas, which gets a fresh context, and
+  // hand it the last state. stop() loses the context on purpose to free the
+  // GPU, so the listener comes off before every stop.
+  function recovering(api, surfaceOf) {
+    var root, ctx, state, canvas, timer;
+    function attach() {
+      canvas = surfaceOf();
+      if (canvas) canvas.addEventListener("webglcontextlost", lost);
+    }
+    function detach() {
+      if (canvas) canvas.removeEventListener("webglcontextlost", lost);
+      canvas = undefined;
+    }
+    function lost(event) {
+      event.preventDefault();
+      if (timer !== undefined) return;
+      timer = setTimeout(function () {
+        timer = undefined;
+        var last = state;
+        detach();
+        api.stop();
+        api.start(root, ctx);
+        attach();
+        if (last) api.update(last);
+      }, 400);
+    }
+    return {
+      start: function (r, c) {
+        root = r;
+        ctx = c;
+        api.start(r, c);
+        attach();
+      },
+      update: function (s) {
+        state = s;
+        api.update(s);
+      },
+      stop: function () {
+        clearTimeout(timer);
+        timer = undefined;
+        detach();
+        api.stop();
+        root = ctx = state = undefined;
+      },
+    };
+  }
+
   window.agentScreensaver.register(function () {
     var box, drift, surface, style, lastState, lay, mood = "";
     var gl, program, uniforms = {}, cancelFrame, lastMs, seconds = 0;
@@ -512,7 +560,7 @@
       if (lastState) draw(lastState);
     };
 
-    return {
+    var api = {
       start: function (root, ctx) {
         style = document.createElement("style");
         style.textContent = STYLE;
@@ -562,5 +610,6 @@
         bandPhase.clear();
       },
     };
+    return recovering(api, function () { return surface; });
   });
 })();
