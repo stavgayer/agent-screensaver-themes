@@ -8,7 +8,7 @@ description: >
 license: MIT
 metadata:
   author: stavgayer
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # Create an agent-screensaver theme
