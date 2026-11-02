@@ -13,10 +13,14 @@
 
     http://localhost:8000/skills/create-agent-screensaver-theme/assets/preview.html?pack=themes/kid-a&state=work&song=long
 
-  pack   the theme folder, from the repository root (default: the skill's starter)
-  state  rest | work | done | call | second        (default: rest)
-  song   none | normal | long | stream              (default: none)
-  tasks  how many task cards, 1 to 7                (default: 3)
+  pack     the theme folder, from the repository root (default: the skill's starter)
+  state    rest | work | done | call | second        (default: rest)
+  song     none | normal | long | stream              (default: none)
+  tasks    how many task cards, 1 to 7                (default: 3)
+  title    long: the first task gets a very long title, project, branch and command
+  privacy  1: what privacy mode does: no title, command, conversation name or branch, and no song
+  missing  1: leave out the fields the service can leave out (project, approval_since_ms)
+  agent    unknown: add one more task from an agent with no extension ("gemini")
 
   The .preview folder is in .gitignore. Copy it again after you update agent-screensaver.
 -->
@@ -25,6 +29,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Theme preview</title>
+  <link rel="icon" href="data:,">
 </head>
 <body class="mode-idle">
   <div id="background"></div>
@@ -43,6 +48,10 @@
     const state = params.get("state") || "rest";
     const song = params.get("song") || "none";
     const taskCount = Math.min(7, Math.max(1, Number(params.get("tasks")) || 3));
+    const longText = params.get("title") === "long";
+    const privacy = params.get("privacy") === "1";
+    const missing = params.get("missing") === "1";
+    const unknownAgent = params.get("agent") === "unknown";
     const now = Date.now();
 
     // The extension folders of the pack, from the server's directory listing.
@@ -82,7 +91,7 @@
         layout,
         components: await Promise.all([...ids].map((id) => resolve(id))),
         style: theme.theme.style ?? {},
-        privacy: false,
+        privacy,
         max_fps: 30,
         agents: { claude: { name: "Claude Code", mark_url: "" }, codex: { name: "Codex", mark_url: "" }, cursor: { name: "Cursor", mark_url: "" } },
         agent_order: ["claude", "codex", "cursor"],
@@ -104,15 +113,34 @@
       ["claude", "profile the cold start", "api-server", "", 31],
     ];
 
+    const LONG = {
+      title: "a very long task title that keeps going well past the edge of any card on any screen size",
+      project: "a-project-with-a-very-long-name-indeed",
+      branch: "feature/an-equally-long-branch-name-for-the-same-reason",
+      request: "npm run migrate -- --env=production --seed=./fixtures/a/very/long/path/to/the/seed/file.sql --verbose && npm run verify --strict",
+    };
+
     function cards() {
       if (state === "rest" || state === "second") return [];
-      return TASKS.slice(0, taskCount).map(([source, title, project, branch, minutes], index) => {
+      const tasks = TASKS.slice(0, taskCount);
+      if (unknownAgent) tasks.push(["gemini", "summarise the open issues", "web-app", "", 5]);
+      return tasks.map(([source, title, project, branch, minutes], index) => {
         const kind = state === "done" ? "finished" : state === "call" && index === 0 ? "approval" : "running";
-        return {
-          source, session: `s${index}`, kind, title, project, ...(branch ? { branch } : {}),
+        const long = longText && index === 0;
+        const card = {
+          source, session: `s${index}`, kind,
+          title: long ? LONG.title : title,
+          project: long ? LONG.project : project,
+          ...(long ? { branch: LONG.branch } : branch ? { branch } : {}),
           started_at_ms: now - minutes * 60000, updated_at_ms: now,
-          ...(kind === "approval" ? { request: "npm run migrate", approval_since_ms: now - 180000 } : {}),
+          ...(kind === "approval" ? { request: long ? LONG.request : "npm run migrate", approval_since_ms: now - 180000 } : {}),
         };
+        // Privacy mode: the service clears these before the page gets the state.
+        if (privacy) { delete card.title; delete card.request; delete card.name; delete card.branch; }
+        // Fields the service leaves out when it does not know them. started_at_ms
+        // and updated_at_ms are always there.
+        if (missing) { delete card.project; delete card.approval_since_ms; }
+        return card;
       });
     }
 
@@ -134,7 +162,7 @@
         const file = {
           version: 1, generated_at_ms: now, service_ok: true, cards: cards(),
           limits: [limit("claude", "5h", 42), limit("claude", "week", 28), limit("codex", "5h", 17), limit("codex", "week", 9)],
-          ...(SONGS[song] ? { now_playing: { ...SONGS[song], at_ms: now } } : {}),
+          ...(SONGS[song] && !privacy ? { now_playing: { ...SONGS[song], at_ms: now } } : {}),
           view: resolved,
         };
         window.agentScreensaver.setState(JSON.stringify(file), state === "second" ? "secondary" : "main");
