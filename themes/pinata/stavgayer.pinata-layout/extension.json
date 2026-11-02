@@ -1,0 +1,20 @@
+{
+  "id": "stavgayer.pinata-layout",
+  "name": "Piñata layout",
+  "version": "1.0.0",
+  "type": "layout",
+  "api": 1,
+  "layout": {
+    "modes": {
+      "idle": {
+        "center": [{ "id": "stavgayer.pinata-board" }]
+      },
+      "attention": {
+        "center": [{ "id": "stavgayer.pinata-board" }]
+      },
+      "secondary": {
+        "center": [{ "id": "stavgayer.pinata-board", "options": { "show": "time" } }]
+      }
+    }
+  }
+}

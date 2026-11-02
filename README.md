@@ -14,7 +14,7 @@ https://github.com/user-attachments/assets/9a1826d2-a335-49b4-98be-1e8459d3d9ff
 <tr><td align="center"><a href="themes/pablo"><img src="themes/pablo/media/demo.gif" width="400" alt="Pablo"><br>Pablo</a></td><td align="center"><a href="themes/in-colour"><img src="themes/in-colour/media/demo.gif" width="400" alt="In Colour"><br>In Colour</a></td></tr>
 <tr><td align="center"><a href="themes/currents"><img src="themes/currents/media/demo.gif" width="400" alt="Currents"><br>Currents</a></td><td align="center"><a href="themes/kid-a"><img src="themes/kid-a/media/demo.gif" width="400" alt="Kid A"><br>Kid A</a></td></tr>
 <tr><td align="center"><a href="themes/unknown-pleasures"><img src="themes/unknown-pleasures/media/demo.gif" width="400" alt="Unknown Pleasures"><br>Unknown Pleasures</a></td><td align="center"><a href="themes/dark-side-of-the-moon"><img src="themes/dark-side-of-the-moon/media/demo.gif" width="400" alt="Prism"><br>Prism</a></td></tr>
-<tr><td align="center"><a href="themes/songs-in-the-key-of-life"><img src="themes/songs-in-the-key-of-life/media/demo.gif" width="400" alt="Key of Life"><br>Key of Life</a></td><td></td></tr>
+<tr><td align="center"><a href="themes/songs-in-the-key-of-life"><img src="themes/songs-in-the-key-of-life/media/demo.gif" width="400" alt="Key of Life"><br>Key of Life</a></td><td align="center"><a href="themes/pinata"><img src="themes/pinata/media/working.jpg" width="400" alt="Piñata"><br>Piñata</a></td></tr>
 </table>
 
 | Theme | Still | Folder |
@@ -26,8 +26,9 @@ https://github.com/user-attachments/assets/9a1826d2-a335-49b4-98be-1e8459d3d9ff
 | Unknown Pleasures | ![Unknown Pleasures](themes/unknown-pleasures/media/working.jpg) | [themes/unknown-pleasures](themes/unknown-pleasures) |
 | Prism | ![Prism](themes/dark-side-of-the-moon/media/working.jpg) | [themes/dark-side-of-the-moon](themes/dark-side-of-the-moon) |
 | Key of Life | ![Key of Life](themes/songs-in-the-key-of-life/media/working.jpg) | [themes/songs-in-the-key-of-life](themes/songs-in-the-key-of-life) |
+| Piñata | ![Piñata](themes/pinata/media/working.jpg) | [themes/pinata](themes/pinata) |
 
-All seven are fan-made tributes, inspired by album covers. They include no album artwork or logos.
+All eight are fan-made tributes, inspired by album covers. They include no album artwork or logos.
 
 ## Install a theme
 
@@ -75,7 +76,7 @@ The zips are written to `dist/`. Each zip holds only the extension folders. The 
 
 ## Release
 
-Bump the version of every theme you changed, in all of its parts. Then push an annotated tag whose message is the version, a blank line, then the notes: `git tag -a v1.1.2 --cleanup=verbatim -F notes.txt` and `git push origin v1.1.2`. CI checks that every changed theme has a new version, builds the 7 zips and publishes the release with those notes.
+Bump the version of every theme you changed, in all of its parts. Then push an annotated tag whose message is the version, a blank line, then the notes: `git tag -a v1.1.2 --cleanup=verbatim -F notes.txt` and `git push origin v1.1.2`. CI checks that every changed theme has a new version, builds a zip for every theme and publishes the release with those notes.
 
 ## Contribute a theme
 
