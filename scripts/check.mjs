@@ -1,0 +1,95 @@
+#!/usr/bin/env node
+// Checks the themes before they are packed: every script parses, every
+// manifest is valid and complete, and all parts of a theme share one version.
+// With --since <tag>, a theme whose files changed since that tag must also
+// have a new version, so an update always reaches the people who have it.
+// Usage: node scripts/check.mjs [--since <tag>]
+import { execFileSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const root = new URL("..", import.meta.url).pathname;
+const themesDir = join(root, "themes");
+const since = process.argv.includes("--since") ? process.argv[process.argv.indexOf("--since") + 1] : undefined;
+const TYPES = new Set(["theme", "layout", "background", "component"]);
+const problems = [];
+
+function git(...args) {
+  return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+}
+
+// The version of each extension folder of a theme, from the working tree or from a tag.
+function versionsOf(theme, ref) {
+  const versions = new Map();
+  const folders = ref
+    ? git("ls-tree", "--name-only", `${ref}:themes/${theme}`).split("\n").filter(Boolean)
+    : readdirSync(join(themesDir, theme));
+  for (const folder of folders) {
+    let text;
+    try {
+      text = ref ? git("show", `${ref}:themes/${theme}/${folder}/extension.json`) : readFileSync(join(themesDir, theme, folder, "extension.json"), "utf8");
+    } catch {
+      continue; // not an extension folder (README.md, media)
+    }
+    versions.set(folder, JSON.parse(text).version);
+  }
+  return versions;
+}
+
+for (const theme of readdirSync(themesDir).sort()) {
+  const dir = join(themesDir, theme);
+  const folders = readdirSync(dir).filter((name) => existsSync(join(dir, name, "extension.json")));
+  if (folders.length === 0) problems.push(`${theme}: no extension folders`);
+  for (const folder of folders) {
+    const where = `${theme}/${folder}`;
+    let manifest;
+    try {
+      manifest = JSON.parse(readFileSync(join(dir, folder, "extension.json"), "utf8"));
+    } catch (err) {
+      problems.push(`${where}/extension.json: ${err.message}`);
+      continue;
+    }
+    if (manifest.id !== folder) problems.push(`${where}: id "${manifest.id}" is not the folder name`);
+    if (!/^\d+\.\d+\.\d+$/.test(manifest.version ?? "")) problems.push(`${where}: version "${manifest.version}" is not x.y.z`);
+    if (!TYPES.has(manifest.type)) problems.push(`${where}: type "${manifest.type}" is not one of ${[...TYPES].join(", ")}`);
+    if (manifest.api !== 1) problems.push(`${where}: api is ${manifest.api}, not 1`);
+    if (manifest.entry) {
+      const entry = join(dir, folder, manifest.entry);
+      if (!existsSync(entry)) problems.push(`${where}: entry ${manifest.entry} is missing`);
+      else {
+        try {
+          execFileSync(process.execPath, ["--check", entry], { stdio: "pipe" });
+        } catch (err) {
+          problems.push(`${where}/${manifest.entry} does not parse:\n${String(err.stderr).trim()}`);
+        }
+      }
+    }
+  }
+  const versions = new Set(versionsOf(theme).values());
+  if (versions.size > 1) problems.push(`${theme}: its parts have different versions (${[...versions].join(", ")})`);
+  if (since) {
+    let changed;
+    try {
+      changed = git("diff", "--name-only", since, "--", `themes/${theme}`).split("\n").some((file) => file && !file.endsWith("README.md") && !file.includes("/media/"));
+    } catch (err) {
+      problems.push(`cannot compare with ${since}: ${err.message}`);
+      break;
+    }
+    if (!changed) continue;
+    let before;
+    try {
+      before = versionsOf(theme, since);
+    } catch {
+      continue; // a new theme, not in the earlier release
+    }
+    for (const [folder, version] of versionsOf(theme)) {
+      if (before.get(folder) === version) problems.push(`${theme}: its files changed since ${since}, but ${folder} is still ${version}`);
+    }
+  }
+}
+
+if (problems.length > 0) {
+  console.error(problems.map((problem) => `- ${problem}`).join("\n"));
+  process.exit(1);
+}
+console.log(`ok: ${readdirSync(themesDir).length} themes${since ? `, versions checked against ${since}` : ""}`);

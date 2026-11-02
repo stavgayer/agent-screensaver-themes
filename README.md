@@ -71,6 +71,12 @@ scripts/pack.sh pablo      # one theme
 
 The zips are written to `dist/`. Each zip holds only the extension folders. The README and the `media` folder are left out.
 
+`node scripts/check.mjs` checks every theme: each script parses, each manifest is valid, and all parts of a theme share one version. CI runs it and builds the zips on every push.
+
+## Release
+
+Bump the version of every theme you changed, in all of its parts. Then push an annotated tag whose message is the version, a blank line, then the notes: `git tag -a v1.1.2 --cleanup=verbatim -F notes.txt` and `git push origin v1.1.2`. CI checks that every changed theme has a new version, builds the 7 zips and publishes the release with those notes.
+
 ## Contribute a theme
 
 Read these two guides in the main repo first:

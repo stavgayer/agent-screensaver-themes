@@ -1,0 +1,32 @@
+# Checks the themes on every push and pull request: every script parses, every
+# manifest is valid, each theme's parts share one version, and the zips build.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # to compare with the last release
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Check the themes
+        run: node scripts/check.mjs
+      - name: A changed theme has a new version
+        run: |
+          last=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          if [ -n "$last" ]; then
+            node scripts/check.mjs --since "$last" || echo "::warning::bump the version of each changed theme before the next release"
+          fi
+      - name: Build the zips
+        run: scripts/pack.sh
