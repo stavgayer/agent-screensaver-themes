@@ -1,0 +1,17 @@
+{
+  "id": "acme.sample",
+  "name": "Sample",
+  "version": "1.0.0",
+  "type": "theme",
+  "api": 1,
+  "theme": {
+    "background": { "id": "acme.sample-ground" },
+    "layout": "acme.sample-layout",
+    "style": {
+      "--accent": "#f2c14e",
+      "--attention": "#ff6b4a",
+      "--done": "#f4f1ea",
+      "--warn": "#f2c14e"
+    }
+  }
+}

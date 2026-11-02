@@ -84,6 +84,8 @@ Read these two guides in the main repo first:
 - [Create a theme](https://github.com/stavgayer/agent-screensaver/blob/main/docs/guides/create-a-theme.md)
 - [Extensions](https://github.com/stavgayer/agent-screensaver/blob/main/docs/extensions.md)
 
+Or let your coding agent do it with the [create-agent-screensaver-theme](skills/create-agent-screensaver-theme/SKILL.md) skill: it holds the method behind these themes (research, design, build, test), a starter theme and a preview page. Copy the folder into your agent's skills folder, for example `~/.claude/skills/`.
+
 Then follow these rules:
 
 - Use your own prefix for every extension id, for example `yourname.mytheme`. Do not use `stavgayer.`.
