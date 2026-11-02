@@ -71,13 +71,6 @@
     return node;
   }
 
-  // How far the song is, 0 to 1, or null when the app gives no length.
-  function songProgress(track, nowMs) {
-    if (!(track.duration_ms > 0)) return null;
-    var at = track.position_ms + Math.max(0, nowMs - track.at_ms);
-    return Math.min(1, Math.max(0, at / track.duration_ms));
-  }
-
   window.agentScreensaver.register(function () {
     var box, say, sub, cards, call, song, track, show = "agents", cancelSong, now, lastState;
 
@@ -115,7 +108,7 @@
 
     function drawSong() {
       if (!track) return;
-      var progress = songProgress(track, now());
+      var progress = window.agentScreensaver.helpers.songProgress(track, now());
       song.querySelector(".bar").hidden = progress === null;
       if (progress !== null) song.querySelector(".fill").style.transform = "scaleX(" + progress + ")";
     }

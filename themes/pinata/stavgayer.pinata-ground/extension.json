@@ -1,9 +1,10 @@
 {
   "id": "stavgayer.pinata-ground",
   "name": "Piñata background",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "background",
-  "api": 1,
+  "api": 2,
+  "requires": "0.5.0",
   "entry": "index.js",
   "options": {
     "fps": { "type": "number", "default": 15, "min": 1, "max": 30, "label": "Frames per second" },

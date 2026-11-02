@@ -96,29 +96,6 @@
     return busy ? { dim: 0.45, call: 0, calm: 0, hue: null } : { dim: 0.4, call: 0, calm: 1, hue: null };
   }
 
-  // Rebuilds the background on a fresh canvas after a lost WebGL context, with
-  // the last state; the listener comes off before every stop.
-  function recovering(api, surfaceOf) {
-    var root, ctx, state, canvas, timer;
-    function attach() { canvas = surfaceOf(); if (canvas) canvas.addEventListener("webglcontextlost", lost); }
-    function detach() { if (canvas) canvas.removeEventListener("webglcontextlost", lost); canvas = undefined; }
-    function lost(event) {
-      event.preventDefault();
-      if (timer !== undefined) return;
-      timer = setTimeout(function () {
-        timer = undefined;
-        var last = state;
-        detach(); api.stop(); api.start(root, ctx); attach();
-        if (last) api.update(last);
-      }, 400);
-    }
-    return {
-      start: function (r, c) { root = r; ctx = c; api.start(r, c); attach(); },
-      update: function (s) { state = s; api.update(s); },
-      stop: function () { clearTimeout(timer); timer = undefined; detach(); api.stop(); root = ctx = state = undefined; },
-    };
-  }
-
   window.agentScreensaver.register(function () {
     var canvas, gl, program, where = {}, cancelFrame, now, scale = 0.5;
     var shown = { dim: 0.3, call: 0, calm: 0, hue: [0.94, 0.93, 0.9] };
@@ -218,6 +195,6 @@
       },
     };
 
-    return recovering(api, function () { return canvas; });
+    return window.agentScreensaver.helpers.recoverWebGL(api, function () { return canvas; });
   });
 })();

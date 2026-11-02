@@ -4,7 +4,7 @@ A fan-made tribute theme for agent-screensaver. It is inspired by a record sleev
 
 ![Prism working, looping demo](media/demo.gif)
 
-Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.3.0) or later.
+Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.5.0) or later.
 
 ## What the screen shows
 
@@ -16,7 +16,7 @@ Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/r
 | Nothing running: the picture at rest, six bands running off the right edge. The time very large above the bands, the date and the limit rings under them. Every 26 seconds a heartbeat passes slowly along the bands. | ![Idle](media/idle.jpg) |
 | Second display: the picture at rest with the time and the date. | ![Second display](media/secondary.jpg) |
 
-With "Show what's playing" on in agent-screensaver 0.4.0 or later, the song that Spotify or Music plays is set like one more limit ring: a thin white ring that fills as the song plays, the song, and its artist in grey. While tasks run it stands in the top row, centred between the clock and the limits; with nothing running, in the empty corner under the prism. A long name is cut with "…", and it steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
+With "Show what's playing" on, the song that Spotify or Music plays is set like one more limit ring: a thin white ring that fills as the song plays, the song, and its artist in grey. While tasks run it stands in the top row, centred between the clock and the limits; with nothing running, in the empty corner under the prism. A long name is cut with "…", and it steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
 
 Each agent owns one colour of the spectrum: Claude red, Codex blue, Cursor yellow-green. Other agents get orange, yellow, green or violet by their name. The bands keep the flat, muted colours of print; the names of the agents use a lighter tint of the same colour so they read on black. All text stands on the black field, clear of the glass and the beam. The approval command keeps one line and gets smaller to fit; a very long command breaks at spaces into up to four lines. Up to seven cards are shown; more cards add a `+2 more` line. Privacy mode keeps working: titles, commands, names and branches are shown only when the service sends them. Without a command the approval says "Look at the terminal".
 

@@ -4,7 +4,7 @@ A fan-made tribute theme for agent-screensaver. It is inspired by an album cover
 
 ![In Colour working, looping demo](media/demo.gif)
 
-Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.3.0) or later.
+Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.5.0) or later.
 
 ## What the screen shows
 
@@ -16,7 +16,7 @@ Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/r
 | Nothing running: the dark wheel, the time very large, and the date. | ![Idle](media/idle.jpg) |
 | Second display: the time and the date only. | ![Second display](media/secondary.jpg) |
 
-With "Show what's playing" on in agent-screensaver 0.4.0 or later, the song that Spotify or Music plays gets a white leg of its own, cut at 45 degrees like the others: a small ring that fills as the song plays, the song, and its artist. It hangs under the lowest leg shown and stays above the task cards. On the dark wheel at rest it drops its white bar and turns white, like the rest. It steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
+With "Show what's playing" on, the song that Spotify or Music plays gets a white leg of its own, cut at 45 degrees like the others: a small ring that fills as the song plays, the song, and its artist. It hangs under the lowest leg shown and stays above the task cards. On the dark wheel at rest it drops its white bar and turns white, like the rest. It steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
 
 Each agent owns one hue: Claude vermilion, Codex blue, Cursor green. Other agents get a hue by their name. Privacy mode keeps working: titles, commands, names and branches are shown only when the service sends them.
 

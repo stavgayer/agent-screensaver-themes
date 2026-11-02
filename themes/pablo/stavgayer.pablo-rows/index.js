@@ -192,12 +192,14 @@
     return Math.floor(seconds / 60) + ":" + pad2(seconds % 60);
   }
 
-  // What the song card shows at nowMs: the position moves on from when the
-  // service read it. No length (Music, for songs it streams) means no bar and no time.
+  // What the song card shows at nowMs: the shared helper moves the position on
+  // from when the service read it. No length (Music, for songs it streams) means
+  // no bar and no time.
   function songNow(track, nowMs) {
-    if (!(track.duration_ms > 0)) return { progress: null, at: "" };
-    var at = Math.min(track.duration_ms, track.position_ms + Math.max(0, nowMs - track.at_ms));
-    return { progress: at / track.duration_ms, at: songTime(at) + " / " + songTime(track.duration_ms) };
+    var progress = window.agentScreensaver.helpers.songProgress(track, nowMs);
+    if (progress === null) return { progress: null, at: "" };
+    var at = Math.round(progress * track.duration_ms);
+    return { progress: progress, at: songTime(at) + " / " + songTime(track.duration_ms) };
   }
 
   function el(tag, className, text) {

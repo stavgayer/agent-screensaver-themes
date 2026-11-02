@@ -4,7 +4,7 @@ A fan-made tribute theme for agent-screensaver. It is inspired by a stacked-titl
 
 ![Pablo working, looping demo](media/demo.gif)
 
-Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.3.0) or later.
+Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.5.0) or later.
 
 ## What the screen shows
 
@@ -16,7 +16,7 @@ Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/r
 | Nothing running: the time, repeated. The corner shows the date. | ![Idle](media/idle.jpg) |
 | Second display: the time, repeated. | ![Second display](media/secondary.jpg) |
 
-With "Show what's playing" on in agent-screensaver 0.4.0 or later, the song that Spotify or Music plays gets one more printed card, as wide as the small photo and right under it: the app and the time in the orange band, the song in large type, the artist, and a bar that fills as the song plays. When the task cards reach that high, the song card moves up to stay clear of them; on a very wide screen it then covers the foot of the photo. It steps away while an agent waits for you. A song that Music streams has no time and no bar, because Music gives no length for it.
+With "Show what's playing" on, the song that Spotify or Music plays gets one more printed card, as wide as the small photo and right under it: the app and the time in the orange band, the song in large type, the artist, and a bar that fills as the song plays. When the task cards reach that high, the song card moves up to stay clear of them; on a very wide screen it then covers the foot of the photo. It steps away while an agent waits for you. A song that Music streams has no time and no bar, because Music gives no length for it.
 
 Privacy mode keeps working. With privacy on, the title and the command are left out.
 

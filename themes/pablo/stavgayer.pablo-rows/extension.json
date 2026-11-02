@@ -1,9 +1,10 @@
 {
   "id": "stavgayer.pablo-rows",
   "name": "Pablo board",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "type": "component",
-  "api": 1,
+  "api": 2,
+  "requires": "0.5.0",
   "entry": "index.js",
   "options": {
     "show": { "type": "enum", "default": "agents", "values": ["agents", "time"], "label": "Show" }

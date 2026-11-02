@@ -47,9 +47,9 @@ Every folder has an `extension.json`:
 | `songProgress(track, nowMs)` | How far the song is, from 0 to 1, or `null` when the app gives no length. Pass `ctx.now()`. |
 | `recoverWebGL(api, surfaceOf)` | Wraps a background so it starts again on a fresh canvas after WebGL loses its context. `surfaceOf` returns your canvas. |
 
-A part that uses them declares `"api": 2` and `"requires": "0.5.0"`. Older apps accept only api 1, so they refuse the theme instead of running code that breaks. The theme manifest and the layout have no code and stay at api 1. `node scripts/check.mjs` fails when an api 2 part has no `requires` of 0.5.0 or later.
+A part that uses them declares `"api": 2` and `"requires": "0.5.0"`. Older apps accept only api 1, so they refuse the theme instead of running code that breaks. The theme manifest, the layout and any part that uses no helper stay at api 1, but give them the same `"requires": "0.5.0"` so the whole theme states one minimum. `node scripts/check.mjs` fails when an api 2 part has no `requires` of 0.5.0 or later.
 
-Use the helpers for a new theme. Copy the code from [craft.md](craft.md) instead, and keep api 1, only if the theme must also run on 0.4. The starter copies the code so it runs on every version.
+Use the helpers for a new theme: the starter does. Copy the code from [craft.md](craft.md) instead, and keep api 1 without `requires`, only if the theme must also run on 0.4.
 
 The theme:
 
