@@ -96,24 +96,24 @@ Installing a newer zip over an older one updates the theme.
 
 ## v1.0.0 (2026-10-29)
 
-## Theme packs
+## The first seven themes
 
-A theme is often several extensions: a background, a layout and its widgets. You can now install all of them in one step.
+Seven fan-made tribute themes for agent-screensaver, each drawn in code from one album cover. None of them includes the album artwork or logos.
 
-- `agent-screensaver ext install ./my-theme-pack.zip` installs a whole pack, from a folder or a zip. You can also install a pack from the settings window.
-- `agent-screensaver ext remove <theme>` removes a theme and the parts it uses. It keeps parts that another installed theme uses, and your own background. If the theme was in use, the settings go back to the default theme.
-- `agent-screensaver ext remove --only <id>` removes only that one extension.
+| Theme | Inspired by |
+|---|---|
+| Pablo | a stacked-title cover: a flat orange field, two photographs, one statement repeated in huge black rows |
+| In Colour | hard-edged colour wedges fanned out from one point, with one white bar cut at 45 degrees |
+| Currents | turbulent flow: thin lilac lines on a dark liquid surface, with a chrome ball and a red thread |
+| Kid A | painted and scraped canvases of putty, soot and red stain |
+| Unknown Pleasures | the 1970 plot of 80 radio pulses from the pulsar CP 1919 |
+| Prism | the 1973 sleeve: a white beam that enters a glass prism and leaves as six colours |
+| Key of Life | the 1976 double album sleeve on Motown's Tamla label |
 
-Ready-made themes: [agent-screensaver-themes](https://github.com/stavgayer/agent-screensaver-themes).
-
-## App icon
-
-The settings window has an icon in the Dock, a monitor with an attention dot, and the screen saver has a thumbnail in System Settings.
-
-## A lighter settings window
-
-The live preview in the settings window uses less CPU. It draws at 15 frames a second and pauses when the window is in the background or the preview is scrolled out of view.
+Each theme shows what your agents are doing: their tasks, an approval when one waits for you, and the usage limits. Each one also designs the time when nothing runs, and a second display.
 
 ## Install
 
-Download `agent-screensaver-v0.3.0-macos.zip`, unzip it and follow the README. Universal build (Apple silicon and Intel), macOS 14 or later.
+Download a theme's zip below and drop it on the agent-screensaver settings window, or run `agent-screensaver ext install <zip>`. The themes need agent-screensaver 0.3.0 or later. Each theme's page in this repository lists its zip, its stills and its credits.
+
+> These notes were rewritten on 2026-11-02: the first published notes were the app's v0.3.0 notes by mistake.
