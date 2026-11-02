@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Checks the themes before they are packed: every script parses, every
-// manifest is valid and complete, and all parts of a theme share one version.
+// manifest is valid and complete, every id a theme or layout points at is a
+// part of the same theme or a builtin.* extension, and all parts of a theme
+// share one version.
 // With --since <tag>, a theme whose files changed since that tag must also
 // have a new version, so an update always reaches the people who have it.
 // Usage: node scripts/check.mjs [--since <tag>]
@@ -40,6 +42,12 @@ for (const theme of readdirSync(themesDir).sort()) {
   const dir = join(themesDir, theme);
   const folders = readdirSync(dir).filter((name) => existsSync(join(dir, name, "extension.json")));
   if (folders.length === 0) problems.push(`${theme}: no extension folders`);
+  const own = new Set(folders);
+  // An id a theme or layout points at must be one of this theme's folders or a built-in.
+  const pointsAt = (where, what, id) => {
+    if (typeof id !== "string" || id === "") problems.push(`${where}: ${what} has no id`);
+    else if (!own.has(id) && !id.startsWith("builtin.")) problems.push(`${where}: ${what} "${id}" is not a part of ${theme} and not a builtin.* id`);
+  };
   for (const folder of folders) {
     const where = `${theme}/${folder}`;
     let manifest;
@@ -53,6 +61,17 @@ for (const theme of readdirSync(themesDir).sort()) {
     if (!/^\d+\.\d+\.\d+$/.test(manifest.version ?? "")) problems.push(`${where}: version "${manifest.version}" is not x.y.z`);
     if (!TYPES.has(manifest.type)) problems.push(`${where}: type "${manifest.type}" is not one of ${[...TYPES].join(", ")}`);
     if (manifest.api !== 1) problems.push(`${where}: api is ${manifest.api}, not 1`);
+    if (manifest.type === "theme") {
+      pointsAt(where, "background", manifest.theme?.background?.id);
+      pointsAt(where, "layout", manifest.theme?.layout);
+    }
+    if (manifest.type === "layout") {
+      for (const [mode, regions] of Object.entries(manifest.layout?.modes ?? {})) {
+        for (const [region, refs] of Object.entries(regions ?? {})) {
+          for (const ref of Array.isArray(refs) ? refs : []) pointsAt(where, `component in ${mode}/${region}`, ref?.id);
+        }
+      }
+    }
     if (manifest.entry) {
       const entry = join(dir, folder, manifest.entry);
       if (!existsSync(entry)) problems.push(`${where}: entry ${manifest.entry} is missing`);
