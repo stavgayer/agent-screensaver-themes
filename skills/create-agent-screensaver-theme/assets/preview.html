@@ -1,0 +1,145 @@
+<!doctype html>
+<!--
+  Shows a theme pack in a browser, in any state, with made-up data, using the
+  real agent-screensaver runtime. Setup, once, from the root of this repository:
+
+    mkdir -p .preview
+    cp -R "$HOME/Library/Application Support/agent-screensaver/runtime" .preview/runtime
+    mkdir -p .preview/extensions
+    cp -R "$HOME/Library/Application Support/agent-screensaver/extensions"/builtin.* .preview/extensions/
+    python3 -m http.server 8000
+
+  Then open, for example:
+
+    http://localhost:8000/skills/create-agent-screensaver-theme/assets/preview.html?pack=themes/kid-a&state=work&song=long
+
+  pack   the theme folder, from the repository root (default: the skill's starter)
+  state  rest | work | done | call | second        (default: rest)
+  song   none | normal | long | stream              (default: none)
+  tasks  how many task cards, 1 to 7                (default: 3)
+
+  The .preview folder is in .gitignore. Copy it again after you update agent-screensaver.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Theme preview</title>
+</head>
+<body class="mode-idle">
+  <div id="background"></div>
+  <main id="screen">
+    <section id="region-top-left" class="region"></section>
+    <section id="region-top-right" class="region"></section>
+    <section id="region-center" class="region"></section>
+    <section id="region-bottom" class="region"></section>
+  </main>
+  <div id="service-line" hidden>service not running</div>
+  <script>
+    // The repository root, from this page's own address, so the page works under any server folder.
+    const ROOT = location.pathname.replace(/skills\/create-agent-screensaver-theme\/assets\/preview\.html$/, "");
+    const params = new URLSearchParams(location.search);
+    const pack = (params.get("pack") || "skills/create-agent-screensaver-theme/assets/starter").replace(/^\/|\/$/g, "");
+    const state = params.get("state") || "rest";
+    const song = params.get("song") || "none";
+    const taskCount = Math.min(7, Math.max(1, Number(params.get("tasks")) || 3));
+    const now = Date.now();
+
+    // The extension folders of the pack, from the server's directory listing.
+    async function folders() {
+      const listing = await (await fetch(`${ROOT}${pack}/`)).text();
+      return [...listing.matchAll(/href="([^"?/]+)\/"/g)].map((match) => decodeURIComponent(match[1])).filter((folder) => folder !== "media");
+    }
+
+    async function manifest(url) {
+      const response = await fetch(url);
+      return response.ok ? response.json() : undefined;
+    }
+
+    function defaults(spec) {
+      return Object.fromEntries(Object.entries(spec?.options ?? {}).map(([key, option]) => [key, option.default]));
+    }
+
+    async function view() {
+      const own = new Map();
+      for (const folder of await folders()) {
+        const found = await manifest(`${ROOT}${pack}/${folder}/extension.json`);
+        if (found) own.set(found.id, { manifest: found, base: `${ROOT}${pack}/${folder}/` });
+      }
+      const theme = [...own.values()].find((ext) => ext.manifest.type === "theme")?.manifest;
+      if (!theme) throw new Error(`no theme manifest in ${pack}`);
+      // A part of the pack, or a built-in from the copied extensions folder.
+      const find = async (id) => own.get(id) ?? { manifest: await manifest(`${ROOT}.preview/extensions/${id}/extension.json`), base: `${ROOT}.preview/extensions/${id}/` };
+      const resolve = async (id, options) => {
+        const ext = await find(id);
+        return { id, entry_url: new URL(ext.base + (ext.manifest?.entry ?? "index.js"), location.href).href, options: { ...defaults(ext.manifest), ...options } };
+      };
+      const layout = (await find(theme.theme.layout)).manifest.layout;
+      const ids = new Set(Object.values(layout.modes).flatMap((regions) => Object.values(regions).flat().map((ref) => ref.id)));
+      return {
+        theme: theme.id,
+        background: await resolve(theme.theme.background.id, theme.theme.background.options),
+        layout,
+        components: await Promise.all([...ids].map((id) => resolve(id))),
+        style: theme.theme.style ?? {},
+        privacy: false,
+        max_fps: 30,
+        agents: { claude: { name: "Claude Code", mark_url: "" }, codex: { name: "Codex", mark_url: "" }, cursor: { name: "Cursor", mark_url: "" } },
+        agent_order: ["claude", "codex", "cursor"],
+      };
+    }
+
+    const SONGS = {
+      normal: { app: "Spotify", title: "Slow Lights", artist: "The Night Shift", position_ms: 90000, duration_ms: 230000 },
+      long: { app: "Spotify", title: "A very long song title that goes on and on past the edge of the label", artist: "An Artist With A Long Name As Well", position_ms: 30000, duration_ms: 200000 },
+      stream: { app: "Music", title: "Waiting Room", artist: "Arlo Grey", position_ms: 0, duration_ms: 0 },
+    };
+    const TASKS = [
+      ["claude", "refactor auth middleware", "web-app", "feat/auth", 10],
+      ["codex", "add rate limit tests", "web-app", "", 4],
+      ["cursor", "update dashboard styles", "web-app", "", 7],
+      ["claude", "fix flaky upload test", "api-server", "main", 22],
+      ["codex", "write the migration guide", "docs", "", 3],
+      ["cursor", "rename the settings keys", "web-app", "", 15],
+      ["claude", "profile the cold start", "api-server", "", 31],
+    ];
+
+    function cards() {
+      if (state === "rest" || state === "second") return [];
+      return TASKS.slice(0, taskCount).map(([source, title, project, branch, minutes], index) => {
+        const kind = state === "done" ? "finished" : state === "call" && index === 0 ? "approval" : "running";
+        return {
+          source, session: `s${index}`, kind, title, project, ...(branch ? { branch } : {}),
+          started_at_ms: now - minutes * 60000, updated_at_ms: now,
+          ...(kind === "approval" ? { request: "npm run migrate", approval_since_ms: now - 180000 } : {}),
+        };
+      });
+    }
+
+    const limit = (source, window, used) => ({ source, window, used_percent: used, resets_at: Math.round(now / 1000) + 7000, updated_at_ms: now });
+
+    function load(tag, attributes) {
+      return new Promise((resolve, reject) => {
+        const node = Object.assign(document.createElement(tag), attributes);
+        node.onload = resolve;
+        node.onerror = () => reject(new Error(`could not load ${attributes.src || attributes.href}: copy the runtime into .preview first`));
+        document.head.appendChild(node);
+      });
+    }
+
+    load("link", { rel: "stylesheet", href: `${ROOT}.preview/runtime/styles.css` })
+      .then(() => load("script", { src: `${ROOT}.preview/runtime/runtime.js` }))
+      .then(view)
+      .then((resolved) => {
+        const file = {
+          version: 1, generated_at_ms: now, service_ok: true, cards: cards(),
+          limits: [limit("claude", "5h", 42), limit("claude", "week", 28), limit("codex", "5h", 17), limit("codex", "week", 9)],
+          ...(SONGS[song] ? { now_playing: { ...SONGS[song], at_ms: now } } : {}),
+          view: resolved,
+        };
+        window.agentScreensaver.setState(JSON.stringify(file), state === "second" ? "secondary" : "main");
+      })
+      .catch((error) => { document.body.textContent = String(error); });
+  </script>
+</body>
+</html>

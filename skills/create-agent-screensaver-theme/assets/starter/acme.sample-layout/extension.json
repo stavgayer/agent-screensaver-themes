@@ -1,0 +1,22 @@
+{
+  "id": "acme.sample-layout",
+  "name": "Sample layout",
+  "version": "1.0.0",
+  "type": "layout",
+  "api": 1,
+  "layout": {
+    "modes": {
+      "idle": {
+        "center": [{ "id": "acme.sample-board" }],
+        "top-right": [{ "id": "builtin.limit-rings" }]
+      },
+      "attention": {
+        "center": [{ "id": "acme.sample-board" }],
+        "top-right": [{ "id": "builtin.limit-rings" }]
+      },
+      "secondary": {
+        "center": [{ "id": "acme.sample-board", "options": { "show": "time" } }]
+      }
+    }
+  }
+}
