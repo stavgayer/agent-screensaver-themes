@@ -40,7 +40,9 @@ Each theme page lists its own zip name and theme id.
 
 ### In Terminal
 
-Install does not put the `agent-screensaver` command on your PATH. Run it as `./agent-screensaver` from the unzipped agent-screensaver folder, or add this line to `~/.zshrc` and open a new Terminal window:
+From agent-screensaver 0.5.1, install puts the `agent-screensaver` command on your PATH. Open a new Terminal window after installing. With a shell other than zsh or bash, add `~/.local/bin` to your PATH yourself.
+
+On an older version, run it as `./agent-screensaver` from the unzipped agent-screensaver folder, or add this line to `~/.zshrc` and open a new Terminal window:
 
 ```
 alias agent-screensaver='"$HOME/Library/Application Support/agent-screensaver/bin/agent-screensaver"'

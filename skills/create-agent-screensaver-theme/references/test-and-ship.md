@@ -99,7 +99,7 @@ agent-screensaver theme set yourname.mytheme
 agent-screensaver demo --seconds 60
 ```
 
-The `agent-screensaver` command is not on your PATH after install: run it as `./agent-screensaver` from the unzipped agent-screensaver folder, or set the alias from this repository's README.
+From agent-screensaver 0.5.1, install puts the `agent-screensaver` command on your PATH (open a new Terminal window first). On an older version, run it as `./agent-screensaver` from the unzipped agent-screensaver folder, or set the alias from this repository's README.
 
 These commands change the user's real screen saver. To check only that the pack installs, without touching anything real (an agent should do this, not the commands above), give the command a throwaway home folder. It then reads and writes only under that folder:
 
