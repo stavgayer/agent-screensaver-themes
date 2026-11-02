@@ -53,6 +53,8 @@ Letting the song shrink together with the limits made the limits break onto two 
 
 ## Recover from a lost WebGL context
 
+On agent-screensaver 0.5.0 and later, use the built-in helper: `return window.agentScreensaver.helpers.recoverWebGL(api, function () { return surface; });`, with `"api": 2` and `"requires": "0.5.0"` in the part's manifest ([build.md](build.md#shared-helpers-agent-screensaver-050-and-later)). The code below is the same thing, for a theme that must also run on older versions.
+
 After sleep and wake, or a graphics reset, WebGL loses its context and the background stays black or frozen. Wrap your background so it starts again on a fresh canvas with the last state. Your `stop()` should lose the context on purpose to free the GPU, so the listener must come off before every stop, or the theme restarts forever:
 
 ```js
@@ -104,7 +106,7 @@ Check it with `node assets/shoot.mjs <preview URL> --reduce`: the frames a secon
 With "Show what's playing" on (agent-screensaver 0.4.0 and later), `state.nowPlaying` holds the song. Draw it in your theme's own style, not with the built-in widget's white text:
 
 - Show the title, the artist (skip the line when it is `""`) and the progress: a ring like your limit rings, or a thin bar.
-- Move the progress on between states, and hide it when the app gives no length (Music, for songs it streams):
+- Move the progress on between states, and hide it when the app gives no length (Music, for songs it streams). On 0.5.0 and later, `window.agentScreensaver.helpers.songProgress(track, ctx.now())` does this (api 2, see [build.md](build.md#shared-helpers-agent-screensaver-050-and-later)); the code below is the same, for older versions:
 
 ```js
 function songProgress(track, nowMs) {

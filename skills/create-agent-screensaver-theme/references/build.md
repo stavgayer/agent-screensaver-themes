@@ -33,9 +33,23 @@ Every folder has an `extension.json`:
 | `name` | Shown to people. |
 | `version` | `x.y.z`, the same in every part of the theme. |
 | `type` | `theme`, `layout`, `background` or `component`. |
-| `api` | Exactly `1`. |
+| `api` | `1`, or `2` when the part uses the shared helpers (see below). |
+| `requires` | Optional. The oldest agent-screensaver that can run the part, as `x.y.z`. From 0.5.0 on, an older app refuses to install it and tells people to update. |
 | `entry` | Background and component only: the JavaScript file. |
 | `options` | Settings people can change: `type` (`string`, `number`, `boolean`, `color`, `enum`, `file`), `default` (required), `label`, `min`, `max`, `values`. |
+
+### Shared helpers (agent-screensaver 0.5.0 and later)
+
+`window.agentScreensaver.helpers` gives every extension two helpers, so you do not copy them into your code:
+
+| Helper | What it does |
+|---|---|
+| `songProgress(track, nowMs)` | How far the song is, from 0 to 1, or `null` when the app gives no length. Pass `ctx.now()`. |
+| `recoverWebGL(api, surfaceOf)` | Wraps a background so it starts again on a fresh canvas after WebGL loses its context. `surfaceOf` returns your canvas. |
+
+A part that uses them declares `"api": 2` and `"requires": "0.5.0"`. Older apps accept only api 1, so they refuse the theme instead of running code that breaks. The theme manifest and the layout have no code and stay at api 1. `node scripts/check.mjs` fails when an api 2 part has no `requires` of 0.5.0 or later.
+
+Use the helpers for a new theme. Copy the code from [craft.md](craft.md) instead, and keep api 1, only if the theme must also run on 0.4. The starter copies the code so it runs on every version.
 
 The theme:
 
