@@ -85,7 +85,13 @@ Read these two guides in the main repo first:
 - [Create a theme](https://github.com/stavgayer/agent-screensaver/blob/main/docs/guides/create-a-theme.md)
 - [Extensions](https://github.com/stavgayer/agent-screensaver/blob/main/docs/extensions.md)
 
-Or let your coding agent do it with the [create-agent-screensaver-theme](skills/create-agent-screensaver-theme/SKILL.md) skill: it holds the method behind these themes (research, design, build, test), a starter theme and a preview page. Copy the folder into your agent's skills folder, for example `~/.claude/skills/`.
+Or let your coding agent do it with the [create-agent-screensaver-theme](skills/create-agent-screensaver-theme/SKILL.md) skill: it holds the method behind these themes (research, design, build, test), a starter theme and a preview page. Install it with the [skills CLI](https://github.com/vercel-labs/skills), which works with Claude Code, Codex, Cursor and other agents:
+
+```bash
+npx skills add stavgayer/agent-screensaver-themes --skill create-agent-screensaver-theme
+```
+
+Then fork or clone this repo and ask your agent for a theme from inside it. The preview page, `scripts/check.mjs` and `scripts/pack.sh` run from a copy of this repo.
 
 Then follow these rules:
 

@@ -8,7 +8,7 @@ description: >
 license: MIT
 metadata:
   author: stavgayer
-  version: "1.1.0"
+  version: "1.1.1"
 ---
 
 # Create an agent-screensaver theme
@@ -20,6 +20,10 @@ The seven themes in this repository look made, not generated, because each one c
 - Making a new theme for agent-screensaver, from a picture, a cover, a poster or an idea.
 - Restyling or fixing a theme, a background or a widget.
 - Adding a feature to a theme, such as the song that plays.
+
+## Before you start
+
+Work inside a fork or clone of [agent-screensaver-themes](https://github.com/stavgayer/agent-screensaver-themes). The new theme goes in its `themes/` folder, and the preview page, `scripts/check.mjs` and `scripts/pack.sh` run from there. If you are not in it, clone it first.
 
 ## The workflow
 
