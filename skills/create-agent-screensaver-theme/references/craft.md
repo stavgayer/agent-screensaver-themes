@@ -45,8 +45,9 @@ Letting the song shrink together with the limits made the limits break onto two 
 
 ## Low cost, all night
 
-- Draw with `ctx.requestFrame(cb, fps)` at the lowest rate that looks right: 1 for a clock, about 4 for a progress bar, 24 to 30 for a moving background. Never start your own `requestAnimationFrame` loop or a timer that never stops.
-- A WebGL background: one full-screen triangle and a fragment shader, at half the screen's pixels (an option `scale`, default `0.5`) and at most 30 frames a second (an option `fps`). Ask for `{ alpha: false, antialias: false, depth: false, stencil: false, powerPreference: "low-power" }`. Draw only while something moves.
+- Draw with `ctx.requestFrame(cb, fps)` at the lowest rate that looks right: 1 for a clock, about 4 for a progress bar, and for a moving background as few as the motion needs, never more than 30. A slow drift looks smooth at 12 to 15; only fast motion needs 24 to 30. Never start your own `requestAnimationFrame` loop or a timer that never stops.
+- Inside the callback, read `ctx.now()`. The callback's argument is the frame clock (milliseconds since the page loaded), not the time of day ([build.md](build.md#the-entry-file)).
+- A WebGL background: one full-screen triangle and a fragment shader, at half the screen's pixels (an option `scale`, default `0.5`) and at most 30 frames a second (an option `fps`, with a default as low as the motion allows). Ask for `{ alpha: false, antialias: false, depth: false, stencil: false, powerPreference: "low-power" }`. Draw only while something moves.
 - Animate only `transform` and `opacity` on elements.
 - Drift the whole picture by a few pixels over minutes against burn-in. Do not move text by fractions of a pixel: it shimmers. Move the background under it instead.
 
@@ -79,7 +80,14 @@ function recovering(api, surfaceOf) {
 // return recovering(api, function () { return surface; });
 ```
 
-Test it by forcing a loss in the browser console: `canvas.getContext("webgl2").getExtension("WEBGL_lose_context").loseContext()`. One fresh canvas should replace the old one, and it should stay the same canvas a few seconds later.
+Test it by forcing a loss in the browser console. This finds the background's canvas and works for WebGL 2 and WebGL 1:
+
+```js
+var canvas = document.querySelector("#background canvas");
+(canvas.getContext("webgl2") || canvas.getContext("webgl")).getExtension("WEBGL_lose_context").loseContext();
+```
+
+One fresh canvas should replace the old one, and it should stay the same canvas a few seconds later. `assets/shoot.mjs --lose-context` does the same and reports it ([test-and-ship.md](test-and-ship.md#the-headless-check)).
 
 ## Reduce motion
 
@@ -88,6 +96,8 @@ var reduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: red
 ```
 
 With `reduce.matches`, draw the background once per change and stand still, and fade elements instead of moving or scaling them. In CSS: `@media (prefers-reduced-motion: reduce) { .thing { transition: none; } }`.
+
+Check it with `node assets/shoot.mjs <preview URL> --reduce`: the frames a second should drop to 0 while nothing changes ([test-and-ship.md](test-and-ship.md#the-headless-check)).
 
 ## The song that plays
 
@@ -110,7 +120,7 @@ function songProgress(track, nowMs) {
 
 ## The usage limits
 
-Use `builtin.limit-rings` in your layout, or draw your own from a copy of a theme's rings component here. Keep its rules, so a limit never misleads: order by `agentOrder`, dim a reading older than 30 minutes (5h window) or 6 hours (week and plan) and say its age, add "est." to an estimate, and show an empty ring that says "Reset" once `nowMs` passes `resets_at`.
+Use `builtin.limit-rings` in your layout, or draw your own from a copy of a theme's rings component here. The built-in rings draw light text with no plate or halo behind it: they read on a dark background, not on a light or busy one. Over a light picture, draw your own rings on a plate in your theme's style. Keep its rules, so a limit never misleads: order by `agentOrder`, dim a reading older than 30 minutes (5h window) or 6 hours (week and plan) and say its age, add "est." to an estimate, and show an empty ring that says "Reset" once `nowMs` passes `resets_at`.
 
 ## Missing data and privacy
 
