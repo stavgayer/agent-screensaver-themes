@@ -39,7 +39,7 @@ The `media` folder holds the stills for this page. It is not part of the pack zi
 
 Download `in-colour.zip` from the Releases page of this repo. Open the agent-screensaver settings window (from the menu bar icon, or with Spotlight on 0.3.1 or later), go to Extensions, click Install… and choose `in-colour.zip`. Then pick the theme under Theme & background.
 
-Or in Terminal:
+Or in Terminal, with the `agent-screensaver` command set up as the [main README](../../README.md#in-terminal) shows:
 
 ```
 agent-screensaver ext install in-colour.zip

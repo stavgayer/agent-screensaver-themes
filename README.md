@@ -32,16 +32,29 @@ All seven are fan-made tributes, inspired by album covers. They include no album
 ## Install a theme
 
 1. Download the theme zip (for example `pablo.zip`) from the Releases page of this repo.
-2. Run two commands:
+2. Open the agent-screensaver settings window (search for Agent Screensaver in Spotlight) and drop the zip on it, or click Install… under Extensions and choose the zip. Dropping needs agent-screensaver 0.3.2 or later.
+3. Pick the theme under Theme & background.
+
+Each theme page lists its own zip name and theme id.
+
+### In Terminal
+
+Install does not put the `agent-screensaver` command on your PATH. Run it as `./agent-screensaver` from the unzipped agent-screensaver folder, or add this line to `~/.zshrc` and open a new Terminal window:
+
+```
+alias agent-screensaver='"$HOME/Library/Application Support/agent-screensaver/bin/agent-screensaver"'
+```
+
+Then:
 
 ```
 agent-screensaver ext install pablo.zip
 agent-screensaver theme set stavgayer.pablo
 ```
 
-Each theme page lists its own zip name and theme id.
-
 ## Uninstall a theme
+
+In Terminal (see [In Terminal](#in-terminal) for the command):
 
 ```
 agent-screensaver ext remove stavgayer.pablo

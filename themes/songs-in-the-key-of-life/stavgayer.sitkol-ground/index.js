@@ -339,6 +339,54 @@
     TEETH[tk] = Math.max(24, Math.round((2 * Math.PI * restR) / 13));
   }
 
+  // A lost WebGL context (sleep and wake, a GPU reset) leaves the surface black
+  // or frozen. Start again on a fresh canvas, which gets a fresh context, and
+  // hand it the last state. stop() loses the context on purpose to free the
+  // GPU, so the listener comes off before every stop.
+  function recovering(api, surfaceOf) {
+    var root, ctx, state, canvas, timer;
+    function attach() {
+      canvas = surfaceOf();
+      if (canvas) canvas.addEventListener("webglcontextlost", lost);
+    }
+    function detach() {
+      if (canvas) canvas.removeEventListener("webglcontextlost", lost);
+      canvas = undefined;
+    }
+    function lost(event) {
+      event.preventDefault();
+      if (timer !== undefined) return;
+      timer = setTimeout(function () {
+        timer = undefined;
+        var last = state;
+        detach();
+        api.stop();
+        api.start(root, ctx);
+        attach();
+        if (last) api.update(last);
+      }, 400);
+    }
+    return {
+      start: function (r, c) {
+        root = r;
+        ctx = c;
+        api.start(r, c);
+        attach();
+      },
+      update: function (s) {
+        state = s;
+        api.update(s);
+      },
+      stop: function () {
+        clearTimeout(timer);
+        timer = undefined;
+        detach();
+        api.stop();
+        root = ctx = state = undefined;
+      },
+    };
+  }
+
   window.agentScreensaver.register(function () {
     var box, surface, style, lastState, geo, mood = "", waitKey = "", goalKey = "";
     var gl, program, uniforms = {}, cancelFrame, lastMs, seconds = 0, tick = 0;
@@ -564,7 +612,7 @@
       dirty = true;
     };
 
-    return {
+    var api = {
       start: function (root, ctx) {
         style = document.createElement("style");
         style.textContent = STYLE;
@@ -611,5 +659,6 @@
         discs.forEach(function (d) { d.cur = d.goal = null; });
       },
     };
+    return recovering(api, function () { return surface; });
   });
 })();
