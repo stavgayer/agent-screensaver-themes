@@ -93,7 +93,8 @@ Then follow these rules:
 - Add one folder per theme: `themes/<name>/`.
 - Keep the pack layout. The theme folder holds one subfolder per extension, each with its own `extension.json`. There is no `extension.json` at the top of the theme folder.
 - Put one still per state in `themes/<name>/media/` as JPEG, 1440 pixels wide, under 400 KB each. Use these names: `working`, `approval`, `done`, `idle`, `secondary`.
-- Add a `README.md` in the theme folder. Say what the theme is, show the stills, give the install and uninstall commands, and list credits and licences for fonts and images.
+- Add a `README.md` in the theme folder. Say what the theme is, show the stills, give the install and uninstall commands, and list credits and licences for fonts and images. The skill's starter has a [README to start from](skills/create-agent-screensaver-theme/assets/starter/README.md).
+- Add a row for the theme to the table of stills above.
 - Run `scripts/pack.sh <name>` and check that the zip installs.
 
 A theme inspired by an album must not include the album artwork or logos. Draw your own shapes in code or use images you have the right to use.

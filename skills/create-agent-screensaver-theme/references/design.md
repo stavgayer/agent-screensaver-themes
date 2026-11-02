@@ -14,6 +14,18 @@ A theme drawn from a general mood ("retro", "calm", "neon") looks like every oth
 
 Do not use the artwork itself, a photo of it, or any logo. Draw the look in code, from the facts you wrote down, and say in the README that the theme is a fan-made tribute that includes no artwork or logos.
 
+Looking at the cover to measure it is fine, as long as no image of it is saved or shipped. A quick, exact way: open the cover's picture in a browser, draw it onto a canvas, and read its pixels in the console.
+
+```js
+var img = document.querySelector("img"), c = document.createElement("canvas");
+c.width = img.naturalWidth; c.height = img.naturalHeight;
+var g = c.getContext("2d"); g.drawImage(img, 0, 0);
+var px = function (x, y) { var d = g.getImageData(x, y, 1, 1).data; return "#" + [d[0], d[1], d[2]].map(function (v) { return v.toString(16).padStart(2, "0"); }).join(""); };
+// px(150, 20) gives one colour; walk a row or a column to find edges, stripe widths and ratios.
+```
+
+Average many pixels for a colour instead of trusting one, find edges where the colour jumps along a row, and write every number down. For Piñata this turned "a zebra frame" into facts in minutes: the frame is 20% of the side, about 47% of the fur is light, light `#f0ece5`, dark `#161614`.
+
 ## 2. Map the data onto the source's own elements
 
 The screen shows agents at work. Give each task one element that already belongs to the source, so the data looks like part of the picture:
@@ -47,6 +59,25 @@ If the user turned on "Show what's playing", also design the song: its title, it
 ## 4. Type and text
 
 - Use at most two families: one display face for big words and numbers, one text face for small text. Bundle them as files with their licence (the SIL Open Font License is the common one), because the page cannot load fonts from the internet.
+- Before you look elsewhere, see whether a font already in this repository fits. Each one below is under the SIL Open Font License 1.1, with its licence file next to it; copy both files into your component's `fonts` folder. A variable font gives you every weight (and width, where it has the axis) from one file.
+
+| Font | File | What it has | Where |
+|---|---|---|---|
+| Archivo | `Archivo.ttf` | variable: weight 100 to 900, width 62 to 125 (good bold condensed capitals) | `themes/kid-a/stavgayer.kida-board/fonts/` |
+| Martian Mono | `MartianMono.ttf` | variable mono: weight 100 to 800, width 75 to 112.5 | `themes/kid-a/stavgayer.kida-board/fonts/` |
+| Cabin | `Cabin.ttf` | variable: weight 400 to 700, width 75 to 100 | `themes/dark-side-of-the-moon/stavgayer.dsotm-board/fonts/` |
+| Red Hat Mono | `RedHatMono.ttf` | variable mono: weight 300 to 700 | `themes/dark-side-of-the-moon/stavgayer.dsotm-board/fonts/` |
+| Space Grotesk | `SpaceGrotesk.ttf` | variable: weight 300 to 700 | `themes/in-colour/stavgayer.incolour-board/fonts/` |
+| JetBrains Mono | `JetBrainsMono.woff2` | variable mono: weight | `themes/in-colour/stavgayer.incolour-board/fonts/` |
+| Fraunces | `Fraunces.ttf` | variable serif: optical size 9 to 144, weight 100 to 900, softness, wonky | `themes/currents/stavgayer.currents-board/fonts/` |
+| Outfit | `Outfit.ttf` | variable geometric sans: weight 100 to 900 | `themes/currents/stavgayer.currents-board/fonts/` |
+| Instrument Sans | `InstrumentSans.ttf` | variable: width 75 to 100, weight 400 to 700 | `themes/unknown-pleasures/stavgayer.pleasures-board/fonts/` |
+| Geist Mono | `GeistMono.ttf` | variable mono: weight 100 to 900 | `themes/unknown-pleasures/stavgayer.pleasures-board/fonts/` |
+| Alegreya Sans | `AlegreyaSans-Medium.ttf`, `AlegreyaSans-Bold.ttf` | static: 500 and 700 | `themes/songs-in-the-key-of-life/stavgayer.sitkol-board/fonts/` |
+| Caprasimo | `Caprasimo.ttf` | static display face, 400 | `themes/songs-in-the-key-of-life/stavgayer.sitkol-board/fonts/` |
+| Courier Prime | `CourierPrime-Bold.ttf` | static mono, 700 | `themes/songs-in-the-key-of-life/stavgayer.sitkol-board/fonts/` |
+
+The licence files are named `OFL-<Font>.txt` (`OFL-AlegreyaSans.txt` for both Alegreya Sans files).
 - Make every word readable over every part of the background. Put small text on a plate, a card or a soft dark halo in the source's own style: Kid A uses near-black plates, Key of Life cream labels, Pablo printed cards, In Colour white bars cut at 45°.
 - Big words stand on calm parts of the picture. Keep busy texture away from them.
 

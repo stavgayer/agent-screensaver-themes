@@ -43,7 +43,9 @@
         window.addEventListener("resize", fit);
         draw(ctx.now());
         var fps = Number(ctx.options.fps);
-        if (!reduce.matches) cancelFrame = ctx.requestFrame(draw, Number.isFinite(fps) ? fps : 12);
+        // The callback's own argument is the frame clock (ms since the page loaded),
+        // not the time of day: always read ctx.now() inside it, like the built-ins do.
+        if (!reduce.matches) cancelFrame = ctx.requestFrame(function () { draw(ctx.now()); }, Number.isFinite(fps) ? fps : 12);
       },
       update: function (state) {
         calling = state.mode === "attention";
