@@ -582,7 +582,7 @@
     function setUpGl() {
       surface = document.createElement("canvas");
       box.appendChild(surface);
-      var context = surface.getContext("webgl2", { alpha: false, antialias: false, depth: false, stencil: false, powerPreference: "low-power", preserveDrawingBuffer: true });
+      var context = surface.getContext("webgl2", { alpha: false, antialias: false, depth: false, stencil: false, powerPreference: "low-power" });
       if (!context) throw new Error("no webgl2");
       gl = context;
       program = gl.createProgram();
