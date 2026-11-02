@@ -4,7 +4,7 @@
 
 A fan-made tribute theme for agent-screensaver. It is inspired by <the source, in one or two sentences: what it is and how it was made>. Here <how the data of the agents becomes part of the picture>. Everything is drawn in code. No artwork, photos of it, or logos are included.
 
-Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.3.0) or later. The song needs 0.4.0 or later.
+Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.5.0) or later.
 
 ## What the screen shows
 

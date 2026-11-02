@@ -4,7 +4,7 @@ A fan-made tribute theme for agent-screensaver. It is inspired by a record sleev
 
 ![Key of Life working, looping demo](media/demo.gif)
 
-Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.3.0) or later.
+Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.5.0) or later.
 
 ## What the screen shows
 
@@ -16,7 +16,7 @@ Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/r
 | Nothing running: the sleeve, with its rings as they are on it, thin above the centre and wide below it. The time stands large in the glowing centre where the sleeve has its portrait, the date under it, and the limit rings on a cream label across the lower rings. The rings breathe outward very slowly. | ![Idle](media/idle.jpg) |
 | Second display: the sleeve with the time and the date. | ![Second display](media/secondary.jpg) |
 
-With "Show what's playing" on in agent-screensaver 0.4.0 or later, the song that Spotify or Music plays gets a cream label of its own: a small ring that fills as the song plays, the song, and its artist under it. At rest it stands at the top of the field; while tasks run, between the time and the limits, where a long name is cut with "…" so the limits keep their place. It steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
+With "Show what's playing" on, the song that Spotify or Music plays gets a cream label of its own: a small ring that fills as the song plays, the song, and its artist under it. At rest it stands at the top of the field; while tasks run, between the time and the limits, where a long name is cut with "…" so the limits keep their place. It steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
 
 Each agent owns a warm colour: Claude vermilion, Codex gold, Cursor crimson. Other agents get rose, orange or brick by their name. All text is dark brown on cream, in the centre or on cream labels, so it reads on every colour of the field. The approval command keeps one line and gets smaller to fit the centre; a very long command breaks at spaces into up to three lines. Up to seven cards are shown; more cards add a `+2 more` label. Privacy mode keeps working: titles, commands, names and branches are shown only when the service sends them. Without a command the approval says "Look at the terminal".
 

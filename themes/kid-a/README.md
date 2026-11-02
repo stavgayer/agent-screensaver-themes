@@ -4,7 +4,7 @@ A fan-made tribute theme for agent-screensaver. It is inspired by an album cover
 
 ![Kid A working, looping demo](media/demo.gif)
 
-Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.3.0) or later.
+Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.5.0) or later.
 
 ## What the screen shows
 
@@ -16,7 +16,7 @@ Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/r
 | Nothing running: the range comes down to the foot of the screen and fills it, with no colour, under a wide dot sky. The time very large, the date, and the limit rings grow. | ![Idle](media/idle.jpg) |
 | Second display: the full range, with the task ridges on the right, and the time and the date only. | ![Second display](media/secondary.jpg) |
 
-With "Show what's playing" on in agent-screensaver 0.4.0 or later, the song that Spotify or Music plays gets a smaller near-black plate right under the limits: an ice-white ring that fills as the song plays, the song, and its artist. It grows with the limits when nothing runs, a long name is cut with "…", it stops short of the big word on narrow screens, and it steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
+With "Show what's playing" on, the song that Spotify or Music plays gets a smaller near-black plate right under the limits: an ice-white ring that fills as the song plays, the song, and its artist. It grows with the limits when nothing runs, a long name is cut with "…", it stops short of the big word on narrow screens, and it steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
 
 Each agent owns one colour: Claude red, Codex ice blue, Cursor amber. Other agents get colours by their name. All small text sits on near-black plates or snow-white cards, and the big words stand on the black sky with the dots kept away from them, so text reads everywhere. The approval command keeps one line and gets smaller to fit; only a very long command breaks, at spaces, into up to four lines. Privacy mode keeps working: titles, commands, names and branches are shown only when the service sends them. Without a command the approval card says "Look at the terminal".
 

@@ -4,7 +4,7 @@ A fan-made tribute theme for agent-screensaver. It is inspired by an album cover
 
 ![Currents working, looping demo](media/demo.gif)
 
-Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.3.0) or later.
+Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.5.0) or later.
 
 ## What the screen shows
 
@@ -16,7 +16,7 @@ Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/r
 | Nothing running: one chrome ball in a dim, calm surface. The time very large, the date, and the limit rings grow. | ![Idle](media/idle.jpg) |
 | Second display: the surface and its one ball, with the time and the date only. | ![Second display](media/secondary.jpg) |
 
-With "Show what's playing" on in agent-screensaver 0.4.0 or later, the song that Spotify or Music plays gets a smaller dark plate right under the limits: a lilac ring that fills as the song plays, the song, and its artist. It grows with the limits when nothing runs, a long name is cut with "…", and it steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
+With "Show what's playing" on, the song that Spotify or Music plays gets a smaller dark plate right under the limits: a lilac ring that fills as the song plays, the song, and its artist. It grows with the limits when nothing runs, a long name is cut with "…", and it steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
 
 Each agent owns one thread colour: Claude vermilion to orange, Codex lilac to blue, Cursor marigold to orange. Other agents get colours by their name. All text sits on dark plates or paper cards, so it reads everywhere on the surface. The approval command keeps one line and gets smaller to fit; only a very long command breaks, at spaces, into up to four lines. Privacy mode keeps working: titles, commands, names and branches are shown only when the service sends them. Without a command the approval card says "Look at the terminal".
 
