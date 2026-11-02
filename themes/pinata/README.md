@@ -2,6 +2,8 @@
 
 A fan-made tribute theme for agent-screensaver. It is inspired by the cover of Piñata by Freddie Gibbs and Madlib (2014): a square photo set in a thick frame of zebra fur, with a small gold and black name plate above the photo. Here the zebra frame runs around your whole screen, the window in the middle holds the soft light of a park out of focus, and the gold plate carries the date. Each task gets its own small plate in the same style. Everything is drawn in code. No album artwork, photos or logos are included.
 
+![Piñata working, then an agent needs you, looping demo](media/demo.gif)
+
 Needs [agent-screensaver 0.3.0](https://github.com/stavgayer/agent-screensaver/releases/tag/v0.3.0) or later. The song needs 0.4.0 or later.
 
 ## What the screen shows
