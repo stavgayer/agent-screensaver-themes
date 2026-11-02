@@ -11,8 +11,7 @@
         "top-right": [{ "id": "builtin.limit-rings" }]
       },
       "attention": {
-        "center": [{ "id": "acme.sample-board" }],
-        "top-right": [{ "id": "builtin.limit-rings" }]
+        "center": [{ "id": "acme.sample-board" }]
       },
       "secondary": {
         "center": [{ "id": "acme.sample-board", "options": { "show": "time" } }]

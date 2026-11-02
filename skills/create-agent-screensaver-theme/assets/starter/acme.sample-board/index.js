@@ -53,6 +53,12 @@
     return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
   }
 
+  // An agent with no extension has no name in state.agents: show its source, capitalised.
+  function agentName(state, source) {
+    var agent = state.agents && state.agents[source];
+    return agent && agent.name ? agent.name : source.charAt(0).toUpperCase() + source.slice(1);
+  }
+
   function minutes(ms) {
     var m = Math.max(0, Math.floor(ms / 60000));
     return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + (m % 60) + " min";
@@ -78,13 +84,17 @@
     function card(task, state) {
       var node = el("card" + (task.kind === "finished" ? " done" : ""));
       node.style.setProperty("--hue", hueOf(task.source));
-      var agent = state.agents[task.source];
       var top = el("top");
       var name = document.createElement("span");
-      name.textContent = agent ? agent.name : task.source;
-      var since = document.createElement("span");
-      since.textContent = task.kind === "finished" ? "done" : minutes(state.nowMs - task.started_at_ms);
-      top.append(name, since);
+      name.textContent = agentName(state, task.source);
+      top.appendChild(name);
+      // started_at_ms can be missing: then leave the time out, never show "NaN".
+      var started = Number.isFinite(task.started_at_ms) ? task.started_at_ms : undefined;
+      if (task.kind === "finished" || started !== undefined) {
+        var since = document.createElement("span");
+        since.textContent = task.kind === "finished" ? "done" : minutes(state.nowMs - started);
+        top.appendChild(since);
+      }
       node.appendChild(top);
       if (task.title) node.appendChild(el("what", task.title));
       if (task.project) node.appendChild(el("where", task.branch ? task.project + " on " + task.branch : task.project));
@@ -94,10 +104,10 @@
     function drawCall(state) {
       var waiting = state.cards.filter(function (task) { return task.kind === "approval"; })[0];
       call.style.setProperty("--hue", hueOf(waiting.source));
-      var agent = state.agents[waiting.source];
-      var since = waiting.approval_since_ms !== undefined ? waiting.approval_since_ms : waiting.updated_at_ms;
+      var since = Number.isFinite(waiting.approval_since_ms) ? waiting.approval_since_ms : waiting.updated_at_ms;
+      var who = agentName(state, waiting.source);
       call.replaceChildren(
-        el("who", (agent ? agent.name : waiting.source) + " has waited " + minutes(state.nowMs - since)),
+        el("who", Number.isFinite(since) ? who + " has waited " + minutes(state.nowMs - since) : who + " is waiting"),
         el("command", waiting.request || "Look at the terminal"),
       );
       if (waiting.project) call.appendChild(el("where", waiting.project));
@@ -165,7 +175,8 @@
         now = function () { return ctx.now(); };
         // The runtime calls update once a minute with a new nowMs, which moves the
         // clock and the cards' minutes. Only the song's bar needs frames: about four a second.
-        cancelSong = ctx.requestFrame(drawSong, 4);
+        // drawSong reads ctx.now() itself; the callback's argument is the frame clock.
+        cancelSong = ctx.requestFrame(function () { drawSong(); }, 4);
       },
       update: function (state) {
         lastState = state;
