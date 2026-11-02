@@ -8,6 +8,7 @@
 // Usage:
 //   node shoot.mjs <preview URL> [--size 1440x900] [--reduce] [--out still.jpg]
 //                  [--width 1440] [--wait 5000] [--measure 4000] [--lose-context]
+//                  [--gif demo.gif]
 //
 //   --size          the screen to emulate, in CSS pixels (default 1440x900)
 //   --reduce        emulate "Reduce motion" (prefers-reduced-motion: reduce)
@@ -17,10 +18,14 @@
 //   --measure       ms to count drawn frames over (default 4000)
 //   --lose-context  after the wait, lose the background's WebGL context and
 //                   report whether one fresh canvas replaced it and draws again
+//   --gif           record media/demo.gif: 9 s at 12 frames a second, 800 px wide.
+//                   Load the preview with state=work: after 2 s the first task
+//                   asks for approval, after 6 s it goes back. Needs ffmpeg.
+//                   Without --size it records 1440x936, like the other demos.
 //
 // Set CHROME to the browser's path if it is not in /Applications.
 // Exit code: 0 when the console stayed clean, 1 when it logged an error.
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -29,17 +34,18 @@ const args = process.argv.slice(2);
 const url = args.find((arg) => !arg.startsWith("--") && !isValue(arg));
 function isValue(arg) {
   const at = args.indexOf(arg);
-  return at > 0 && ["--size", "--out", "--width", "--wait", "--measure"].includes(args[at - 1]);
+  return at > 0 && ["--size", "--out", "--width", "--wait", "--measure", "--gif"].includes(args[at - 1]);
 }
 function option(name, fallback) {
   const at = args.indexOf(name);
   return at === -1 ? fallback : args[at + 1];
 }
 if (!url) {
-  console.error("usage: node shoot.mjs <preview URL> [--size 1440x900] [--reduce] [--out still.jpg] [--width 1440] [--wait 5000] [--measure 4000] [--lose-context]");
+  console.error("usage: node shoot.mjs <preview URL> [--size 1440x900] [--reduce] [--out still.jpg] [--width 1440] [--wait 5000] [--measure 4000] [--lose-context] [--gif demo.gif]");
   process.exit(2);
 }
-const [width, height] = option("--size", "1440x900").split("x").map(Number);
+const gif = option("--gif", undefined);
+const [width, height] = option("--size", gif ? "1440x936" : "1440x900").split("x").map(Number);
 const stillWidth = Number(option("--width", "1440"));
 const waitMs = Number(option("--wait", "5000"));
 const measureMs = Number(option("--measure", "4000"));
@@ -47,6 +53,19 @@ const out = option("--out", undefined);
 const reduce = args.includes("--reduce");
 const loseContext = args.includes("--lose-context");
 const chromePath = process.env.CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+
+// For --gif: keeps the last state the preview sends, so the recording can change it live.
+const KEEP_STATE = `(() => {
+  let real;
+  Object.defineProperty(window, "agentScreensaver", { configurable: true,
+    get() { return real && { ...real, setState(json, display) { window.__shootLast = [json, display]; return real.setState(json, display); } }; },
+    set(value) { real = value; window.__shootReal = value; } });
+})();`;
+const TO_APPROVAL = `(() => { const [json, display] = window.__shootLast; const state = JSON.parse(json); const card = state.cards[0];
+  if (!card) return false; card.kind = "approval"; card.request = card.request || "npm run migrate"; card.approval_since_ms = Date.now() - 180000;
+  window.__shootReal.setState(JSON.stringify(state), display); return true; })()`;
+const TO_WORK = `(() => { const [json, display] = window.__shootLast; window.__shootReal.setState(json, display); return true; })()`;
+const GIF_WIDTH = 800, GIF_MS = 9000, GIF_FRAME_MS = 83;
 
 // Runs in the page before its own scripts: marks a frame as drawn when any
 // canvas draws in it, and counts those frames.
@@ -100,6 +119,7 @@ try {
   await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
   await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: reduce ? "reduce" : "no-preference" }] });
   await send("Page.addScriptToEvaluateOnNewDocument", { source: COUNTER });
+  if (gif) await send("Page.addScriptToEvaluateOnNewDocument", { source: KEEP_STATE });
   await send("Page.navigate", { url });
   await sleep(waitMs);
 
@@ -139,9 +159,41 @@ try {
     report.still = { out, width: stillWidth, height: Math.round((height * stillWidth) / width), bytes: Buffer.from(shot.data, "base64").length };
   }
 
+  if (gif) report.gif = await recordGif(send, evaluate);
+
   report.consoleErrors = errors;
   console.log(JSON.stringify(report, null, 2));
   process.exitCode = errors.length > 0 ? 1 : 0;
+
+  // Captures frames on their real clock, then lets ffmpeg build one palette for them.
+  async function recordGif(send, evaluate) {
+    await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: GIF_WIDTH / width, mobile: false });
+    await sleep(800);
+    const dir = mkdtempSync(join(tmpdir(), "shoot-gif-"));
+    try {
+      const frames = [];
+      const start = Date.now();
+      let step = 0;
+      while (Date.now() - start < GIF_MS) {
+        const t = Date.now() - start;
+        if (step === 0 && t > 2000) { if (!(await evaluate(TO_APPROVAL))) throw new Error("--gif needs a preview with tasks: use state=work"); step = 1; }
+        if (step === 1 && t > 6000) { await evaluate(TO_WORK); step = 2; }
+        const shot = await send("Page.captureScreenshot", { format: "png" });
+        const file = join(dir, `f${String(frames.length).padStart(4, "0")}.png`);
+        writeFileSync(file, Buffer.from(shot.data, "base64"));
+        frames.push({ file, t: Date.now() - start });
+        await sleep(Math.max(0, frames.length * GIF_FRAME_MS - (Date.now() - start)));
+      }
+      const list = frames.map((frame, i) => `file '${frame.file}'\nduration ${(((frames[i + 1]?.t ?? frame.t + GIF_FRAME_MS) - frame.t) / 1000).toFixed(3)}`).join("\n");
+      writeFileSync(join(dir, "list.txt"), `${list}\nfile '${frames.at(-1).file}'\n`);
+      execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", join(dir, "list.txt"),
+        "-vf", `fps=12,scale=${GIF_WIDTH}:-2:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle`,
+        "-loop", "0", gif]);
+      return { out: gif, frames: frames.length, ms: frames.at(-1).t };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
 } catch (err) {
   console.error(String(err && err.message ? err.message : err));
   process.exitCode = 2;

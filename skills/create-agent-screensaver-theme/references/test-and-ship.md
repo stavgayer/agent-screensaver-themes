@@ -81,7 +81,13 @@ node shoot.mjs "$P&state=rest&song=normal" --out $M/idle.jpg
 node shoot.mjs "$P&state=second" --out $M/secondary.jpg
 ```
 
-Each comes out 1440 pixels wide at JPEG quality 82; check that each is under 400 KB (the report gives `bytes`). The themes here also have a looping `media/demo.gif`; it is optional, and this skill has no tool for it.
+Each comes out 1440 pixels wide at JPEG quality 82; check that each is under 400 KB (the report gives `bytes`). Then record the looping `media/demo.gif` that the themes grid shows:
+
+```bash
+node shoot.mjs "$P&state=work&song=normal" --gif $M/demo.gif
+```
+
+It records 9 seconds at 12 frames a second, 800 pixels wide (1440 × 936 on screen, like the other demos): working, then after 2 seconds the first task asks for approval, then after 6 seconds it goes back. So the demo shows the theme's biggest move, the switch to "needs you". It needs `ffmpeg` (`brew install ffmpeg`). The other demos here are 0.05 to 4 MB.
 
 ## On the real screen saver
 
@@ -115,7 +121,7 @@ scripts/pack.sh my-theme            # builds dist/my-theme.zip
 ```
 
 - Give the theme a `README.md`: start from the starter's [README.md](../assets/starter/README.md), which has the headings the others use. Say what the source is (and that it is a fan-made tribute with no artwork or logos), show a still for every state, describe the motion, and list the folders and the fonts' licences. Put the stills in `media/` as 1440-pixel-wide JPEGs under 400 KB, named `working`, `approval`, `done`, `idle` and `secondary` ([how](#the-stills-for-the-readme)).
-- Add a row for the theme to the table of stills in this repository's root `README.md` (name, `media/working.jpg`, folder). If you made a `demo.gif`, add it to the demo table above it too.
+- Add a row for the theme to the table of stills in this repository's root `README.md` (name, `media/working.jpg`, folder). Add the `demo.gif` to the grid of demos above it too, and show it at the top of the theme's own README, under the first paragraph, like the other themes.
 - Bump the version in every part when you change a theme that was already released. `node scripts/check.mjs --since <last tag>` refuses a changed theme with an old version, and so does the release.
 
 ## Releases
