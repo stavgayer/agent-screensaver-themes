@@ -152,13 +152,6 @@
     return agent && agent.name ? agent.name : source.charAt(0).toUpperCase() + source.slice(1);
   }
 
-  // How far the song is, 0 to 1, or null when the app gives no length.
-  function songProgress(track, nowMs) {
-    if (!(track.duration_ms > 0)) return null;
-    var at = track.position_ms + Math.max(0, nowMs - track.at_ms);
-    return Math.min(1, Math.max(0, at / track.duration_ms));
-  }
-
   // The limits follow builtin.limit-rings: order by agentOrder, an old reading
   // is dimmed and says its age, an estimate says "est.", a window that reset
   // since the reading is empty and says "Reset".
@@ -270,7 +263,7 @@
 
     function drawSong() {
       if (!track || !song) return;
-      var progress = songProgress(track, now());
+      var progress = window.agentScreensaver.helpers.songProgress(track, now());
       song.querySelector(".bar").hidden = progress === null;
       if (progress !== null) song.querySelector(".fill").style.transform = "scaleX(" + progress.toFixed(4) + ")";
     }

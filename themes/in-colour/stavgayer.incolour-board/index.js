@@ -432,14 +432,6 @@
       return { leg: leg, ring: ring, arc: arc, title: title, who: who };
     }
 
-    // How far the song is, 0 to 1, moved on from when it was read; null when the
-    // app gives no length (Music, for songs it streams).
-    function songProgress(next, nowMs) {
-      if (!(next.duration_ms > 0)) return null;
-      var at = next.position_ms + Math.max(0, nowMs - next.at_ms);
-      return Math.min(1, Math.max(0, at / next.duration_ms));
-    }
-
     // Under the lowest leg shown, unless the task cards reach that high: then
     // just above them. Layout positions, so the drift and a card rising in do not move it.
     function placeSong() {
@@ -458,7 +450,7 @@
     // The ring moves on between the service's reads, a few times a second, and the leg keeps its place.
     function tickSong() {
       if (!song || !track) return;
-      var progress = songProgress(track, now());
+      var progress = window.agentScreensaver.helpers.songProgress(track, now());
       song.ring.hidden = progress === null;
       if (progress !== null) song.arc.setAttribute("stroke-dasharray", (ARC * progress).toFixed(2) + " " + ARC.toFixed(2));
       placeSong();

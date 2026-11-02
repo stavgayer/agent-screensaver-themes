@@ -1,9 +1,10 @@
 {
   "id": "stavgayer.incolour-board",
   "name": "In Colour board",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "component",
-  "api": 1,
+  "api": 2,
+  "requires": "0.5.0",
   "entry": "index.js",
   "options": {
     "show": { "type": "enum", "default": "agents", "values": ["agents", "time"], "label": "Show" }

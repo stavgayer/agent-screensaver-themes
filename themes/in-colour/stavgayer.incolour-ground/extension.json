@@ -1,9 +1,10 @@
 {
   "id": "stavgayer.incolour-ground",
   "name": "In Colour wheel",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "background",
   "api": 1,
+  "requires": "0.5.0",
   "entry": "index.js",
   "options": {
     "turn": { "type": "number", "default": 40, "min": 5, "max": 240, "label": "Minutes per turn of the wheel" }

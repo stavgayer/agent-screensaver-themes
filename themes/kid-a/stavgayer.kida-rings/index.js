@@ -170,14 +170,6 @@
     return item;
   }
 
-  // How far the song is, 0 to 1, moved on from when it was read; null when the
-  // app gives no length (Music, for songs it streams).
-  function songProgress(track, nowMs) {
-    if (!(track.duration_ms > 0)) return null;
-    var at = track.position_ms + Math.max(0, nowMs - track.at_ms);
-    return Math.min(1, Math.max(0, at / track.duration_ms));
-  }
-
   function songPlate() {
     var plate = document.createElement("div");
     plate.className = "kap";
@@ -203,7 +195,7 @@
     // The ring of the song moves on between the service's reads, a few times a second.
     function drawSong() {
       if (!song || !track) return;
-      var progress = songProgress(track, now());
+      var progress = window.agentScreensaver.helpers.songProgress(track, now());
       song.ring.hidden = progress === null;
       if (progress !== null) song.arc.setAttribute("stroke-dasharray", (ARC * progress).toFixed(2) + " " + ARC.toFixed(2));
     }
