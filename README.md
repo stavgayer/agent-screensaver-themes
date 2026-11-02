@@ -54,7 +54,7 @@ agent-screensaver theme set stavgayer.pablo
 
 ## Uninstall a theme
 
-In Terminal (see [In Terminal](#in-terminal) for the command):
+In the settings window, click Remove… next to the theme under Extensions (agent-screensaver 0.4.4 or later). Or in Terminal (see [In Terminal](#in-terminal) for the command):
 
 ```
 agent-screensaver ext remove stavgayer.pablo
