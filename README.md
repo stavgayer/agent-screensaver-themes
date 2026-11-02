@@ -78,7 +78,7 @@ The zips are written to `dist/`. Each zip holds only the extension folders. The 
 
 ## Release
 
-Bump the version of every theme you changed, in all of its parts. Then push an annotated tag whose message is the version, a blank line, then the notes: `git tag -a v1.1.2 --cleanup=verbatim -F notes.txt` and `git push origin v1.1.2`. CI checks that every changed theme has a new version, builds a zip for every theme and publishes the release with those notes.
+Bump the version of every theme you changed, in all of its parts. Add the release's notes at the top of [CHANGELOG.md](CHANGELOG.md), under a `## v1.2.2 (2026-11-03)` heading, and commit it to main. Then tag that commit with an annotated tag whose message is the version, a blank line, then those notes, and push it: `git tag -a v1.2.2 --cleanup=verbatim -F <(scripts/release-notes.sh v1.2.2)` and `git push origin v1.2.2`. `scripts/release-notes.sh` prints that message from CHANGELOG.md, and fails when the version has no section there. CI stops the release when CHANGELOG.md has no section for the tag. It also checks that every changed theme has a new version. Then it builds a zip for every theme and publishes the release with the notes from the tag message.
 
 ## Contribute a theme
 
