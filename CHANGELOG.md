@@ -2,6 +2,20 @@
 
 The release notes of agent-screensaver-themes, newest first. This file is where they are written: the message of each release tag is made from the section of its version, and CI refuses to release a version that has no section here. See the README for how to release.
 
+## v1.3.0 (2026-11-02)
+
+## Every theme now needs agent-screensaver 0.5.0
+
+All eight themes use the shared helpers that agent-screensaver 0.5.0 added, instead of carrying their own copies: the song progress, and starting a WebGL background again after sleep. That removes about 320 lines of copied code. Nothing changes on screen.
+
+Update agent-screensaver to 0.5.0 or later before you install these zips. Older versions refuse them with "unsupported api 2" and install nothing, so a theme you already have keeps working.
+
+New versions: Currents 1.4.0, Prism 1.2.0, In Colour 1.2.0, Kid A 1.3.0, Pablo 2.3.0, Piñata 1.1.0, Key of Life 1.2.0, Unknown Pleasures 1.3.0.
+
+## Also
+
+- The create-agent-screensaver-theme skill (1.4.0): the starter uses the helpers too.
+
 ## v1.2.1 (2026-11-02)
 
 ## Lighter backgrounds for Prism and Key of Life
