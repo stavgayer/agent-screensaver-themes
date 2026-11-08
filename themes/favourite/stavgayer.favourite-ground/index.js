@@ -8,12 +8,16 @@
 // agent's colour. It stabs in, sinks slowly over the first hour, glints once
 // when the task is finished, turns lime while its agent waits (the others dim),
 // and slides out and falls when the task leaves.
+// Each usage limit is a glossy spike hanging under the face, in its agent's
+// colour, longer the more of the limit is used. The song that plays is a drip
+// from the lower lip: it grows with the song and falls once at its end.
 //
 // The heart breathes (about 1.5% every 8 s), a sheen slides across its gloss
 // every 30 s, and the whole picture drifts a few pixels over minutes against
 // burn-in. JavaScript works out every moving value; the shader only paints them.
 // With "Reduce motion" it stands still, draws only when the state changes, and
-// the eyes cross-fade. The page elements on top use the same frame (below).
+// the eyes cross-fade, the drip is drawn again only when its length changed and
+// fades at the song's end. The page elements on top use the same frame (below).
 (function () {
   var reduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
 
@@ -38,6 +42,8 @@
     maxHeart: 0.62, // of the smaller side
     narrow: 1.45, // width / height under which the cards go in a row
     gutter: 0.03, // of the width, at both screen edges and beside the heart
+    spikeSpread: 0.26, // of the heart's size: how far from its centre the outer spikes hang
+    maxSpikes: 12, // a limit past the twelfth has a label but no spike
   };
 
   function favouriteFrame(width, height, limitCount, cardCount) {
@@ -94,6 +100,33 @@
     if (state.cards.some(function (card) { return card.kind === "approval"; })) return "call";
     return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
   }
+
+  // The limits from left to right: by state.agentOrder, then each agent's windows
+  // in the order the app sends them (the sort keeps that order).
+  function limitsInOrder(state) {
+    var order = state.agentOrder || [];
+    function rank(limit) {
+      var known = order.indexOf(limit.source);
+      return known < 0 ? order.length : known;
+    }
+    return (state.limits || []).slice().sort(function (a, b) { return rank(a) - rank(b); });
+  }
+
+  // How much of a limit is used, 0 to 100: 0 once it has reset, and 0 for a
+  // reading that is missing or not a number.
+  function usedPercent(limit, nowMs) {
+    if (limit.resets_at > 0 && nowMs >= limit.resets_at * 1000) return 0;
+    var used = Number(limit.used_percent);
+    return Number.isFinite(used) ? Math.min(100, Math.max(0, used)) : 0;
+  }
+
+  // Where spike `index` of `count` hangs, as a share of the heart's size from its
+  // centre (x = heart.cx + offset * heart.size): one under the tip, more spread
+  // evenly along the bottom of the face. Only the first maxSpikes count.
+  function spikeOffset(index, count) {
+    count = Math.min(count, FRAME.maxSpikes);
+    return count < 2 ? 0 : FRAME.spikeSpread * ((2 * index) / (count - 1) - 1);
+  }
   // end geometry
 
   // The sky from top to bottom, as measured on the cover; an approval deepens its top.
@@ -101,7 +134,7 @@
   var DEEP_SKY = "#021f3a";
   // The face, deep at the rim and pale in the middle, as measured on the cover.
   var FACE = ["#d34d68", "#eba6b3"];
-  // The middle of the lips, in heart space (below). Task 4's drip hangs from here.
+  // The middle of the lips, in heart space (below). The drip hangs from here.
   var LIP = [0, -0.165];
   // The heart's distance field (after Inigo Quilez), in its own units: the shader
   // draws it and the daggers find its top edge with it.
@@ -135,6 +168,26 @@
   var PULL = 0.35; // the share of the fall spent sliding out of the heart
   var GRAVITY = 12; // heart sides per second squared
 
+  // The spikes: one per usage limit, hanging from the bottom edge of the face.
+  // Sizes in heart space. Every spike has the same full length, so their lengths
+  // compare, and an unused limit still shows 15% of it.
+  var SPIKE_SLOTS = FRAME.maxSpikes;
+  var SPIKE = {
+    full: 0.15, // the length out of the face at 100% (the centre one reaches the label gap)
+    least: 0.15, // the share of it shown at 0%
+    width: 0.04, // half the width at the root, narrower when many spikes crowd
+    inset: 0.03, // how far the root reaches up into the face, hidden behind it
+  };
+  // The drip: from the lower lip, a thread that grows with the song and a drop at
+  // its end. It falls once when the song passes 99%.
+  var DRIP = {
+    root: [LIP[0] + 0.012, LIP[1] - 0.04], // just inside the lower lip, a little off centre
+    full: 0.17, // the thread's length at the song's end: the drop stays on the face
+    drop: 0.016, // the drop's radius
+    fallAt: 0.99,
+  };
+  var DRIP_FALL_MS = 600;
+
   function rgbOf(hex) {
     var n = parseInt(hex.slice(1), 16);
     return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
@@ -161,6 +214,14 @@
     return (HEART.lobe[1] + Math.sqrt(Math.max(0, r * r - q * q)) - HEART.mid) / HEART.units;
   }
 
+  // The height of the heart's bottom edge under x, in heart space: the rounded
+  // tip, then the straight sides running up to the lobes (for |x| up to 0.4).
+  function bottomAt(x) {
+    var q = Math.sqrt(Math.pow(x * HEART.units, 2) + HEART.soft), r = HEART.round;
+    var y = q < r / Math.SQRT2 ? -Math.sqrt(r * r - q * q) : q - r * Math.SQRT2;
+    return (y - HEART.mid) / HEART.units;
+  }
+
   // A value that eases to a new goal over a given time, read at any moment.
   function tween(value) {
     var from = value, to = value, at = 0, ms = 1;
@@ -183,8 +244,8 @@
   // ---- the shader ---------------------------------------------------------------
   //
   // Heart space: the heart's square box has side 1, its centre at 0, y up. Every
-  // layer drawn on the heart (eyes, daggers; spikes and the drip later) works
-  // in heart space, so it breathes and drifts with the face for free.
+  // layer drawn on the heart (eyes, daggers, spikes, the drip) works in heart
+  // space, so it breathes and drifts with the face for free.
 
   var VERTEX = "attribute vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }";
 
@@ -204,6 +265,9 @@
     "uniform vec4 uDagLook[" + DAGGER_SLOTS + "];   // opacity (0: no dagger), glint (below 0: none), lime, dim",
     "uniform vec4 uDagHandle[" + DAGGER_SLOTS + "]; // the handle's agent colour, and 1 while it is stuck in the heart",
     "uniform float uLine;    // the navy outline, in heart units",
+    "uniform vec4 uSpike[" + SPIKE_SLOTS + "];     // the root's x and y, the length (0: no spike), half the width",
+    "uniform vec3 uSpikeTint[" + SPIKE_SLOTS + "]; // the agent's colour at the tip",
+    "uniform vec3 uDrip;     // the thread's length, how far the drop has fallen, opacity (0: no drip)",
     "const vec3 SKY1 = vec3(" + rgbOf(SKY[1]).join(", ") + ");",
     "const vec3 SKY2 = vec3(" + rgbOf(SKY[2]).join(", ") + ");",
     "const vec3 SKY3 = vec3(" + rgbOf(SKY[3]).join(", ") + ");",
@@ -347,6 +411,37 @@
     "  }",
     "  return mix(c, part, shown);",
     "}",
+    // A glossy thorn hanging from its root: face pink at the root, the agent's
+    // colour at the tip, lit from the upper left like the face, outlined in navy.
+    "vec3 spike(vec2 p, vec4 s, vec3 tint, vec3 c, float px) {",
+    "  vec2 u = vec2(p.x - s.x, s.y - p.y); // x across, y down from the root",
+    "  float t = clamp(u.y / s.z, 0.0, 1.0);",
+    "  float w = s.w * pow(1.0 - t, 1.3); // wide at the root, curving in to a point",
+    "  float d = max(abs(u.x) - w, max(-u.y, u.y - s.z));",
+    "  float across = u.x / max(w, 1e-4);",
+    "  vec3 body = mix(DEEP, tint, smoothstep(0.2, 0.75, t)) * mix(1.12, 0.62, smoothstep(-1.0, 1.0, across));",
+    "  body += vec3(1.0) * 0.55 * (1.0 - smoothstep(0.0, 0.25, abs(across + 0.45))) * (1.0 - 0.6 * t);",
+    "  vec3 part = mix(NAVY, body, 1.0 - smoothstep(-px, px, d));",
+    "  return mix(c, part, 1.0 - smoothstep(-px, px, d - uLine));",
+    "}",
+    // The drip: a thin wet thread from the lower lip with a drop at its end, pale
+    // and glossy over the face, with a darker rim and a bright catchlight.
+    "const vec2 DRIP = vec2(" + DRIP.root.map(function (v) { return v.toFixed(4); }).join(", ") + ");",
+    "const float DROP = " + DRIP.drop.toFixed(4) + ";",
+    "float smin(float a, float b, float k) { float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0); return mix(b, a, h) - k * h * (1.0 - h); }",
+    "vec3 drip(vec2 p, vec3 c, float px) {",
+    "  vec2 r = p - DRIP;",
+    "  float len = uDrip.x;",
+    "  float t = clamp(-r.y / max(len, 1e-4), 0.0, 1.0);",
+    "  float thread = max(abs(r.x) - mix(0.006, 0.009, t), max(r.y, -r.y - len));",
+    "  vec2 b = r - vec2(0.0, -len - uDrip.y - 0.8 * DROP);",
+    "  float d = smin(thread, length(b * vec2(1.0, 0.87)) - DROP, 0.01);",
+    "  vec3 wet = mix(c, mix(LIGHT, vec3(1.0), 0.35), 0.6);",
+    "  wet = mix(wet, DEEP * 0.55, 0.75 * smoothstep(-0.006, 0.0, d));",
+    "  wet += vec3(0.85) * (1.0 - smoothstep(0.0, 1.0, length(b - vec2(-0.005, 0.005)) / 0.0045));",
+    "  wet += vec3(0.4) * (1.0 - smoothstep(0.0, 0.002, abs(r.x + 0.0025))) * step(-len, r.y) * step(r.y, 0.0);",
+    "  return mix(c, wet, uDrip.z * (1.0 - smoothstep(-px, px, d)));",
+    "}",
     "void main() {",
     "  vec2 frag = gl_FragCoord.xy;",
     "  vec3 col = sky(1.0 - frag.y / uRes.y);",
@@ -354,6 +449,11 @@
     "  float px = 1.0 / uHeart.z;",
     "  float d = heart(p);",
     "  col *= 1.0 - 0.1 * exp(-max(d, 0.0) * 22.0); // a faint airbrushed shadow around the face",
+    "  for (int i = 0; i < " + SPIKE_SLOTS + "; i++) { // behind the face, which hides their roots",
+    "    vec4 s = uSpike[i];",
+    "    if (s.z <= 0.0 || abs(p.x - s.x) > s.w + 0.01 || p.y > s.y || p.y < s.y - s.z - 0.01) continue;",
+    "    col = spike(p, s, uSpikeTint[i], col, px);",
+    "  }",
     "  if (d < px) {",
     "    vec3 face = skin(p, d);",
     "    face = eye(p, vec2(-0.185, 0.035), face, px);",
@@ -361,6 +461,7 @@
     "    face = lips(p, face, px);",
     "    col = mix(col, face, 1.0 - smoothstep(-px, px, d));",
     "  }",
+    "  if (uDrip.z > 0.0 && abs(p.x - DRIP.x) < 0.03) col = drip(p, col, px);",
     "  for (int i = 0; i < " + DAGGER_SLOTS + "; i++) {",
     "    vec4 look = uDagLook[i];",
     "    if (look.x <= 0.0) continue;",
@@ -375,7 +476,7 @@
     "}",
   ].join("\n");
 
-  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uEyes", "uFadeOnly", "uSheen", "uDagPose", "uDagLook", "uDagHandle", "uLine"];
+  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uEyes", "uFadeOnly", "uSheen", "uDagPose", "uDagLook", "uDagHandle", "uLine", "uSpike", "uSpikeTint", "uDrip"];
 
   function compile(gl, type, source) {
     var shader = gl.createShader(type);
@@ -402,6 +503,10 @@
     var dagPose = new Float32Array(DAGGER_SLOTS * 4);
     var dagLook = new Float32Array(DAGGER_SLOTS * 4);
     var dagHandle = new Float32Array(DAGGER_SLOTS * 4);
+    var spikeShape = new Float32Array(SPIKE_SLOTS * 4), spikeTint = new Float32Array(SPIKE_SLOTS * 3);
+    // The song the drip follows (none on the second display or while an agent
+    // waits), when the drop began to fall, and the drip as last drawn.
+    var song = null, fellMs = null, drawnDrip = "";
 
     function newDagger(card, key, x, nowMs) {
       return {
@@ -496,6 +601,43 @@
       });
     }
 
+    // One spike per limit, in label order, longer the more of the limit is used.
+    function syncSpikes(state) {
+      var limits = state.display === "main" ? limitsInOrder(state).slice(0, SPIKE_SLOTS) : [];
+      var count = limits.length, spacing = count < 2 ? 1 : (2 * FRAME.spikeSpread) / (count - 1);
+      var width = Math.min(SPIKE.width, 0.36 * spacing);
+      spikeShape.fill(0);
+      limits.forEach(function (limit, index) {
+        var x = spikeOffset(index, count), used = usedPercent(limit, state.nowMs) / 100;
+        var length = SPIKE.full * (SPIKE.least + (1 - SPIKE.least) * used);
+        spikeShape.set([x, bottomAt(x) + SPIKE.inset, SPIKE.inset + length, width], index * 4);
+        spikeTint.set(rgbOf(agentColour(limit.source)), index * 3);
+      });
+    }
+
+    // The drip this moment: the thread's length, how far the drop has fallen and
+    // its opacity, or null for no drip. A song with no length hangs it at half
+    // length; past 99% the drop falls once (fades with Reduce motion), then it is gone.
+    function dripAt(nowMs) {
+      if (!song) return null;
+      var progress = window.agentScreensaver.helpers.songProgress(song, nowMs);
+      if (progress === null) return { length: DRIP.full / 2, drop: 0, alpha: 1 };
+      if (progress < DRIP.fallAt) {
+        fellMs = null;
+        return { length: progress * DRIP.full, drop: 0, alpha: 1 };
+      }
+      if (fellMs === null) fellMs = nowMs;
+      var still = reduce.matches, t = (nowMs - fellMs) / (still ? FADE_MS : DRIP_FALL_MS);
+      if (t >= 1) return null;
+      if (still) return { length: DRIP.full, drop: 0, alpha: 1 - t };
+      var s = (t * DRIP_FALL_MS) / 1000;
+      return {
+        length: DRIP.full * (1 - easeOut(Math.min(1, t / PULL))), // the thread snaps back to the lip
+        drop: 0.5 * GRAVITY * s * s,
+        alpha: 1 - Math.max(0, (t - 0.6) / 0.4),
+      };
+    }
+
     function size() {
       return { w: box.clientWidth || window.innerWidth, h: box.clientHeight || window.innerHeight };
     }
@@ -525,7 +667,7 @@
       return t < SHEEN_SLIDE_S ? t / SHEEN_SLIDE_S : -1;
     }
 
-    function render(nowMs) {
+    function render(nowMs, drip) {
       var at = pose(nowMs), deep = skyTop.at(nowMs);
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.uniform2f(uniforms.uRes, canvas.width, canvas.height);
@@ -542,15 +684,23 @@
       gl.uniform4fv(uniforms.uDagLook, dagLook);
       gl.uniform4fv(uniforms.uDagHandle, dagHandle);
       gl.uniform1f(uniforms.uLine, (2 * canvas.width) / size().w / at.side); // 2 CSS px
+      gl.uniform4fv(uniforms.uSpike, spikeShape);
+      gl.uniform3fv(uniforms.uSpikeTint, spikeTint);
+      gl.uniform3f(uniforms.uDrip, drip ? drip.length : 0, drip ? drip.drop : 0, drip ? drip.alpha : 0);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 
     function draw(nowMs) {
       if (!gl) return;
+      // The drip counts as changed once its length moved by a thousandth of the
+      // heart, about every second and a half for a usual song.
+      var drip = dripAt(nowMs);
+      var seen = drip ? Math.round(drip.length * 1000) + "/" + drip.alpha.toFixed(2) : "";
+      if (seen !== drawnDrip) { drawnDrip = seen; dirty = true; }
       // With "Reduce motion" the sky is drawn only when something changed, and while a fade runs.
       if (reduce.matches && !dirty && !eyes.moving(nowMs) && !skyTop.moving(nowMs) && !daggersMoving(nowMs)) return;
       dirty = false;
-      render(nowMs);
+      render(nowMs, drip);
     }
 
     function setUpGl() {
@@ -613,6 +763,8 @@
         eyes.set(call ? 1 : 0, nowMs, reduce.matches ? FADE_MS : EYES_MS);
         skyTop.set(call ? 1 : 0, nowMs, reduce.matches ? FADE_MS : SKY_MS);
         syncDaggers(state, nowMs);
+        syncSpikes(state);
+        song = state.display === "main" && !call && state.nowPlaying ? state.nowPlaying : null;
         fit();
         draw(nowMs);
       },
@@ -631,6 +783,9 @@
         skyTop = tween(0);
         daggers = [];
         firstState = true;
+        spikeShape.fill(0);
+        song = fellMs = null;
+        drawnDrip = "";
       },
     };
     return window.agentScreensaver.helpers.recoverWebGL(api, function () { return canvas; });

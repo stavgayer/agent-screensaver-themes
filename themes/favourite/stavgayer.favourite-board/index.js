@@ -27,6 +27,8 @@
     maxHeart: 0.62, // of the smaller side
     narrow: 1.45, // width / height under which the cards go in a row
     gutter: 0.03, // of the width, at both screen edges and beside the heart
+    spikeSpread: 0.26, // of the heart's size: how far from its centre the outer spikes hang
+    maxSpikes: 12, // a limit past the twelfth has a label but no spike
   };
 
   function favouriteFrame(width, height, limitCount, cardCount) {
@@ -82,6 +84,33 @@
     if (state.display !== "main" || state.cards.length === 0) return "rest";
     if (state.cards.some(function (card) { return card.kind === "approval"; })) return "call";
     return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
+  }
+
+  // The limits from left to right: by state.agentOrder, then each agent's windows
+  // in the order the app sends them (the sort keeps that order).
+  function limitsInOrder(state) {
+    var order = state.agentOrder || [];
+    function rank(limit) {
+      var known = order.indexOf(limit.source);
+      return known < 0 ? order.length : known;
+    }
+    return (state.limits || []).slice().sort(function (a, b) { return rank(a) - rank(b); });
+  }
+
+  // How much of a limit is used, 0 to 100: 0 once it has reset, and 0 for a
+  // reading that is missing or not a number.
+  function usedPercent(limit, nowMs) {
+    if (limit.resets_at > 0 && nowMs >= limit.resets_at * 1000) return 0;
+    var used = Number(limit.used_percent);
+    return Number.isFinite(used) ? Math.min(100, Math.max(0, used)) : 0;
+  }
+
+  // Where spike `index` of `count` hangs, as a share of the heart's size from its
+  // centre (x = heart.cx + offset * heart.size): one under the tip, more spread
+  // evenly along the bottom of the face. Only the first maxSpikes count.
+  function spikeOffset(index, count) {
+    count = Math.min(count, FRAME.maxSpikes);
+    return count < 2 ? 0 : FRAME.spikeSpread * ((2 * index) / (count - 1) - 1);
   }
   // end geometry
 
