@@ -4,6 +4,10 @@
 //   rest, work, done: the resting sky, the eyes shut;
 //   call: an agent waits: the eyes open and the sky goes to its deepest blue;
 //   second display: the sky and the heart, eyes shut.
+// Each task is a silver dagger stuck in the heart's top edge, its handle in the
+// agent's colour. It stabs in, sinks slowly over the first hour, glints once
+// when the task is finished, turns lime while its agent waits (the others dim),
+// and slides out and falls when the task leaves.
 //
 // The heart breathes (about 1.5% every 8 s), a sheen slides across its gloss
 // every 30 s, and the whole picture drifts a few pixels over minutes against
@@ -99,10 +103,35 @@
   var FACE = ["#d34d68", "#eba6b3"];
   // The middle of the lips, in heart space (below). Task 4's drip hangs from here.
   var LIP = [0, -0.165];
+  // The heart's distance field (after Inigo Quilez), in its own units: the shader
+  // draws it and the daggers find its top edge with it.
+  var HEART = {
+    round: 0.07, // a plump face, not a sharp card heart
+    soft: 0.0012, // a soft middle, so the shading has no fold there
+    mid: 0.552, // the heart's vertical middle
+  };
+  HEART.units = 1.207 + 2 * HEART.round; // heart units per box side: its width fills the box
   var BREATH_S = 8, BREATH = 0.015; // one breath every 8 s, ±1.5% of the size
   var SHEEN_S = 30, SHEEN_SLIDE_S = 5; // a sheen crosses the gloss in 5 s, every 30 s
   var DRIFT_VMIN = 0.6; // how far the picture drifts, about 5 px on a laptop
   var EYES_MS = 250, SKY_MS = 1200, FADE_MS = 400;
+
+  // The daggers: one per task, in card order, at most 7, stuck in the heart's top
+  // edge. Sizes in heart space (below). Three more slots let daggers fall out
+  // while new ones stab in.
+  var DAGGERS = 7, DAGGER_SLOTS = DAGGERS + 3;
+  var DAGGER = {
+    spread: 0.3, // the cover's left and right spots; the centre is 0
+    lean: 0.5, // radians per unit from the centre: the outer daggers lean out a little
+    blade: 0.15, // the blade's length; it sinks a third of it over the first hour
+    stuck: 0.03, // how deep a new dagger sits
+    lift: 0.06, // how high a new dagger stabs from
+    middle: 0.13, // from the tip to the balance point it tumbles around
+  };
+  var LIME = "#9bf95e", NAVY = "#022a4a";
+  var SINK_MS = 60 * 60000, STAB_MS = 400, GLINT_MS = 600, FALL_MS = 800;
+  var PULL = 0.35; // the share of the fall spent sliding out of the heart
+  var GRAVITY = 12; // heart sides per second squared
 
   function rgbOf(hex) {
     var n = parseInt(hex.slice(1), 16);
@@ -110,6 +139,25 @@
   }
 
   function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+  // How far a task's dagger has sunk, 0 to 1: fast at first, full after an hour.
+  function depthOf(runMs) {
+    var t = 1 - Math.min(1, Math.max(0, runMs) / SINK_MS);
+    return 1 - t * t;
+  }
+
+  // Where dagger `index` of `count` stands: one in the centre, two at the cover's
+  // spots, three at both and the centre, more spread evenly between the spots.
+  function slotX(index, count) {
+    return count < 2 ? 0 : DAGGER.spread * ((2 * index) / (count - 1) - 1);
+  }
+
+  // The height of the heart's top edge above x, in heart space: on top the
+  // distance field is the rounded circle of a lobe.
+  function edgeAt(x) {
+    var q = Math.sqrt(Math.pow(x * HEART.units, 2) + HEART.soft) - 0.25, r = 0.35355339 + HEART.round;
+    return (0.75 + Math.sqrt(Math.max(0, r * r - q * q)) - HEART.mid) / HEART.units;
+  }
 
   // A value that eases to a new goal over a given time, read at any moment.
   function tween(value) {
@@ -133,7 +181,7 @@
   // ---- the shader ---------------------------------------------------------------
   //
   // Heart space: the heart's square box has side 1, its centre at 0, y up. Every
-  // layer drawn on the heart (eyes now; daggers, spikes and the drip later) works
+  // layer drawn on the heart (eyes, daggers; spikes and the drip later) works
   // in heart space, so it breathes and drifts with the face for free.
 
   var VERTEX = "attribute vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }";
@@ -150,6 +198,10 @@
     "uniform float uEyes;    // 0 shut, 1 open",
     "uniform float uFadeOnly; // 1: the eyes cross-fade instead of opening (Reduce motion)",
     "uniform float uSheen;   // 0 to 1 while the sheen crosses, below 0 when it rests",
+    "uniform vec4 uDagPose[" + DAGGER_SLOTS + "];   // the tip, and the way the blade points up",
+    "uniform vec4 uDagLook[" + DAGGER_SLOTS + "];   // opacity (0: no dagger), glint (below 0: none), lime, dim",
+    "uniform vec4 uDagHandle[" + DAGGER_SLOTS + "]; // the handle's agent colour, and 1 while it is stuck in the heart",
+    "uniform float uLine;    // the navy outline, in heart units",
     "const vec3 SKY1 = vec3(" + rgbOf(SKY[1]).join(", ") + ");",
     "const vec3 SKY2 = vec3(" + rgbOf(SKY[2]).join(", ") + ");",
     "const vec3 SKY3 = vec3(" + rgbOf(SKY[3]).join(", ") + ");",
@@ -157,13 +209,14 @@
     "const vec3 LIGHT = vec3(" + rgbOf(FACE[1]).join(", ") + ");",
     "const vec2 LIP = vec2(" + LIP.map(function (v) { return v.toFixed(4); }).join(", ") + ");",
     "const vec3 LID = vec3(0.36, 0.07, 0.16);",
-    // The heart's distance field (after Inigo Quilez), scaled so its width fills the box.
-    "const float HR = 0.07;              // rounding: a plump face, not a sharp card heart",
-    "const float HK = 1.207 + 2.0 * HR;  // heart units per box side",
-    "const float HMID = 0.552;           // the heart's vertical middle, in heart units",
+    "const vec3 NAVY = vec3(" + rgbOf(NAVY).join(", ") + ");",
+    "const vec3 LIME = vec3(" + rgbOf(LIME).join(", ") + ");",
+    "const float HR = " + HEART.round.toFixed(4) + ";",
+    "const float HK = " + HEART.units.toFixed(4) + ";",
+    "const float HMID = " + HEART.mid.toFixed(4) + ";",
     "float dot2(vec2 v) { return dot(v, v); }",
     "float heartUnits(vec2 q) {",
-    "  q.x = sqrt(q.x * q.x + 0.0012); // a soft middle, so the shading has no fold there",
+    "  q.x = sqrt(q.x * q.x + " + HEART.soft.toFixed(4) + ");",
     "  if (q.y + q.x > 1.0) return sqrt(dot2(q - vec2(0.25, 0.75))) - 0.35355339;",
     "  return sqrt(min(dot2(q - vec2(0.0, 1.0)), dot2(q - 0.5 * max(q.x + q.y, 0.0)))) * sign(q.x - q.y);",
     "}",
@@ -238,6 +291,58 @@
     "  lc = mix(lc, LID, seam * (1.0 - smoothstep(0.036, 0.05, q.x)));",
     "  return mix(c, lc, 1.0 - smoothstep(-px, px, d));",
     "}",
+    // A silver dagger standing on its tip, in its own space: x across, y up the
+    // blade from the tip. A glossy blade with a bright ridge, a crossguard, a
+    // wrapped grip in the agent's colour and a round pommel, all outlined in navy.
+    "const float BLADE = " + DAGGER.blade.toFixed(4) + ";",
+    "const float BLADE_W = 0.02;               // half the blade's width at the guard",
+    "const vec2 GUARD = vec2(0.042, 0.008);    // half the crossguard: 7 daggers just clear each other",
+    "const float GRIP = 0.075, GRIP_W = 0.013, POMMEL = 0.016;",
+    "const float GRIP_Y = BLADE + 2.0 * GUARD.y; // where the grip starts",
+    "const float REACH = GRIP_Y + GRIP + 2.0 * POMMEL; // tip to the top of the pommel",
+    "const vec3 STEEL = vec3(0.6, 0.65, 0.72), SHINE = vec3(0.97, 0.98, 1.0);",
+    "float box(vec2 p, vec2 c, vec2 h, float r) { vec2 q = abs(p - c) - h + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }",
+    "vec3 dagger(vec2 u, vec3 c, vec4 look, vec4 handle, float d, float px) {",
+    "  float t = clamp(u.y / (BLADE * 0.45), 0.0, 1.0);",
+    "  float w = BLADE_W * t * (2.0 - t); // a sharp point that swells into a straight blade",
+    "  float blade = max(abs(u.x) - w, max(-u.y, u.y - BLADE));",
+    "  float guard = box(u, vec2(0.0, BLADE + GUARD.y), GUARD, GUARD.y);",
+    "  float grip = box(u, vec2(0.0, GRIP_Y + 0.5 * GRIP), vec2(GRIP_W, 0.5 * GRIP), 0.004);",
+    "  vec2 knob = u - vec2(0.0, GRIP_Y + GRIP + 0.7 * POMMEL);",
+    "  float pommel = length(knob) - POMMEL;",
+    "  float metal = min(blade, min(guard, pommel));",
+    "  float whole = min(metal, grip);",
+    // Chrome lit from the upper left, like the face. The blade's two faces meet
+    // in a ridge: the lit one with a glossy stripe, the other one holding the sky.
+    "  float across = u.x / max(w, 1e-4);",
+    "  vec3 edge = mix(SHINE, STEEL, smoothstep(-1.0, 0.1, across));",
+    "  edge = mix(edge, mix(STEEL * 0.7, SKY1, 0.35), smoothstep(-0.05, 0.05, across));",
+    "  edge += vec3(0.6) * (1.0 - smoothstep(0.0, 0.18, abs(across + 0.45)));",
+    "  edge += vec3(0.35) * smoothstep(0.7, 1.0, across);",
+    "  if (look.y >= 0.0) { // the glint runs down the blade once",
+    "    edge += vec3(1.0) * exp(-pow((u.y - mix(BLADE, 0.0, look.y)) / 0.018, 2.0)) * sin(3.14159265 * look.y);",
+    "  }",
+    "  vec2 g = (u - vec2(0.0, BLADE + GUARD.y)) / GUARD;",
+    "  vec3 hilt = mix(SHINE, STEEL * 0.6, smoothstep(-0.6, 1.0, 0.3 * g.x - 0.8 * g.y));",
+    "  vec3 ball = mix(STEEL * 0.6, SHINE, 1.0 - smoothstep(0.0, 1.2, length(knob / POMMEL - vec2(-0.35, 0.35))));",
+    "  vec3 steel = mix(edge, hilt, smoothstep(-px, px, blade - guard));",
+    "  steel = mix(steel, ball, smoothstep(-px, px, min(blade, guard) - pommel));",
+    "  vec3 grain = mix(handle.rgb, LIME, look.z);",
+    "  float curve = 1.0 - abs(u.x / GRIP_W + 0.3) / 1.3;",
+    "  grain *= 0.62 + 0.5 * curve;",
+    "  grain *= 0.86 + 0.14 * smoothstep(0.15, 0.5, abs(fract((u.y - GRIP_Y) / 0.0125) - 0.5));",
+    "  grain += vec3(0.35) * (1.0 - smoothstep(0.0, 0.25, abs(u.x / GRIP_W + 0.45)));",
+    "  vec3 part = mix(grain, steel, smoothstep(-px, px, grip - metal));",
+    "  part = mix(NAVY, part, 1.0 - smoothstep(-px, px, whole));",
+    "  float shown = (1.0 - smoothstep(-px, px, whole - uLine)) * look.x * mix(1.0, 0.4, look.w);",
+    "  if (handle.w > 0.5) {",
+    // Stuck in the heart: hidden inside it, with a soft crease where the blade goes in.
+    "    float inside = 1.0 - smoothstep(-px, px, d);",
+    "    c *= 1.0 - 0.3 * look.x * inside * smoothstep(-0.03, 0.0, d) * (1.0 - smoothstep(0.0, 0.02, blade));",
+    "    shown *= 1.0 - inside;",
+    "  }",
+    "  return mix(c, part, shown);",
+    "}",
     "void main() {",
     "  vec2 frag = gl_FragCoord.xy;",
     "  vec3 col = sky(1.0 - frag.y / uRes.y);",
@@ -252,12 +357,21 @@
     "    face = lips(p, face, px);",
     "    col = mix(col, face, 1.0 - smoothstep(-px, px, d));",
     "  }",
+    "  for (int i = 0; i < " + DAGGER_SLOTS + "; i++) {",
+    "    vec4 look = uDagLook[i];",
+    "    if (look.x <= 0.0) continue;",
+    "    vec4 pose = uDagPose[i];",
+    "    vec2 v = p - pose.xy;",
+    "    vec2 u = vec2(dot(v, vec2(pose.w, -pose.z)), dot(v, pose.zw));",
+    "    if (abs(u.x) > GUARD.x + 0.01 || u.y < -0.03 || u.y > REACH + 0.01) continue;",
+    "    col = dagger(u, col, look, uDagHandle[i], d, px);",
+    "  }",
     "  col += (hash(frag) - 0.5) / 255.0; // no banding in the long gradients",
     "  gl_FragColor = vec4(col, 1.0);",
     "}",
   ].join("\n");
 
-  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uEyes", "uFadeOnly", "uSheen"];
+  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uEyes", "uFadeOnly", "uSheen", "uDagPose", "uDagLook", "uDagHandle", "uLine"];
 
   function compile(gl, type, source) {
     var shader = gl.createShader(type);
@@ -279,6 +393,100 @@
     var frame, display = "main";
     var eyes = tween(0), skyTop = tween(0);
     var REST_TOP = rgbOf(SKY[0]), CALL_TOP = rgbOf(DEEP_SKY);
+    // The daggers in drawing order: the tasks' daggers in card order, then the ones falling out.
+    var daggers = [], firstState = true;
+    var dagPose = new Float32Array(DAGGER_SLOTS * 4);
+    var dagLook = new Float32Array(DAGGER_SLOTS * 4);
+    var dagHandle = new Float32Array(DAGGER_SLOTS * 4);
+
+    function newDagger(card, key, x, nowMs) {
+      return {
+        key: key,
+        colour: rgbOf(agentColour(card.source)),
+        startedMs: card.started_at_ms,
+        endMs: card.kind === "finished" ? card.updated_at_ms : null, // finished: the depth stops here
+        // The daggers already there when the screen saver starts do not stab in.
+        bornMs: firstState ? -Infinity : nowMs,
+        glintMs: -Infinity,
+        leftMs: null,
+        x: tween(x), lime: tween(0), dim: tween(0),
+      };
+    }
+
+    // Matches the daggers to the cards: new cards stab in, finished ones glint,
+    // waiting ones turn lime, and the daggers of cards that left fall out.
+    function syncDaggers(state, nowMs) {
+      var cards = state.display === "main" ? state.cards.slice(0, DAGGERS) : [];
+      var call = moodOf(state) === "call", still = reduce.matches;
+      var lookMs = still ? FADE_MS : EYES_MS, slideMs = still ? 1 : STAB_MS;
+      var byKey = {};
+      daggers.forEach(function (dagger) { if (dagger.leftMs === null) byKey[dagger.key] = dagger; });
+      var kept = cards.map(function (card, index) {
+        var key = card.source + "\u0000" + card.session, x = slotX(index, cards.length);
+        var dagger = byKey[key] || newDagger(card, key, x, nowMs);
+        delete byKey[key];
+        var finished = card.kind === "finished";
+        if (finished && dagger.endMs === null) { dagger.endMs = state.nowMs; dagger.glintMs = nowMs; }
+        if (!finished) dagger.endMs = null;
+        dagger.startedMs = card.started_at_ms;
+        dagger.x.set(x, nowMs, slideMs);
+        dagger.lime.set(card.kind === "approval" ? 1 : 0, nowMs, lookMs);
+        dagger.dim.set(call && card.kind !== "approval" ? 1 : 0, nowMs, lookMs);
+        return dagger;
+      });
+      Object.keys(byKey).forEach(function (key) { byKey[key].leftMs = nowMs; });
+      daggers = kept.concat(daggers.filter(function (dagger) { return dagger.leftMs !== null; }));
+      firstState = false;
+    }
+
+    function leaveMs() { return reduce.matches ? FADE_MS : FALL_MS; }
+
+    // One dagger this moment: its tip and direction, how it looks, and whether it is stuck.
+    function placeDagger(dagger, nowMs, slot) {
+      var still = reduce.matches, x = dagger.x.at(nowMs), lean = x * DAGGER.lean;
+      var depth = depthOf((dagger.endMs === null ? nowMs : dagger.endMs) - dagger.startedMs);
+      var under = DAGGER.stuck + (depth * DAGGER.blade) / 3; // the blade inside the heart
+      var stab = Math.min(1, (nowMs - dagger.bornMs) / (still ? FADE_MS : STAB_MS));
+      var alpha = still ? stab : Math.min(1, stab / 0.4), rise = still ? 0 : DAGGER.lift * (1 - easeOut(stab));
+      var drift = 0, drop = 0, tumble = 0, stuck = 1;
+      if (dagger.leftMs !== null) {
+        var t = Math.min(1, (nowMs - dagger.leftMs) / leaveMs());
+        if (still) alpha *= 1 - t;
+        else if (t < PULL) rise = (under + 0.01) * easeOut(t / PULL);
+        else {
+          // Out of the heart: it tumbles outwards and falls past the face.
+          var fall = (t - PULL) / (1 - PULL), s = (fall * FALL_MS * (1 - PULL)) / 1000, side = x < 0 ? -1 : 1;
+          rise = under + 0.01;
+          drift = side * 0.12 * fall;
+          drop = 0.5 * GRAVITY * s * s;
+          tumble = side * 1.6 * fall * fall;
+          alpha *= 1 - Math.max(0, (fall - 0.6) / 0.4);
+          stuck = 0;
+        }
+      }
+      // The blade goes in at the edge above its slot; it tumbles around its balance point.
+      var reach = rise - under + DAGGER.middle;
+      var mx = x + Math.sin(lean) * reach + drift, my = edgeAt(x) + Math.cos(lean) * reach - drop;
+      var o = slot * 4, upX = Math.sin(lean + tumble), upY = Math.cos(lean + tumble);
+      var glint = (nowMs - dagger.glintMs) / GLINT_MS;
+      dagPose.set([mx - upX * DAGGER.middle, my - upY * DAGGER.middle, upX, upY], o);
+      dagLook.set([alpha, still || glint < 0 || glint >= 1 ? -1 : glint, dagger.lime.at(nowMs), dagger.dim.at(nowMs)], o);
+      dagHandle.set([dagger.colour[0], dagger.colour[1], dagger.colour[2], stuck], o);
+    }
+
+    function placeDaggers(nowMs) {
+      var wait = leaveMs();
+      daggers = daggers.filter(function (dagger) { return dagger.leftMs === null || nowMs - dagger.leftMs < wait; });
+      dagLook.fill(0);
+      daggers.slice(0, DAGGER_SLOTS).forEach(function (dagger, slot) { placeDagger(dagger, nowMs, slot); });
+    }
+
+    function daggersMoving(nowMs) {
+      return daggers.some(function (dagger) {
+        return nowMs - dagger.bornMs < FADE_MS || dagger.leftMs !== null ||
+          dagger.x.moving(nowMs) || dagger.lime.moving(nowMs) || dagger.dim.moving(nowMs);
+      });
+    }
 
     function size() {
       return { w: box.clientWidth || window.innerWidth, h: box.clientHeight || window.innerHeight };
@@ -321,13 +529,18 @@
       gl.uniform1f(uniforms.uEyes, eyes.at(nowMs));
       gl.uniform1f(uniforms.uFadeOnly, reduce.matches ? 1 : 0);
       gl.uniform1f(uniforms.uSheen, sheenAt(nowMs));
+      placeDaggers(nowMs);
+      gl.uniform4fv(uniforms.uDagPose, dagPose);
+      gl.uniform4fv(uniforms.uDagLook, dagLook);
+      gl.uniform4fv(uniforms.uDagHandle, dagHandle);
+      gl.uniform1f(uniforms.uLine, (2 * canvas.width) / size().w / at.side); // 2 CSS px
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 
     function draw(nowMs) {
       if (!gl) return;
       // With "Reduce motion" the sky is drawn only when something changed, and while a fade runs.
-      if (reduce.matches && !dirty && !eyes.moving(nowMs) && !skyTop.moving(nowMs)) return;
+      if (reduce.matches && !dirty && !eyes.moving(nowMs) && !skyTop.moving(nowMs) && !daggersMoving(nowMs)) return;
       dirty = false;
       render(nowMs);
     }
@@ -391,6 +604,7 @@
         // With "Reduce motion" the eyes cross-fade (uFadeOnly) instead of opening.
         eyes.set(call ? 1 : 0, nowMs, reduce.matches ? FADE_MS : EYES_MS);
         skyTop.set(call ? 1 : 0, nowMs, reduce.matches ? FADE_MS : SKY_MS);
+        syncDaggers(state, nowMs);
         fit();
         draw(nowMs);
       },
@@ -407,6 +621,8 @@
         uniforms = {};
         eyes = tween(0);
         skyTop = tween(0);
+        daggers = [];
+        firstState = true;
       },
     };
     return window.agentScreensaver.helpers.recoverWebGL(api, function () { return canvas; });
