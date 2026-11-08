@@ -1,8 +1,19 @@
-// The Favourite board: the words, the task cards, the approval and the song, over
-// the whole screen. It works out the five states from the view state (the
-// layout's modes are coarser), builds text only with textContent, cuts long
-// text with "…", and cleans up in unmount. Restyle it after your source.
+// The Favourite board: every word on the screen, over the sky the ground paints.
+// It reads the same frame as the ground (the shared geometry below), so the
+// words sit where the cover has room for them:
+//   the clock and the date in lime blackletter at the top centre, where the
+//   cover's title is, and the song in one small pink line under them;
+//   one label under each spike, on a dark blue plate;
+//   the task cards in the open sky left and right of the heart, or in one row
+//   under the labels on narrow (4:3) screens;
+//   while an agent waits, one large card over the lower half of the heart, and
+//   the cards and labels fade back.
+// The second display shows only the clock and the date. Text is built with
+// textContent only, long text is cut with "…", fields that are missing are left
+// out, and everything is placed again when the screen changes size.
 (function () {
+  var MINUTE = 60000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
+  var base = ((document.currentScript && document.currentScript.src) || "").replace(/[^/]*$/, "");
   var WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -114,166 +125,427 @@
   }
   // end geometry
 
+  var STALE_AFTER = { "5h": 30 * MINUTE, week: 6 * HOUR, plan: 6 * HOUR };
+  var COMMAND_STEPS = [4.4, 3.9, 3.4, 3, 2.6]; // vmin: the command steps down to keep one line
+  var CARD_MIN = 30; // vmin: the narrowest card in the row on narrow screens
+  var GAP = 1.6; // vmin between cards
+
   var STYLE = [
-    ".smp { position: absolute; inset: 0; color: #f4f1ea; font-family: 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; }",
-    ".smp .say { position: absolute; left: 6vmin; top: 20vh; font-size: 14vmin; font-weight: 700; line-height: 0.9; letter-spacing: -0.03em; white-space: nowrap; }",
-    ".smp .sub { position: absolute; left: 6.4vmin; top: calc(20vh + 14vmin); font-size: 3.4vmin; color: #b9b2a6; white-space: nowrap; }",
-    ".smp .cards { position: absolute; left: 6vmin; right: 6vmin; bottom: 6vmin; display: flex; gap: 2vmin; }",
-    // Small text sits on a plate, so it reads over every part of the background.
-    ".smp .card { flex: 1 1 0; min-width: 0; padding: 1.8vmin 2.2vmin; background: rgba(18, 16, 20, 0.86); border-top: 0.5vmin solid var(--hue); }",
-    ".smp .card .top { display: flex; justify-content: space-between; gap: 1em; font-size: 2.2vmin; color: var(--hue); }",
-    ".smp .card .what { margin-top: 1vmin; font-size: 2.8vmin; font-weight: 600; }",
-    ".smp .card .where { margin-top: 0.6vmin; font-size: 2vmin; color: #b9b2a6; }",
-    ".smp .card .top span, .smp .card .what, .smp .card .where { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }",
-    ".smp .card.done { opacity: 0.6; }",
-    ".smp .card.more { flex: none; display: grid; place-items: center; border-top-color: transparent; font-size: 2.6vmin; color: #b9b2a6; }",
-    ".smp .call { position: absolute; left: 6vmin; right: 6vmin; bottom: 8vmin; padding: 3vmin 3.6vmin; background: rgba(18, 16, 20, 0.92); border-left: 1vmin solid var(--hue); }",
-    ".smp .call .who { font-size: 3vmin; color: var(--hue); }",
-    ".smp .call .command { margin-top: 1.4vmin; font: 600 4.4vmin ui-monospace, Menlo, monospace; overflow-wrap: anywhere; }",
-    ".smp .call .where { margin-top: 1vmin; font-size: 2.6vmin; color: #b9b2a6; }",
-    ".smp .song { position: absolute; left: 6vmin; top: 6vmin; max-width: 40vw; padding: 1.2vmin 1.8vmin; background: rgba(18, 16, 20, 0.86); }",
-    ".smp .song .title { font-size: 2.4vmin; font-weight: 600; }",
-    ".smp .song .artist { margin-top: 0.4vmin; font-size: 2vmin; color: #b9b2a6; }",
-    ".smp .song .title, .smp .song .artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
-    ".smp .song .bar { margin-top: 1vmin; height: 0.4vmin; background: rgba(244, 241, 234, 0.18); overflow: hidden; }",
-    ".smp .song .fill { height: 100%; background: var(--accent, #f2c14e); transform-origin: left center; transform: scaleX(0); }",
-    ".smp [hidden] { display: none !important; }",
-    ".smp .song, .smp .call { transition: opacity 300ms cubic-bezier(0.23, 1, 0.32, 1); }",
-    "@media (prefers-reduced-motion: reduce) { .smp .song, .smp .call { transition: none; } }",
+    "@font-face { font-family: 'FV Display'; src: url('" + base + "fonts/UnifrakturCook-Bold.ttf') format('truetype'); font-weight: 700; }",
+    "@font-face { font-family: 'FV Text'; src: url('" + base + "fonts/Outfit.ttf') format('truetype'); font-weight: 100 900; }",
+    "@font-face { font-family: 'FV Mono'; src: url('" + base + "fonts/JetBrainsMono.woff2') format('woff2'); font-weight: 100 800; }",
+    ".fvb { --navy: #022a4a; --plate: rgba(2, 42, 74, 0.85); --lime: #9bf95e; --pink: #eba6b3; --cream: #f3f6f8; --muted: #a9c6da;",
+    "  position: absolute; inset: 0; overflow: hidden; color: var(--cream); font-family: 'FV Text', 'Helvetica Neue', sans-serif; font-weight: 500;",
+    "  -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }",
+    ".fvb [hidden] { display: none !important; }",
+    // the title spot of the cover: the time, the date, the song
+    ".fvb .clock { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; color: var(--lime); }",
+    ".fvb .time, .fvb .date, .fvb .call .title { font-family: 'FV Display', Georgia, serif; font-weight: 700; white-space: nowrap; }",
+    ".fvb .time { line-height: 0.95; }",
+    ".fvb .date { line-height: 1.1; }",
+    ".fvb .song { color: var(--pink); font-weight: 500; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+    // the cards and labels step back while an agent waits
+    ".fvb .labels, .fvb .cards { transition: opacity 400ms cubic-bezier(0.23, 1, 0.32, 1); }",
+    ".fvb.call .labels, .fvb.call .cards { opacity: 0.15; }",
+    // one label under each spike
+    ".fvb .limit { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: 0.2vmin;",
+    "  padding: 0 1vmin; background: var(--plate); border-left: 3px solid var(--hue); border-radius: 0.6vmin; }",
+    ".fvb .limit .top { display: flex; align-items: baseline; gap: 0.4em; font-size: min(2vmin, 15px); font-weight: 600; line-height: 1.2; white-space: nowrap; }",
+    ".fvb .limit .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }",
+    ".fvb .limit .percent { flex: none; margin-left: auto; font-weight: 700; }",
+    ".fvb .limit .detail { font-size: min(1.7vmin, 13px); line-height: 1.2; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+    ".fvb .limit.stale > * { opacity: 0.55; }",
+    // the task cards: beside the heart, or in a row on narrow screens
+    ".fvb .column, .fvb .row { position: absolute; }",
+    ".fvb .stack { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; gap: " + GAP + "vmin; }",
+    ".fvb .left .stack { align-items: flex-end; }",
+    ".fvb .right .stack { align-items: flex-start; }",
+    ".fvb .row { display: flex; justify-content: center; align-items: stretch; gap: " + GAP + "vmin; }",
+    ".fvb .card { box-sizing: border-box; width: 100%; max-width: 46vmin; padding: 1.5vmin 2vmin 1.7vmin; background: var(--navy);",
+    "  border-left: 3px solid var(--hue); border-radius: 0.8vmin; box-shadow: 0 1vmin 2.4vmin rgba(1, 20, 38, 0.35); }",
+    ".fvb .row .card { flex: 1 1 0; min-width: 0; overflow: hidden; padding: 1.3vmin 1.8vmin; }",
+    ".fvb .card .head { display: flex; align-items: center; gap: 0.9vmin; font-size: 2.1vmin; font-weight: 600; line-height: 1.25; white-space: nowrap; }",
+    ".fvb .card .mark { flex: none; width: 1.1em; height: 1.1em; object-fit: contain; }",
+    ".fvb .card .dot { width: 0.7em; height: 0.7em; border-radius: 50%; background: var(--hue); }",
+    ".fvb .card .agent { min-width: 0; overflow: hidden; text-overflow: ellipsis; }",
+    ".fvb .card .state { flex: none; margin-left: auto; color: var(--hue); }",
+    ".fvb .card .since { flex: none; color: var(--muted); font-weight: 500; }",
+    ".fvb .card .what { margin-top: 0.8vmin; font-size: 2.6vmin; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere;",
+    "  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }",
+    ".fvb .row .card .what { -webkit-line-clamp: 1; }",
+    ".fvb .card .where, .fvb .card .meta { margin-top: 0.5vmin; font-size: 2vmin; line-height: 1.25; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+    ".fvb .card .meta { font-size: 1.8vmin; }",
+    ".fvb .more { flex: none; align-self: center; padding: 1.2vmin 2vmin; background: var(--navy); border-radius: 0.8vmin; font-size: 2.2vmin; font-weight: 600; color: var(--muted); white-space: nowrap; }",
+    ".fvb .stack .more { align-self: auto; }",
+    // the needs-you card, over the lower half of the heart
+    ".fvb .call { position: absolute; box-sizing: border-box; padding: 2.6vmin 3.2vmin 3vmin; background: var(--navy); border-left: 0.6vmin solid var(--hue);",
+    "  border-radius: 1.2vmin; box-shadow: 0 1.6vmin 4vmin rgba(1, 16, 30, 0.5); animation: fvb-in 360ms cubic-bezier(0.23, 1, 0.32, 1); }",
+    "@keyframes fvb-in { from { opacity: 0; } to { opacity: 1; } }",
+    ".fvb .call .title { color: var(--lime); font-size: 8vmin; line-height: 1; }",
+    ".fvb .call .who { margin-top: 1.4vmin; display: flex; align-items: baseline; gap: 1.6vmin; font-size: 3.2vmin; font-weight: 600; line-height: 1.25; white-space: nowrap; }",
+    ".fvb .call .agent { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--hue); }",
+    ".fvb .call .since { flex: none; }",
+    ".fvb .call .project { margin-top: 0.6vmin; font-size: 2.6vmin; line-height: 1.25; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+    // The command keeps one line and steps down in size to fit. Only a command too
+    // long even at the smallest step breaks, at spaces, into up to four lines.
+    ".fvb .call .command { margin-top: 1.8vmin; font-family: 'FV Mono', ui-monospace, Menlo, monospace; font-weight: 700; line-height: 1.25;",
+    "  letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; min-width: 0; }",
+    ".fvb .call .command.long { white-space: normal; overflow-wrap: break-word; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }",
+    ".fvb .call .note { margin-top: 1.8vmin; font-size: 3.4vmin; font-weight: 600; line-height: 1.2; }",
+    ".fvb .call .others { margin-top: 1.6vmin; font-size: 2.4vmin; color: var(--muted); }",
+    "@media (prefers-reduced-motion: reduce) { .fvb .labels, .fvb .cards { transition-duration: 200ms; } }",
   ].join("\n");
 
   function pad2(value) { return String(value).padStart(2, "0"); }
 
+  function duration(ms) {
+    var minutes = Math.floor(ms / MINUTE);
+    if (minutes < 1) return "under 1 min";
+    if (minutes < 60) return minutes + " min";
+    var rest = minutes % 60;
+    return Math.floor(minutes / 60) + " hr" + (rest === 0 ? "" : " " + rest + " min");
+  }
+
+  function own(object, key) {
+    return object && Object.prototype.hasOwnProperty.call(object, key) ? object[key] : undefined;
+  }
+
   // An agent with no extension has no name in state.agents: show its source, capitalised.
   function agentName(state, source) {
-    var agent = state.agents && state.agents[source];
-    return agent && agent.name ? agent.name : source.charAt(0).toUpperCase() + source.slice(1);
+    var agent = own(state.agents, source);
+    return (agent && agent.name) || source.charAt(0).toUpperCase() + source.slice(1);
   }
 
-  function minutes(ms) {
-    var m = Math.max(0, Math.floor(ms / 60000));
-    return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + (m % 60) + " min";
-  }
-
-  function el(className, text) {
-    var node = document.createElement("div");
-    node.className = className;
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
     if (text !== undefined) node.textContent = text; // never innerHTML: titles and commands come from outside
     return node;
   }
 
+  function since(fromMs, nowMs) {
+    return Number.isFinite(fromMs) ? duration(nowMs - fromMs) : "";
+  }
+
+  // ---- the limit labels: the rules of builtin.limit-rings ----------------
+
+  function countdown(ms) {
+    var minutes = Math.floor(ms / MINUTE);
+    if (minutes < 1) return "under 1m";
+    if (minutes < 60) return minutes + "m";
+    return Math.floor(minutes / 60) + "h " + (minutes % 60) + "m";
+  }
+
+  // When the window resets, in local time built by hand so it never depends on locale data.
+  function resetLabel(resetsAtS, nowMs) {
+    if (!(resetsAtS > 0)) return "";
+    var at = resetsAtS * 1000, left = at - nowMs, moment = new Date(at);
+    if (left <= DAY) return countdown(left);
+    var dayTime = WEEKDAYS[moment.getDay()].slice(0, 3) + " " + pad2(moment.getHours()) + ":" + pad2(moment.getMinutes());
+    return left <= 6 * DAY ? dayTime : moment.getDate() + " " + MONTHS[moment.getMonth()].slice(0, 3);
+  }
+
+  function shortAge(ms) {
+    if (ms < HOUR) return Math.floor(ms / MINUTE) + "m";
+    if (ms < DAY) return Math.floor(ms / HOUR) + "h";
+    return Math.floor(ms / DAY) + "d";
+  }
+
+  // What one label says: an old reading is dimmed and says its age, an estimate
+  // says "est.", and a window that reset since the reading says "Reset".
+  function limitView(limit, nowMs) {
+    if (limit.resets_at > 0 && nowMs >= limit.resets_at * 1000) return { percent: 0, detail: "Reset", stale: false };
+    var age = nowMs - limit.updated_at_ms, extra = [];
+    var stale = age > (STALE_AFTER[limit.window] || STALE_AFTER.week);
+    if (stale) extra.push(shortAge(age) + " ago");
+    if (limit.estimated === true) extra.push("est.");
+    var reset = resetLabel(limit.resets_at, nowMs);
+    if (reset !== "" && extra.length === 0) reset = "resets " + reset;
+    // The warnings first, so a cut line drops the reset time, never "est." or the age.
+    return { percent: Math.round(usedPercent(limit, nowMs)), detail: extra.concat(reset).filter(Boolean).join(", "), stale: stale };
+  }
+
+  // Centres for a row of labels `step` apart, each as close as it can be to the
+  // spike above it: pushed apart left to right, then the row shifted back to the
+  // spikes' middle and into the screen.
+  function spread(ideals, step, min, max) {
+    var at = [];
+    ideals.forEach(function (x, i) { at.push(i === 0 ? x : Math.max(x, at[i - 1] + step)); });
+    var shift = (ideals[0] + ideals[ideals.length - 1] - at[0] - at[at.length - 1]) / 2;
+    var low = at[0] + shift - step / 2, high = at[at.length - 1] + shift + step / 2;
+    if (low < min) shift += min - low;
+    else if (high > max) shift -= high - max;
+    return at.map(function (x) { return x + shift; });
+  }
+
+  // ---- the task cards -----------------------------------------------------
+
+  function taskState(card, nowMs) {
+    switch (card.kind) {
+      case "running": return { word: "working", since: since(card.started_at_ms, nowMs) };
+      case "approval": return { word: "waiting", since: since(card.approval_since_ms, nowMs) };
+      case "finished": return { word: "done", since: Number.isFinite(card.updated_at_ms) ? (nowMs - card.updated_at_ms < MINUTE ? "just now" : duration(nowMs - card.updated_at_ms) + " ago") : "" };
+      case "no_activity": return { word: "quiet", since: since(card.updated_at_ms, nowMs) };
+      default: return { word: "", since: "" };
+    }
+  }
+
+  function mark(state, source) {
+    var agent = own(state.agents, source);
+    if (!agent || !agent.mark_url) return el("span", "mark dot");
+    var image = el("img", "mark");
+    image.src = agent.mark_url;
+    image.alt = "";
+    return image;
+  }
+
+  function taskCard(card, state) {
+    var node = el("div", "card");
+    node.style.setProperty("--hue", agentColour(card.source));
+    var said = taskState(card, state.nowMs);
+    var head = el("div", "head");
+    head.append(mark(state, card.source), el("span", "agent", agentName(state, card.source)));
+    if (said.word) head.appendChild(el("span", "state", said.word));
+    if (said.since) head.appendChild(el("span", "since", said.since));
+    node.appendChild(head);
+    var heading = card.title || card.name;
+    if (heading) node.appendChild(el("div", "what", heading)).dir = "auto";
+    if (card.project) node.appendChild(el("div", "where", card.project)).dir = "auto";
+    var context = Number.isFinite(card.context_percent) ? Math.round(card.context_percent) + "% context" : "";
+    var meta = [card.model, card.branch, context].filter(Boolean).join(" · ");
+    if (meta) node.appendChild(el("div", "meta", meta));
+    return node;
+  }
+
+  // Oldest approval first; one without a start time sorts last, ties keep their order.
+  function approvals(cards) {
+    return cards
+      .map(function (card, index) { return { card: card, index: index }; })
+      .filter(function (entry) { return entry.card.kind === "approval"; })
+      .sort(function (a, b) {
+        var x = a.card.approval_since_ms, y = b.card.approval_since_ms;
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return Number.isFinite(x) ? -1 : Number.isFinite(y) ? 1 : a.index - b.index;
+        return x - y || a.index - b.index;
+      })
+      .map(function (entry) { return entry.card; });
+  }
+
   window.agentScreensaver.register(function () {
-    var box, say, sub, cards, call, song, track, show = "agents", cancelSong, now, lastState;
+    var box, clock, time, date, song, labels, cards, left, right, row, call, lastState, show = "agents";
 
-    function card(task, state) {
-      var node = el("card" + (task.kind === "finished" ? " done" : ""));
-      node.style.setProperty("--hue", agentColour(task.source));
-      var top = el("top");
-      var name = document.createElement("span");
-      name.textContent = agentName(state, task.source);
-      top.appendChild(name);
-      // started_at_ms can be missing: then leave the time out, never show "NaN".
-      var started = Number.isFinite(task.started_at_ms) ? task.started_at_ms : undefined;
-      if (task.kind === "finished" || started !== undefined) {
-        var since = document.createElement("span");
-        since.textContent = task.kind === "finished" ? "done" : minutes(state.nowMs - started);
-        top.appendChild(since);
-      }
-      node.appendChild(top);
-      if (task.title) node.appendChild(el("what", task.title));
-      if (task.project) node.appendChild(el("where", task.branch ? task.project + " on " + task.branch : task.project));
-      return node;
+    function redraw() {
+      if (lastState) draw(lastState);
     }
 
-    function drawCall(state) {
-      var waiting = state.cards.filter(function (task) { return task.kind === "approval"; })[0];
-      call.style.setProperty("--hue", agentColour(waiting.source));
-      var since = Number.isFinite(waiting.approval_since_ms) ? waiting.approval_since_ms : waiting.updated_at_ms;
-      var who = agentName(state, waiting.source);
-      call.replaceChildren(
-        el("who", Number.isFinite(since) ? who + " has waited " + minutes(state.nowMs - since) : who + " is waiting"),
-        el("command", waiting.request || "Look at the terminal"),
-      );
-      if (waiting.project) call.appendChild(el("where", waiting.project));
+    function place(node, x, y, w, h) {
+      node.style.left = x + "px";
+      node.style.top = y + "px";
+      node.style.width = w + "px";
+      if (h !== undefined) node.style.height = h + "px";
     }
 
-    function drawSong() {
+    function drawClock(state, frame, showSong) {
+      var moment = new Date(state.nowMs), height = frame.clockHeight;
+      time.textContent = pad2(moment.getHours()) + ":" + pad2(moment.getMinutes());
+      date.textContent = WEEKDAYS[moment.getDay()] + " " + moment.getDate() + " " + MONTHS[moment.getMonth()];
+      clock.style.top = frame.clockTop + "px";
+      time.style.fontSize = 0.66 * height + "px";
+      date.style.fontSize = 0.19 * height + "px";
+      // The song: title and artist in one line, only between the card columns.
+      var track = showSong && state.nowPlaying && state.nowPlaying.title ? state.nowPlaying : undefined;
+      song.hidden = !track;
       if (!track) return;
-      var progress = window.agentScreensaver.helpers.songProgress(track, now());
-      song.querySelector(".bar").hidden = progress === null;
-      if (progress !== null) song.querySelector(".fill").style.transform = "scaleX(" + progress + ")";
+      song.textContent = track.artist ? track.title + " · " + track.artist : track.title;
+      song.dir = "auto";
+      song.style.fontSize = 0.15 * height + "px";
+      var columns = frame.sideColumns, width = box.clientWidth, vmin = Math.min(width, box.clientHeight) / 100;
+      var room = columns ? columns.right.x - columns.left.x - columns.left.w : width;
+      song.style.maxWidth = room - 2 * FRAME.gutter * width - 2 * GAP * vmin + "px";
+    }
+
+    // One label per limit, under its spike; past the twelfth spike they carry on after.
+    function drawLabels(limits, state, frame) {
+      labels.replaceChildren();
+      var count = limits.length;
+      if (count === 0) return;
+      var width = box.clientWidth, vmin = Math.min(width, box.clientHeight) / 100, gutter = FRAME.gutter * width;
+      var step = FRAME.labelWidth, plateHeight = (FRAME.labelRow - 0.8) * vmin;
+      var ideals = [];
+      limits.forEach(function (limit, index) {
+        ideals.push(index < FRAME.maxSpikes ? frame.heart.cx + spikeOffset(index, count) * frame.heart.size : ideals[index - 1] + step);
+      });
+      var perRow = frame.labelRows === 1 ? count : Math.ceil(count / 2);
+      for (var first = 0, rowIndex = 0; first < count; first += perRow, rowIndex++) {
+        var centres = spread(ideals.slice(first, first + perRow), step, gutter, width - gutter);
+        centres.forEach(function (centre, offset) {
+          var limit = limits[first + offset], view = limitView(limit, state.nowMs);
+          var node = el("div", "limit" + (view.stale ? " stale" : ""));
+          node.style.setProperty("--hue", agentColour(limit.source));
+          var top = el("div", "top");
+          top.append(el("span", "name", agentName(state, limit.source)), el("span", "percent", view.percent + "%"));
+          node.append(top, el("div", "detail", [limit.window, view.detail].filter(Boolean).join(" · ")));
+          place(node, centre - (step - 8) / 2, frame.labelsTop + rowIndex * FRAME.labelRow * vmin, step - 8, plateHeight);
+          labels.appendChild(node);
+        });
+      }
+    }
+
+    // Puts cards from `nodes[from]` into a column while they fit its height.
+    function fill(column, nodes, from, to) {
+      var stack = column.firstChild, room = column.offsetHeight;
+      for (var i = from; i < to; i++) {
+        stack.appendChild(nodes[i]);
+        if (stack.offsetHeight > room) {
+          stack.removeChild(nodes[i]);
+          return i;
+        }
+      }
+      return to;
+    }
+
+    function more(count) {
+      return el("div", "more", "+" + count + " more");
+    }
+
+    function drawColumns(nodes, frame) {
+      var columns = frame.sideColumns;
+      [left, right].forEach(function (column, index) {
+        var area = index === 0 ? columns.left : columns.right;
+        place(column, area.x, area.top, area.w, area.bottom - area.top);
+        column.firstChild.replaceChildren();
+      });
+      // The first half on the left, the rest on the right, as many as fit.
+      var shown = fill(left, nodes, 0, Math.ceil(nodes.length / 2));
+      shown = fill(right, nodes, shown, nodes.length);
+      if (shown < nodes.length) {
+        var last = right.firstChild.childElementCount > 0 ? right.firstChild : left.firstChild;
+        if (last.lastChild) {
+          last.removeChild(last.lastChild);
+          shown--;
+        }
+        last.appendChild(more(nodes.length - shown));
+      }
+      [left, right].forEach(function (column) {
+        column.firstChild.style.top = Math.max(0, (column.offsetHeight - column.firstChild.offsetHeight) / 2) + "px";
+      });
+    }
+
+    function drawRow(nodes, frame) {
+      var width = box.clientWidth, height = box.clientHeight, vmin = Math.min(width, height) / 100, gutter = FRAME.gutter * width;
+      place(row, gutter, height - (FRAME.bottom + FRAME.cards) * vmin, width - 2 * gutter, FRAME.cards * vmin);
+      var fits = Math.max(1, Math.floor((width - 2 * gutter + GAP * vmin) / ((CARD_MIN + GAP) * vmin)));
+      var shown = nodes.length > fits ? nodes.slice(0, fits - 1).concat(more(nodes.length - fits + 1)) : nodes;
+      row.replaceChildren.apply(row, shown);
+    }
+
+    function drawCards(tasks, state, frame) {
+      var nodes = tasks.map(function (card) { return taskCard(card, state); });
+      var inRow = frame.cardsRow && nodes.length > 0, inColumns = !frame.cardsRow && nodes.length > 0;
+      row.hidden = !inRow;
+      left.hidden = right.hidden = !inColumns;
+      if (inRow) drawRow(nodes, frame);
+      else row.replaceChildren();
+      if (inColumns) drawColumns(nodes, frame);
+    }
+
+    function fitCommand() {
+      var command = call.querySelector(".command");
+      if (!command) return;
+      command.classList.remove("long");
+      for (var i = 0; i < COMMAND_STEPS.length; i++) {
+        command.style.fontSize = COMMAND_STEPS[i] + "vmin";
+        if (command.scrollWidth <= command.clientWidth + 1) return;
+      }
+      command.classList.add("long");
+    }
+
+    // The agent that has waited longest, over the lower half of the heart, just
+    // under the eyes; raised when it would run off the bottom of the screen.
+    function drawCall(waiting, state, frame) {
+      call.hidden = waiting.length === 0;
+      if (call.hidden) return;
+      var first = waiting[0], heart = frame.heart;
+      var width = box.clientWidth, height = box.clientHeight, vmin = Math.min(width, height) / 100;
+      call.style.setProperty("--hue", agentColour(first.source));
+      var who = el("div", "who");
+      who.appendChild(el("span", "agent", agentName(state, first.source)));
+      var waited = since(first.approval_since_ms, state.nowMs);
+      if (waited) who.appendChild(el("span", "since", "waiting " + waited));
+      var parts = [el("div", "title", "needs you"), who];
+      if (first.project) parts.push(el("div", "project", first.project));
+      parts.push(first.request ? el("div", "command", first.request) : el("div", "note", "Look at the terminal"));
+      if (waiting.length > 1) parts.push(el("div", "others", "+" + (waiting.length - 1) + " more waiting"));
+      parts.forEach(function (part) { part.dir = "auto"; });
+      call.replaceChildren.apply(call, parts);
+      var cardWidth = Math.min(width - 2 * FRAME.gutter * width, Math.max(1.4 * heart.size, 70 * vmin));
+      place(call, heart.cx - cardWidth / 2, 0, cardWidth);
+      fitCommand();
+      call.style.top = Math.max(0, Math.min(heart.cy + 0.06 * heart.size, height - FRAME.bottom * vmin - call.offsetHeight)) + "px";
     }
 
     function draw(state) {
       if (!box) return;
-      var mood = show === "time" ? "rest" : moodOf(state);
-      var moment = new Date(state.nowMs);
-      if (mood === "rest") {
-        say.textContent = pad2(moment.getHours()) + ":" + pad2(moment.getMinutes());
-        sub.textContent = WEEKDAYS[moment.getDay()] + " " + moment.getDate() + " " + MONTHS[moment.getMonth()];
-      } else if (mood === "call") {
-        say.textContent = "Needs you";
-        sub.textContent = "";
-      } else {
-        var working = state.cards.filter(function (task) { return task.kind !== "finished"; }).length;
-        say.textContent = mood === "done" ? "All done" : working + " working";
-        sub.textContent = "";
-      }
-      sub.hidden = sub.textContent === "";
-      cards.hidden = mood === "rest" || mood === "call";
-      // Up to four cards; more say how many, so a task is never dropped without a word.
-      var shown = cards.hidden ? [] : state.cards.slice(0, 4).map(function (task) { return card(task, state); });
-      if (!cards.hidden && state.cards.length > 4) shown.push(el("card more", "+" + (state.cards.length - 4) + " more"));
-      cards.replaceChildren.apply(cards, shown);
-      call.hidden = mood !== "call";
-      if (mood === "call") drawCall(state);
-      // The song: hidden while an agent waits, and without one.
-      track = mood !== "call" && show !== "time" && state.nowPlaying && state.nowPlaying.title ? state.nowPlaying : undefined;
-      song.hidden = !track;
-      if (track) {
-        song.querySelector(".title").textContent = track.title;
-        song.querySelector(".artist").textContent = track.artist;
-        song.querySelector(".artist").hidden = track.artist === "";
-        drawSong();
-      }
+      var timeOnly = show === "time" || state.display !== "main";
+      var mood = timeOnly ? "rest" : moodOf(state);
+      var frame = frameOf(state, box.clientWidth, box.clientHeight);
+      box.classList.toggle("call", mood === "call");
+      drawClock(state, frame, !timeOnly && mood !== "call");
+      drawLabels(timeOnly ? [] : limitsInOrder(state), state, frame);
+      drawCards(timeOnly ? [] : state.cards, state, frame);
+      drawCall(mood === "call" ? approvals(state.cards) : [], state, frame);
+    }
+
+    function setShow(options) {
+      show = options.show === "time" ? "time" : "agents";
+    }
+
+    function column(side) {
+      var node = el("div", "column " + side);
+      node.appendChild(el("div", "stack"));
+      return node;
     }
 
     return {
       mount: function (root, ctx) {
-        root.style.position = "absolute"; // fill the whole screen, not the region's small box
+        // Fill the whole screen, not the region's small box.
+        root.style.position = "absolute";
         root.style.inset = "0";
-        var style = document.createElement("style");
+        var style = el("style");
         style.textContent = STYLE;
-        box = el("smp");
-        say = el("say");
-        sub = el("sub");
-        cards = el("cards");
-        call = el("call");
-        song = el("song");
-        var bar = el("bar");
-        bar.appendChild(el("fill"));
-        song.append(el("title"), el("artist"), bar);
-        box.append(say, sub, cards, call, song);
+        box = el("div", "fvb");
+        clock = el("div", "clock");
+        time = el("div", "time");
+        date = el("div", "date");
+        song = el("div", "song");
+        clock.append(time, date, song);
+        labels = el("div", "labels");
+        cards = el("div", "cards");
+        left = column("left");
+        right = column("right");
+        row = el("div", "row");
+        cards.append(left, right, row);
+        call = el("div", "call");
+        call.hidden = true;
+        box.append(clock, labels, cards, call);
         root.append(style, box);
-        show = ctx.options.show === "time" ? "time" : "agents";
-        now = function () { return ctx.now(); };
-        // The runtime calls update once a minute with a new nowMs, which moves the
-        // clock and the cards' minutes. Only the song's bar needs frames: about four a second.
-        // drawSong reads ctx.now() itself; the callback's argument is the frame clock.
-        cancelSong = ctx.requestFrame(function () { drawSong(); }, 4);
+        setShow(ctx.options);
+        // Sizes depend on the screen and on the fonts' real widths: place again on both.
+        window.addEventListener("resize", redraw);
+        if (document.fonts) document.fonts.addEventListener("loadingdone", redraw);
       },
       update: function (state) {
         lastState = state;
         draw(state);
       },
       setOptions: function (options) {
-        show = options.show === "time" ? "time" : "agents";
-        if (lastState) draw(lastState);
+        setShow(options);
+        redraw();
       },
       unmount: function () {
-        if (cancelSong) cancelSong();
+        window.removeEventListener("resize", redraw);
+        if (document.fonts) document.fonts.removeEventListener("loadingdone", redraw);
         if (box && box.parentElement) box.parentElement.replaceChildren();
-        box = say = sub = cards = call = song = track = lastState = cancelSong = undefined;
+        box = clock = time = date = song = labels = cards = left = right = row = call = lastState = undefined;
       },
     };
   });
