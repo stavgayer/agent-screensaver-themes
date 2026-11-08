@@ -77,10 +77,10 @@
   }
 
   // The same frame for the same state in every part: the second display shows no
-  // limits and no cards.
+  // limits and no cards, and only the limits that can be read count.
   function frameOf(state, width, height) {
     var main = state.display === "main";
-    return favouriteFrame(width, height, main && state.limits ? state.limits.length : 0, main ? state.cards.length : 0);
+    return favouriteFrame(width, height, main ? limitsInOrder(state).length : 0, main ? state.cards.length : 0);
   }
 
   // Each agent owns one colour of the cover; an agent we do not know gets one by its name.
@@ -101,23 +101,24 @@
     return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
   }
 
-  // The limits from left to right: by state.agentOrder, then each agent's windows
-  // in the order the app sends them (the sort keeps that order).
+  // The limits that can be read, from left to right: by state.agentOrder, then each
+  // agent's windows in the order the app sends them (the sort keeps that order).
+  // A limit whose used_percent is not a number is left out: no spike, no label.
   function limitsInOrder(state) {
     var order = state.agentOrder || [];
     function rank(limit) {
       var known = order.indexOf(limit.source);
       return known < 0 ? order.length : known;
     }
-    return (state.limits || []).slice().sort(function (a, b) { return rank(a) - rank(b); });
+    return (state.limits || [])
+      .filter(function (limit) { return Number.isFinite(limit.used_percent); })
+      .sort(function (a, b) { return rank(a) - rank(b); });
   }
 
-  // How much of a limit is used, 0 to 100: 0 once it has reset, and 0 for a
-  // reading that is missing or not a number.
+  // How much of a limit from limitsInOrder is used, 0 to 100: 0 once it has reset.
   function usedPercent(limit, nowMs) {
     if (limit.resets_at > 0 && nowMs >= limit.resets_at * 1000) return 0;
-    var used = Number(limit.used_percent);
-    return Number.isFinite(used) ? Math.min(100, Math.max(0, used)) : 0;
+    return Math.min(100, Math.max(0, limit.used_percent));
   }
 
   // Where spike `index` of `count` hangs, as a share of the heart's size from its
