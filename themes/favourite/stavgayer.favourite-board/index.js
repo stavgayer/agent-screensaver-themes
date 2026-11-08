@@ -148,9 +148,9 @@
     // the cards and labels step back while an agent waits
     ".fvb .labels, .fvb .cards { transition: opacity 400ms cubic-bezier(0.23, 1, 0.32, 1); }",
     ".fvb.call .labels, .fvb.call .cards { opacity: 0.15; }",
-    // one label under each spike
+    // one label under each spike; its width is fixed in px (FRAME.labelWidth), so its padding and type stop growing too
     ".fvb .limit { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: 0.2vmin;",
-    "  padding: 0 1vmin; background: var(--plate); border-left: 3px solid var(--hue); border-radius: 0.6vmin; }",
+    "  padding: 0 min(1vmin, 9px); background: var(--plate); border-left: 3px solid var(--hue); border-radius: 0.6vmin; }",
     ".fvb .limit .top { display: flex; align-items: baseline; gap: 0.4em; font-size: min(2vmin, 15px); font-weight: 600; line-height: 1.2; white-space: nowrap; }",
     ".fvb .limit .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }",
     ".fvb .limit .percent { flex: none; margin-left: auto; font-weight: 700; }",
