@@ -1,0 +1,18 @@
+{
+  "id": "stavgayer.favourite",
+  "name": "Favourite",
+  "version": "1.4.0",
+  "type": "theme",
+  "api": 1,
+  "requires": "0.5.0",
+  "theme": {
+    "background": { "id": "stavgayer.favourite-ground" },
+    "layout": "stavgayer.favourite-layout",
+    "style": {
+      "--accent": "#9bf95e",
+      "--attention": "#9bf95e",
+      "--done": "#eba6b3",
+      "--warn": "#eba6b3"
+    }
+  }
+}

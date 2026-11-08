@@ -1,0 +1,32 @@
+{
+  "id": "stavgayer.favourite-ground",
+  "name": "Favourite sky",
+  "version": "1.4.0",
+  "type": "background",
+  "api": 2,
+  "requires": "0.5.0",
+  "entry": "index.js",
+  "options": {
+    "fps": {
+      "type": "number",
+      "default": 12,
+      "min": 1,
+      "max": 30,
+      "label": "Frames per second of the sky"
+    },
+    "scale": {
+      "type": "number",
+      "default": 0.5,
+      "min": 0.25,
+      "max": 1,
+      "label": "Render scale of the sky"
+    },
+    "drift": {
+      "type": "number",
+      "default": 4,
+      "min": 1,
+      "max": 30,
+      "label": "Minutes for one drift of the sky"
+    }
+  }
+}
