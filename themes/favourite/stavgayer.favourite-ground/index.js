@@ -109,6 +109,8 @@
     round: 0.07, // a plump face, not a sharp card heart
     soft: 0.0012, // a soft middle, so the shading has no fold there
     mid: 0.552, // the heart's vertical middle
+    lobe: [0.25, 0.75], // the centre of the right lobe's circle
+    lobeRadius: 0.35355339, // its radius, before the rounding
   };
   HEART.units = 1.207 + 2 * HEART.round; // heart units per box side: its width fills the box
   var BREATH_S = 8, BREATH = 0.015; // one breath every 8 s, ±1.5% of the size
@@ -123,7 +125,7 @@
   var DAGGER = {
     spread: 0.3, // the cover's left and right spots; the centre is 0
     lean: 0.5, // radians per unit from the centre: the outer daggers lean out a little
-    blade: 0.15, // the blade's length; it sinks a third of it over the first hour
+    blade: 0.15, // the blade's length; over the first hour it sinks until a third of it is in
     stuck: 0.03, // how deep a new dagger sits
     lift: 0.06, // how high a new dagger stabs from
     middle: 0.13, // from the tip to the balance point it tumbles around
@@ -155,8 +157,8 @@
   // The height of the heart's top edge above x, in heart space: on top the
   // distance field is the rounded circle of a lobe.
   function edgeAt(x) {
-    var q = Math.sqrt(Math.pow(x * HEART.units, 2) + HEART.soft) - 0.25, r = 0.35355339 + HEART.round;
-    return (0.75 + Math.sqrt(Math.max(0, r * r - q * q)) - HEART.mid) / HEART.units;
+    var q = Math.sqrt(Math.pow(x * HEART.units, 2) + HEART.soft) - HEART.lobe[0], r = HEART.lobeRadius + HEART.round;
+    return (HEART.lobe[1] + Math.sqrt(Math.max(0, r * r - q * q)) - HEART.mid) / HEART.units;
   }
 
   // A value that eases to a new goal over a given time, read at any moment.
@@ -214,10 +216,12 @@
     "const float HR = " + HEART.round.toFixed(4) + ";",
     "const float HK = " + HEART.units.toFixed(4) + ";",
     "const float HMID = " + HEART.mid.toFixed(4) + ";",
+    "const vec2 LOBE = vec2(" + HEART.lobe.map(function (v) { return v.toFixed(4); }).join(", ") + ");",
+    "const float LOBE_R = " + HEART.lobeRadius.toFixed(8) + ";",
     "float dot2(vec2 v) { return dot(v, v); }",
     "float heartUnits(vec2 q) {",
     "  q.x = sqrt(q.x * q.x + " + HEART.soft.toFixed(4) + ");",
-    "  if (q.y + q.x > 1.0) return sqrt(dot2(q - vec2(0.25, 0.75))) - 0.35355339;",
+    "  if (q.y + q.x > 1.0) return sqrt(dot2(q - LOBE)) - LOBE_R;",
     "  return sqrt(min(dot2(q - vec2(0.0, 1.0)), dot2(q - 0.5 * max(q.x + q.y, 0.0)))) * sign(q.x - q.y);",
     "}",
     "float heart(vec2 p) { return (heartUnits(p * HK + vec2(0.0, HMID)) - HR) / HK; }",
@@ -421,15 +425,19 @@
       var lookMs = still ? FADE_MS : EYES_MS, slideMs = still ? 1 : STAB_MS;
       var byKey = {};
       daggers.forEach(function (dagger) { if (dagger.leftMs === null) byKey[dagger.key] = dagger; });
+      var stay = cards.map(function (card) { return card.source + "\u0000" + card.session; });
+      var leaving = Object.keys(byKey).some(function (key) { return stay.indexOf(key) < 0; });
+      // The rest move up only once a leaving dagger is out of the heart, so they never cross it.
+      var moveAt = leaving && !still ? nowMs + PULL * FALL_MS : nowMs;
       var kept = cards.map(function (card, index) {
-        var key = card.source + "\u0000" + card.session, x = slotX(index, cards.length);
-        var dagger = byKey[key] || newDagger(card, key, x, nowMs);
+        var key = stay[index], x = slotX(index, cards.length);
+        var dagger = byKey[key] || newDagger(card, key, x, moveAt);
         delete byKey[key];
         var finished = card.kind === "finished";
         if (finished && dagger.endMs === null) { dagger.endMs = state.nowMs; dagger.glintMs = nowMs; }
         if (!finished) dagger.endMs = null;
         dagger.startedMs = card.started_at_ms;
-        dagger.x.set(x, nowMs, slideMs);
+        dagger.x.set(x, moveAt, slideMs);
         dagger.lime.set(card.kind === "approval" ? 1 : 0, nowMs, lookMs);
         dagger.dim.set(call && card.kind !== "approval" ? 1 : 0, nowMs, lookMs);
         return dagger;
@@ -445,8 +453,8 @@
     function placeDagger(dagger, nowMs, slot) {
       var still = reduce.matches, x = dagger.x.at(nowMs), lean = x * DAGGER.lean;
       var depth = depthOf((dagger.endMs === null ? nowMs : dagger.endMs) - dagger.startedMs);
-      var under = DAGGER.stuck + (depth * DAGGER.blade) / 3; // the blade inside the heart
-      var stab = Math.min(1, (nowMs - dagger.bornMs) / (still ? FADE_MS : STAB_MS));
+      var under = DAGGER.stuck + depth * (DAGGER.blade / 3 - DAGGER.stuck); // the blade inside the heart: a third at full depth
+      var stab = Math.min(1, Math.max(0, nowMs - dagger.bornMs) / (still ? FADE_MS : STAB_MS));
       var alpha = still ? stab : Math.min(1, stab / 0.4), rise = still ? 0 : DAGGER.lift * (1 - easeOut(stab));
       var drift = 0, drop = 0, tumble = 0, stuck = 1;
       if (dagger.leftMs !== null) {
