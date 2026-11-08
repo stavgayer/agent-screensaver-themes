@@ -15,6 +15,7 @@ https://github.com/user-attachments/assets/9a1826d2-a335-49b4-98be-1e8459d3d9ff
 <tr><td align="center"><a href="themes/currents"><img src="themes/currents/media/demo.gif" width="400" alt="Currents"><br>Currents</a></td><td align="center"><a href="themes/kid-a"><img src="themes/kid-a/media/demo.gif" width="400" alt="Kid A"><br>Kid A</a></td></tr>
 <tr><td align="center"><a href="themes/unknown-pleasures"><img src="themes/unknown-pleasures/media/demo.gif" width="400" alt="Unknown Pleasures"><br>Unknown Pleasures</a></td><td align="center"><a href="themes/dark-side-of-the-moon"><img src="themes/dark-side-of-the-moon/media/demo.gif" width="400" alt="Prism"><br>Prism</a></td></tr>
 <tr><td align="center"><a href="themes/songs-in-the-key-of-life"><img src="themes/songs-in-the-key-of-life/media/demo.gif" width="400" alt="Key of Life"><br>Key of Life</a></td><td align="center"><a href="themes/pinata"><img src="themes/pinata/media/demo.gif" width="400" alt="Piñata"><br>Piñata</a></td></tr>
+<tr><td align="center"><a href="themes/favourite"><img src="themes/favourite/media/demo.gif" width="400" alt="Favourite"><br>Favourite</a></td></tr>
 </table>
 
 | Theme | Still | Folder |
@@ -27,8 +28,9 @@ https://github.com/user-attachments/assets/9a1826d2-a335-49b4-98be-1e8459d3d9ff
 | Prism | ![Prism](themes/dark-side-of-the-moon/media/working.jpg) | [themes/dark-side-of-the-moon](themes/dark-side-of-the-moon) |
 | Key of Life | ![Key of Life](themes/songs-in-the-key-of-life/media/working.jpg) | [themes/songs-in-the-key-of-life](themes/songs-in-the-key-of-life) |
 | Piñata | ![Piñata](themes/pinata/media/working.jpg) | [themes/pinata](themes/pinata) |
+| Favourite | ![Favourite](themes/favourite/media/working.jpg) | [themes/favourite](themes/favourite) |
 
-All eight are fan-made tributes, inspired by album covers. They include no album artwork or logos.
+All nine are fan-made tributes, inspired by album covers. They include no album artwork or logos.
 
 ## Install a theme
 

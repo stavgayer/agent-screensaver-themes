@@ -2,6 +2,18 @@
 
 The release notes of agent-screensaver-themes, newest first. This file is where they are written: the message of each release tag is made from the section of its version, and CI refuses to release a version that has no section here. See the README for how to release.
 
+## v1.4.0 (2026-11-08)
+
+## New theme: Favourite
+
+A tribute to the cover of the Fontaines D.C. single Favourite, art by Lulu Lin. A glossy pink heart with shut eyes hangs low in a blue sky. Each task is a silver dagger in its top edge, each usage limit is a spike under it, and the song is a drip from its lip. The time and the date sit at the top in lime blackletter. When an agent needs you, the eyes open, the sky goes deep blue and one large card says `needs you`.
+
+Download `favourite.zip`, drop it on the agent-screensaver settings window, and pick Favourite under Theme & background. It needs agent-screensaver 0.5.0 or later.
+
+It is drawn in code. No artwork or logos are included. The fonts are UnifrakturCook, Outfit and JetBrains Mono, all SIL Open Font License 1.1.
+
+The other eight themes are unchanged.
+
 ## v1.3.0 (2026-11-02)
 
 ## Every theme now needs agent-screensaver 0.5.0
