@@ -5,9 +5,82 @@
 (function () {
   var WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  // Each agent owns one colour; an agent we do not know gets one by its name.
-  var OWN = { claude: "#ff6b4a", codex: "#6aa9ff", cursor: "#f2c14e" };
-  var SPARE = ["#e58fd1", "#7fd1b9", "#c7a6ff"];
+
+  // geometry: keep identical in ground and board
+  // Where everything sits, from the screen size alone, so the shader and the page
+  // elements agree. From the top: the clock and the date, room for the daggers,
+  // the heart, its spikes, the limit labels and, on narrow screens, one row of
+  // task cards. The heart takes the height that is left, and any spare height
+  // opens above it, so it sits low like on the cover. Sizes in vmin unless noted.
+  var FRAME = {
+    margin: 4, // above the clock
+    clock: 14, // the time and the date
+    gap: 2, // between blocks
+    rise: 0.24, // of the heart's size: the daggers stand above its top edge
+    spikes: 0.12, // of the heart's size: the spikes hang under it
+    labelRow: 6.5, // one row of limit labels
+    labelWidth: 150, // CSS px per limit label
+    cards: 15, // the row of cards on narrow screens
+    bottom: 3, // under everything
+    maxHeart: 0.62, // of the smaller side
+    narrow: 1.45, // width / height under which the cards go in a row
+    gutter: 0.03, // of the width, around the side columns
+  };
+
+  function favouriteFrame(width, height, limitCount, cardCount) {
+    var vmin = Math.min(width, height) / 100;
+    var cardsRow = width / height < FRAME.narrow && cardCount > 0;
+    var cardsBlock = cardsRow ? FRAME.gap + FRAME.cards : 0;
+    var labelsBlock = function (rows) { return limitCount > 0 ? FRAME.gap + rows * FRAME.labelRow : 0; };
+    var heartFor = function (rows) {
+      var fixed = (FRAME.margin + FRAME.clock + FRAME.gap + labelsBlock(rows) + cardsBlock + FRAME.bottom) * vmin;
+      return Math.max(0, Math.min(FRAME.maxHeart * 100 * vmin, (height - fixed) / (1 + FRAME.rise + FRAME.spikes)));
+    };
+    var labelRows = 1, size = heartFor(1);
+    if (limitCount * FRAME.labelWidth > size) { labelRows = 2; size = heartFor(2); }
+    // Placed from the bottom up.
+    var labelsHeight = limitCount > 0 ? labelRows * FRAME.labelRow : 0;
+    var labelsTop = height - (FRAME.bottom + cardsBlock + labelsHeight) * vmin;
+    var spikesTop = labelsTop - (limitCount > 0 ? FRAME.gap * vmin : 0) - FRAME.spikes * size;
+    var heart = { cx: width / 2, cy: spikesTop - size / 2, size: size };
+    var gutter = FRAME.gutter * width, side = Math.max(0, heart.cx - size / 2 - 2 * gutter);
+    return {
+      heart: heart,
+      clockTop: FRAME.margin * vmin,
+      clockHeight: FRAME.clock * vmin,
+      spikesTop: spikesTop,
+      labelsTop: labelsTop,
+      labelRows: labelRows,
+      cardsRow: cardsRow,
+      sideColumns: cardsRow ? null : { left: { x: gutter, w: side }, right: { x: width - gutter - side, w: side } },
+    };
+  }
+
+  // The same frame for the same state in every part: the second display shows no
+  // limits and no cards.
+  function frameOf(state, width, height) {
+    var main = state.display === "main";
+    return favouriteFrame(width, height, main && state.limits ? state.limits.length : 0, main ? state.cards.length : 0);
+  }
+
+  // Each agent owns one colour of the cover; an agent we do not know gets one by its name.
+  var OWN_COLOURS = { claude: "#d34d68", codex: "#87c2c4", cursor: "#eba6b3" };
+  var SPARE_COLOURS = ["#d34d68", "#87c2c4", "#eba6b3", "#c9d3dc"];
+
+  function agentColour(source) {
+    if (Object.prototype.hasOwnProperty.call(OWN_COLOURS, source)) return OWN_COLOURS[source];
+    var hash = 0;
+    for (var i = 0; i < source.length; i++) hash = (hash * 31 + source.charCodeAt(i)) | 0;
+    return SPARE_COLOURS[Math.abs(hash) % SPARE_COLOURS.length];
+  }
+
+  // The five states of the design, from the view state.
+  function moodOf(state) {
+    if (state.display !== "main" || state.cards.length === 0) return "rest";
+    if (state.cards.some(function (card) { return card.kind === "approval"; })) return "call";
+    return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
+  }
+  // end geometry
 
   var STYLE = [
     ".smp { position: absolute; inset: 0; color: #f4f1ea; font-family: 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; }",
@@ -39,20 +112,6 @@
 
   function pad2(value) { return String(value).padStart(2, "0"); }
 
-  function hueOf(source) {
-    if (Object.prototype.hasOwnProperty.call(OWN, source)) return OWN[source];
-    var hash = 0;
-    for (var i = 0; i < source.length; i++) hash = (hash * 31 + source.charCodeAt(i)) | 0;
-    return SPARE[Math.abs(hash) % SPARE.length];
-  }
-
-  // The five states of the design, from the view state.
-  function moodOf(state, show) {
-    if (show === "time" || state.display !== "main" || state.cards.length === 0) return "rest";
-    if (state.cards.some(function (card) { return card.kind === "approval"; })) return "call";
-    return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
-  }
-
   // An agent with no extension has no name in state.agents: show its source, capitalised.
   function agentName(state, source) {
     var agent = state.agents && state.agents[source];
@@ -76,7 +135,7 @@
 
     function card(task, state) {
       var node = el("card" + (task.kind === "finished" ? " done" : ""));
-      node.style.setProperty("--hue", hueOf(task.source));
+      node.style.setProperty("--hue", agentColour(task.source));
       var top = el("top");
       var name = document.createElement("span");
       name.textContent = agentName(state, task.source);
@@ -96,7 +155,7 @@
 
     function drawCall(state) {
       var waiting = state.cards.filter(function (task) { return task.kind === "approval"; })[0];
-      call.style.setProperty("--hue", hueOf(waiting.source));
+      call.style.setProperty("--hue", agentColour(waiting.source));
       var since = Number.isFinite(waiting.approval_since_ms) ? waiting.approval_since_ms : waiting.updated_at_ms;
       var who = agentName(state, waiting.source);
       call.replaceChildren(
@@ -115,7 +174,7 @@
 
     function draw(state) {
       if (!box) return;
-      var mood = moodOf(state, show);
+      var mood = show === "time" ? "rest" : moodOf(state);
       var moment = new Date(state.nowMs);
       if (mood === "rest") {
         say.textContent = pad2(moment.getHours()) + ":" + pad2(moment.getMinutes());
