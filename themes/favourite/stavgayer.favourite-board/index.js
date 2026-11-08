@@ -11,48 +11,51 @@
   // elements agree. From the top: the clock and the date, room for the daggers,
   // the heart, its spikes, the limit labels and, on narrow screens, one row of
   // task cards. The heart takes the height that is left, and any spare height
-  // opens above it, so it sits low like on the cover. Sizes in vmin unless noted.
+  // opens above it, so it sits low like on the cover. The side columns beside the
+  // heart end above the spikes, so the labels and the card row get the full width.
+  // Sizes in vmin unless noted.
   var FRAME = {
     margin: 4, // above the clock
     clock: 14, // the time and the date
     gap: 2, // between blocks
-    rise: 0.24, // of the heart's size: the daggers stand above its top edge
-    spikes: 0.12, // of the heart's size: the spikes hang under it
+    rise: 0.24, // of the heart's size: the daggers stand above its top edge (always kept, so the heart never jumps)
+    spikes: 0.12, // of the heart's size: the spikes hang under it (only with limits)
     labelRow: 6.5, // one row of limit labels
     labelWidth: 150, // CSS px per limit label
     cards: 15, // the row of cards on narrow screens
     bottom: 3, // under everything
     maxHeart: 0.62, // of the smaller side
     narrow: 1.45, // width / height under which the cards go in a row
-    gutter: 0.03, // of the width, around the side columns
+    gutter: 0.03, // of the width, at both screen edges and beside the heart
   };
 
   function favouriteFrame(width, height, limitCount, cardCount) {
-    var vmin = Math.min(width, height) / 100;
+    var vmin = Math.min(width, height) / 100, gutter = FRAME.gutter * width;
     var cardsRow = width / height < FRAME.narrow && cardCount > 0;
-    var cardsBlock = cardsRow ? FRAME.gap + FRAME.cards : 0;
-    var labelsBlock = function (rows) { return limitCount > 0 ? FRAME.gap + rows * FRAME.labelRow : 0; };
-    var heartFor = function (rows) {
-      var fixed = (FRAME.margin + FRAME.clock + FRAME.gap + labelsBlock(rows) + cardsBlock + FRAME.bottom) * vmin;
-      return Math.max(0, Math.min(FRAME.maxHeart * 100 * vmin, (height - fixed) / (1 + FRAME.rise + FRAME.spikes)));
-    };
-    var labelRows = 1, size = heartFor(1);
-    if (limitCount * FRAME.labelWidth > size) { labelRows = 2; size = heartFor(2); }
+    var labelRows = limitCount * FRAME.labelWidth > width - 2 * gutter ? 2 : 1;
+    var spikes = limitCount > 0 ? FRAME.spikes : 0;
+    // Under the heart, in vmin: the labels with their gap, then the card row with its gap.
+    var labels = limitCount > 0 ? FRAME.gap + labelRows * FRAME.labelRow : 0;
+    var cards = cardsRow ? FRAME.gap + FRAME.cards : 0;
+    var fixed = (FRAME.margin + FRAME.clock + FRAME.gap + labels + cards + FRAME.bottom) * vmin;
+    var size = Math.max(0, Math.min(FRAME.maxHeart * 100 * vmin, (height - fixed) / (1 + FRAME.rise + spikes)));
     // Placed from the bottom up.
-    var labelsHeight = limitCount > 0 ? labelRows * FRAME.labelRow : 0;
-    var labelsTop = height - (FRAME.bottom + cardsBlock + labelsHeight) * vmin;
-    var spikesTop = labelsTop - (limitCount > 0 ? FRAME.gap * vmin : 0) - FRAME.spikes * size;
+    var labelsTop = height - (FRAME.bottom + cards + (limitCount > 0 ? labelRows * FRAME.labelRow : 0)) * vmin;
+    var spikesTop = labelsTop - (limitCount > 0 ? FRAME.gap * vmin : 0) - spikes * size;
     var heart = { cx: width / 2, cy: spikesTop - size / 2, size: size };
-    var gutter = FRAME.gutter * width, side = Math.max(0, heart.cx - size / 2 - 2 * gutter);
+    var side = Math.max(0, heart.cx - size / 2 - 2 * gutter), top = FRAME.margin * vmin;
     return {
       heart: heart,
-      clockTop: FRAME.margin * vmin,
+      clockTop: top,
       clockHeight: FRAME.clock * vmin,
       spikesTop: spikesTop,
       labelsTop: labelsTop,
       labelRows: labelRows,
       cardsRow: cardsRow,
-      sideColumns: cardsRow ? null : { left: { x: gutter, w: side }, right: { x: width - gutter - side, w: side } },
+      sideColumns: cardsRow ? null : {
+        left: { x: gutter, w: side, top: top, bottom: spikesTop },
+        right: { x: width - gutter - side, w: side, top: top, bottom: spikesTop },
+      },
     };
   }
 

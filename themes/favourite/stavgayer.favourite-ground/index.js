@@ -18,48 +18,51 @@
   // elements agree. From the top: the clock and the date, room for the daggers,
   // the heart, its spikes, the limit labels and, on narrow screens, one row of
   // task cards. The heart takes the height that is left, and any spare height
-  // opens above it, so it sits low like on the cover. Sizes in vmin unless noted.
+  // opens above it, so it sits low like on the cover. The side columns beside the
+  // heart end above the spikes, so the labels and the card row get the full width.
+  // Sizes in vmin unless noted.
   var FRAME = {
     margin: 4, // above the clock
     clock: 14, // the time and the date
     gap: 2, // between blocks
-    rise: 0.24, // of the heart's size: the daggers stand above its top edge
-    spikes: 0.12, // of the heart's size: the spikes hang under it
+    rise: 0.24, // of the heart's size: the daggers stand above its top edge (always kept, so the heart never jumps)
+    spikes: 0.12, // of the heart's size: the spikes hang under it (only with limits)
     labelRow: 6.5, // one row of limit labels
     labelWidth: 150, // CSS px per limit label
     cards: 15, // the row of cards on narrow screens
     bottom: 3, // under everything
     maxHeart: 0.62, // of the smaller side
     narrow: 1.45, // width / height under which the cards go in a row
-    gutter: 0.03, // of the width, around the side columns
+    gutter: 0.03, // of the width, at both screen edges and beside the heart
   };
 
   function favouriteFrame(width, height, limitCount, cardCount) {
-    var vmin = Math.min(width, height) / 100;
+    var vmin = Math.min(width, height) / 100, gutter = FRAME.gutter * width;
     var cardsRow = width / height < FRAME.narrow && cardCount > 0;
-    var cardsBlock = cardsRow ? FRAME.gap + FRAME.cards : 0;
-    var labelsBlock = function (rows) { return limitCount > 0 ? FRAME.gap + rows * FRAME.labelRow : 0; };
-    var heartFor = function (rows) {
-      var fixed = (FRAME.margin + FRAME.clock + FRAME.gap + labelsBlock(rows) + cardsBlock + FRAME.bottom) * vmin;
-      return Math.max(0, Math.min(FRAME.maxHeart * 100 * vmin, (height - fixed) / (1 + FRAME.rise + FRAME.spikes)));
-    };
-    var labelRows = 1, size = heartFor(1);
-    if (limitCount * FRAME.labelWidth > size) { labelRows = 2; size = heartFor(2); }
+    var labelRows = limitCount * FRAME.labelWidth > width - 2 * gutter ? 2 : 1;
+    var spikes = limitCount > 0 ? FRAME.spikes : 0;
+    // Under the heart, in vmin: the labels with their gap, then the card row with its gap.
+    var labels = limitCount > 0 ? FRAME.gap + labelRows * FRAME.labelRow : 0;
+    var cards = cardsRow ? FRAME.gap + FRAME.cards : 0;
+    var fixed = (FRAME.margin + FRAME.clock + FRAME.gap + labels + cards + FRAME.bottom) * vmin;
+    var size = Math.max(0, Math.min(FRAME.maxHeart * 100 * vmin, (height - fixed) / (1 + FRAME.rise + spikes)));
     // Placed from the bottom up.
-    var labelsHeight = limitCount > 0 ? labelRows * FRAME.labelRow : 0;
-    var labelsTop = height - (FRAME.bottom + cardsBlock + labelsHeight) * vmin;
-    var spikesTop = labelsTop - (limitCount > 0 ? FRAME.gap * vmin : 0) - FRAME.spikes * size;
+    var labelsTop = height - (FRAME.bottom + cards + (limitCount > 0 ? labelRows * FRAME.labelRow : 0)) * vmin;
+    var spikesTop = labelsTop - (limitCount > 0 ? FRAME.gap * vmin : 0) - spikes * size;
     var heart = { cx: width / 2, cy: spikesTop - size / 2, size: size };
-    var gutter = FRAME.gutter * width, side = Math.max(0, heart.cx - size / 2 - 2 * gutter);
+    var side = Math.max(0, heart.cx - size / 2 - 2 * gutter), top = FRAME.margin * vmin;
     return {
       heart: heart,
-      clockTop: FRAME.margin * vmin,
+      clockTop: top,
       clockHeight: FRAME.clock * vmin,
       spikesTop: spikesTop,
       labelsTop: labelsTop,
       labelRows: labelRows,
       cardsRow: cardsRow,
-      sideColumns: cardsRow ? null : { left: { x: gutter, w: side }, right: { x: width - gutter - side, w: side } },
+      sideColumns: cardsRow ? null : {
+        left: { x: gutter, w: side, top: top, bottom: spikesTop },
+        right: { x: width - gutter - side, w: side, top: top, bottom: spikesTop },
+      },
     };
   }
 
@@ -92,6 +95,10 @@
   // The sky from top to bottom, as measured on the cover; an approval deepens its top.
   var SKY = ["#034d87", "#096faa", "#52a4c7", "#87c2c4"];
   var DEEP_SKY = "#021f3a";
+  // The face, deep at the rim and pale in the middle, as measured on the cover.
+  var FACE = ["#d34d68", "#eba6b3"];
+  // The middle of the lips, in heart space (below). Task 4's drip hangs from here.
+  var LIP = [0, -0.165];
   var BREATH_S = 8, BREATH = 0.015; // one breath every 8 s, ±1.5% of the size
   var SHEEN_S = 30, SHEEN_SLIDE_S = 5; // a sheen crosses the gloss in 5 s, every 30 s
   var DRIFT_VMIN = 0.6; // how far the picture drifts, about 5 px on a laptop
@@ -146,8 +153,9 @@
     "const vec3 SKY1 = vec3(" + rgbOf(SKY[1]).join(", ") + ");",
     "const vec3 SKY2 = vec3(" + rgbOf(SKY[2]).join(", ") + ");",
     "const vec3 SKY3 = vec3(" + rgbOf(SKY[3]).join(", ") + ");",
-    "const vec3 DEEP = vec3(" + rgbOf("#d34d68").join(", ") + ");",
-    "const vec3 LIGHT = vec3(" + rgbOf("#eba6b3").join(", ") + ");",
+    "const vec3 DEEP = vec3(" + rgbOf(FACE[0]).join(", ") + ");",
+    "const vec3 LIGHT = vec3(" + rgbOf(FACE[1]).join(", ") + ");",
+    "const vec2 LIP = vec2(" + LIP.map(function (v) { return v.toFixed(4); }).join(", ") + ");",
     "const vec3 LID = vec3(0.36, 0.07, 0.16);",
     // The heart's distance field (after Inigo Quilez), scaled so its width fills the box.
     "const float HR = 0.07;              // rounding: a plump face, not a sharp card heart",
@@ -212,6 +220,24 @@
     "  ec = mix(ec, vec3(1.0), 1.0 - smoothstep(0.8, 1.0, length(p - e - vec2(-0.011, 0.012)) / 0.009));",
     "  return mix(c, ec, shown);",
     "}",
+    // A small closed pout: a full lower lip, an upper lip with a soft bow, a dark
+    // line between them and a wet gloss on the lower lip, like the cover's lip.
+    "float blob(vec2 p, vec2 c, vec2 r) { return (length((p - c) / r) - 1.0) * min(r.x, r.y); }",
+    "const float LIP_SIZE = 1.35; // the lips' own scale, so their shape reads from across a room",
+    "vec3 lips(vec2 p, vec3 c, float px) {",
+    "  vec2 m = (p - LIP) / LIP_SIZE; px /= LIP_SIZE;",
+    "  vec2 q = vec2(abs(m.x), m.y);",
+    "  float upper = blob(q, vec2(0.0, 0.011), vec2(0.052, 0.016));",
+    "  upper = max(upper, -blob(q, vec2(0.0, 0.03), vec2(0.011, 0.009))); // the bow",
+    "  float lower = blob(q, vec2(0.0, -0.013), vec2(0.044, 0.021));",
+    "  float d = min(upper, lower);",
+    "  vec3 lc = mix(DEEP * 0.62, DEEP * 0.84, smoothstep(0.016, -0.006, abs(m.y + 0.012)));",
+    "  lc = mix(lc, LID, 0.3 * smoothstep(-0.03, 0.02, m.y));",
+    "  lc += vec3(1.0) * 0.55 * (1.0 - smoothstep(0.0, 1.0, length((m - vec2(-0.012, -0.015)) / vec2(0.014, 0.006))));",
+    "  float seam = 1.0 - smoothstep(0.0025, 0.0025 + 1.5 * px, abs(m.y - 0.0015));",
+    "  lc = mix(lc, LID, seam * (1.0 - smoothstep(0.036, 0.05, q.x)));",
+    "  return mix(c, lc, 1.0 - smoothstep(-px, px, d));",
+    "}",
     "void main() {",
     "  vec2 frag = gl_FragCoord.xy;",
     "  vec3 col = sky(1.0 - frag.y / uRes.y);",
@@ -223,6 +249,7 @@
     "    vec3 face = skin(p, d);",
     "    face = eye(p, vec2(-0.185, 0.035), face, px);",
     "    face = eye(p, vec2(0.185, 0.035), face, px);",
+    "    face = lips(p, face, px);",
     "    col = mix(col, face, 1.0 - smoothstep(-px, px, d));",
     "  }",
     "  col += (hash(frag) - 0.5) / 255.0; // no banding in the long gradients",
