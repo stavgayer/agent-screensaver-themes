@@ -191,7 +191,11 @@
     ],
     call: 0.5, // the share of the outline's wobble left while an agent waits, so the heart never swells into a bun
     calm: [0.25, -0.34, 0.05], // near the point the wobble shrinks to this share, from y = -0.34 up to 0.05, so the point stays a point
-    still: 0, // the moment shown with "Reduce motion" (set below: the calmest moment)
+    // The moment shown with "Reduce motion": the calmest one, found once by
+    // searching t from 0 to 600 s in steps of 0.5 s for the smallest sum of the
+    // squared wobble over a grid on the heart (x every 0.1, y every 0.08). Search
+    // again if the waves change.
+    still: 518,
   };
   var BREATH_S = 8, BREATH = 0.015; // one breath every 8 s, ±1.5% of the size
   var DRIFT_VMIN = 0.6; // how far the picture drifts, about 5 px on a laptop
@@ -301,23 +305,6 @@
     calm *= amount === undefined ? 1 : amount;
     return [o[0] * calm, o[1] * calm];
   }
-
-  // The calmest moment for "Reduce motion": the smallest wobble over the heart
-  // in the first ten minutes, sampled once at load.
-  WOBBLE.still = (function () {
-    var best = 0, least = Infinity;
-    for (var t = 0; t < 600; t += 0.5) {
-      var sum = 0;
-      for (var x = -0.5; x <= 0.5; x += 0.1) {
-        for (var y = -0.36; y <= 0.36; y += 0.08) {
-          var o = wobbleAt(x, y, t);
-          sum += o[0] * o[0] + o[1] * o[1];
-        }
-      }
-      if (sum < least) { least = sum; best = t; }
-    }
-    return best;
-  })();
 
   // The moving heart's distance at (x, y), as the shader draws it at moment t.
   function fieldAt(x, y, t, amount) {
@@ -692,12 +679,12 @@
       var alpha = still ? stab : Math.min(1, stab / 0.4), rise = still ? 0 : DAGGER.lift * (1 - easeOut(stab));
       var drift = 0, drop = 0, tumble = 0, stuck = 1;
       if (dagger.leftMs !== null) {
-        var t = Math.min(1, (nowMs - dagger.leftMs) / leaveMs());
-        if (still) alpha *= 1 - t;
-        else if (t < PULL) rise = (under + 0.01) * easeOut(t / PULL);
+        var leave = Math.min(1, (nowMs - dagger.leftMs) / leaveMs());
+        if (still) alpha *= 1 - leave;
+        else if (leave < PULL) rise = (under + 0.01) * easeOut(leave / PULL);
         else {
           // Out of the heart: it tumbles outwards and falls past it.
-          var fall = (t - PULL) / (1 - PULL), s = (fall * FALL_MS * (1 - PULL)) / 1000, side = x < 0 ? -1 : 1;
+          var fall = (leave - PULL) / (1 - PULL), s = (fall * FALL_MS * (1 - PULL)) / 1000, side = x < 0 ? -1 : 1;
           rise = under + 0.01;
           drift = side * 0.12 * fall;
           drop = 0.5 * GRAVITY * s * s;
@@ -814,7 +801,8 @@
       var at = pose(nowMs), deep = skyTop.at(nowMs), t = wobbleClock(nowMs);
       // While an agent waits the outline calms with the same ease as the sky and
       // the lime; the surface light keeps flowing.
-      var amount = 1 - (1 - WOBBLE.call) * deep, root = dripRoot(t, amount);
+      // With "Reduce motion" the outline keeps its one frozen shape: only the lime cross-fades.
+      var amount = reduce.matches ? 1 : 1 - (1 - WOBBLE.call) * deep;
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.uniform2f(uniforms.uRes, canvas.width, canvas.height);
       gl.uniform3f(uniforms.uHeart, at.x, at.y, at.side);
@@ -834,7 +822,10 @@
       gl.uniform4fv(uniforms.uSpike, spikeShape);
       gl.uniform3fv(uniforms.uSpikeTint, spikeTint);
       gl.uniform3f(uniforms.uDrip, drip ? drip.length : 0, drip ? drip.drop : 0, drip ? drip.alpha : 0);
-      gl.uniform2f(uniforms.uDripAt, root[0], root[1]);
+      if (drip) {
+        var root = dripRoot(t, amount);
+        gl.uniform2f(uniforms.uDripAt, root[0], root[1]);
+      }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 
@@ -878,7 +869,9 @@
     var api = {
       start: function (root, context) {
         ctx = context;
-        startMs = ctx.now();
+        // Kept when the graphics card resets and the background starts again,
+        // so the heart does not jump back to its first shape.
+        if (!startMs) startMs = ctx.now();
         display = ctx.display || "main";
         var options = ctx.options || {};
         var wantFps = Number(options.fps), wantScale = Number(options.scale), wantDrift = Number(options.drift);
