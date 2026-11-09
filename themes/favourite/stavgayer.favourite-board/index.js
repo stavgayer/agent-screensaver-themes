@@ -119,7 +119,7 @@
 
   // Where spike `index` of `count` hangs, as a share of the heart's size from its
   // centre (x = heart.cx + offset * heart.size): one under the tip, more spread
-  // evenly along the bottom of the face. Only the first maxSpikes count.
+  // evenly along the bottom of the heart. Only the first maxSpikes count.
   function spikeOffset(index, count) {
     count = Math.min(count, FRAME.maxSpikes);
     return count < 2 ? 0 : FRAME.spikeSpread * ((2 * index) / (count - 1) - 1);
@@ -461,8 +461,9 @@
       command.classList.add("long");
     }
 
-    // The agent that has waited longest, over the lower half of the heart, just
-    // under the eyes; raised when it would run off the bottom of the screen.
+    // The agent that has waited longest, over the lower half of the heart, so the
+    // lime in the chrome above it shows; raised when it would run off the bottom
+    // of the screen.
     function drawCall(waiting, state, frame) {
       call.hidden = waiting.length === 0;
       if (call.hidden) return;

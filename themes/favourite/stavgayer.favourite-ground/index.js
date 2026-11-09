@@ -1,22 +1,24 @@
-// The Favourite sky: a glossy pink heart-shaped face with shut eyes, low and
-// centred in a blue sky, after the cover of the single. Everything is drawn in
-// code by one WebGL 1 fragment shader on a canvas at half the screen's pixels.
-//   rest, work, done: the resting sky, the eyes shut;
-//   call: an agent waits: the eyes open and the sky goes to its deepest blue;
-//   second display: the sky and the heart, eyes shut.
+// The Favourite sky: an oval heart of pink chrome, low and centred in a blue
+// sky, after the cover of the single. Everything is drawn in code by one WebGL 1
+// fragment shader on a canvas at half the screen's pixels.
+//   rest, work, done: the resting sky, the chrome reflecting it;
+//   call: an agent waits: lime floods the chrome's reflections and the sky goes
+//   to its deepest blue;
+//   second display: the sky and the heart.
 // Each task is a silver dagger stuck in the heart's top edge, its handle in the
 // agent's colour. It stabs in, sinks slowly over the first hour, glints once
 // when the task is finished, turns lime while its agent waits (the others dim),
 // and slides out and falls when the task leaves.
-// Each usage limit is a glossy spike hanging under the face, in its agent's
-// colour, longer the more of the limit is used. The song that plays is a drip
-// from the lower lip: it grows with the song and falls once at its end.
+// Each usage limit is a glossy spike hanging under the heart, in its agent's
+// colour, longer the more of the limit is used. The song that plays is a drop of
+// liquid chrome hanging from the heart's bottom point: it grows with the song
+// and falls once at its end.
 //
-// The heart breathes (about 1.5% every 8 s), a sheen slides across its gloss
+// The heart breathes (about 1.5% every 8 s), a sheen slides across the chrome
 // every 30 s, and the whole picture drifts a few pixels over minutes against
 // burn-in. JavaScript works out every moving value; the shader only paints them.
-// With "Reduce motion" it stands still, draws only when the state changes, and
-// the eyes cross-fade, the drip is drawn again only when its length changed and
+// With "Reduce motion" it stands still, draws only when the state changes, the
+// lime cross-fades, and the drip is drawn again only when its length changed and
 // fades at the song's end. The page elements on top use the same frame (below).
 (function () {
   var reduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
@@ -123,7 +125,7 @@
 
   // Where spike `index` of `count` hangs, as a share of the heart's size from its
   // centre (x = heart.cx + offset * heart.size): one under the tip, more spread
-  // evenly along the bottom of the face. Only the first maxSpikes count.
+  // evenly along the bottom of the heart. Only the first maxSpikes count.
   function spikeOffset(index, count) {
     count = Math.min(count, FRAME.maxSpikes);
     return count < 2 ? 0 : FRAME.spikeSpread * ((2 * index) / (count - 1) - 1);
@@ -133,24 +135,27 @@
   // The sky from top to bottom, as measured on the cover; an approval deepens its top.
   var SKY = ["#034d87", "#096faa", "#52a4c7", "#87c2c4"];
   var DEEP_SKY = "#021f3a";
-  // The face, deep at the rim and pale in the middle, as measured on the cover.
-  var FACE = ["#d34d68", "#eba6b3"];
-  // The middle of the lips, in heart space (below). The drip hangs from here.
-  var LIP = [0, -0.165];
+  // The chrome's two pinks, deep and pale, as measured on the cover.
+  var CHROME = ["#d34d68", "#eba6b3"];
   // The heart's distance field (after Inigo Quilez), in its own units: the shader
-  // draws it and the daggers find its top edge with it.
+  // draws it and the daggers find its top edge with it. Plump rounding and a
+  // squashed height make it the cover's oval, wider than it is tall.
   var HEART = {
-    round: 0.07, // a plump face, not a sharp card heart
+    round: 0.1, // plump lobes and a soft point, not a sharp card heart
     soft: 0.0012, // a soft middle, so the shading has no fold there
-    mid: 0.552, // the heart's vertical middle
+    mid: 0.552, // the heart's vertical middle, before the squash
     lobe: [0.25, 0.75], // the centre of the right lobe's circle
     lobeRadius: 0.35355339, // its radius, before the rounding
+    aspect: 1.15, // width : height
   };
   HEART.units = 1.207 + 2 * HEART.round; // heart units per box side: its width fills the box
+  // How much the height is squashed: the plain shape is 1.207 + 2 * round wide and
+  // lobe + lobeRadius + 2 * round tall, in heart units.
+  HEART.squash = (HEART.aspect * (HEART.lobe[1] + HEART.lobeRadius + 2 * HEART.round)) / HEART.units;
   var BREATH_S = 8, BREATH = 0.015; // one breath every 8 s, ±1.5% of the size
-  var SHEEN_S = 30, SHEEN_SLIDE_S = 5; // a sheen crosses the gloss in 5 s, every 30 s
+  var SHEEN_S = 30, SHEEN_SLIDE_S = 5; // a sheen crosses the chrome in 5 s, every 30 s
   var DRIFT_VMIN = 0.6; // how far the picture drifts, about 5 px on a laptop
-  var EYES_MS = 250, SKY_MS = 1200, FADE_MS = 400;
+  var LOOK_MS = 250, SKY_MS = 1200, FADE_MS = 400;
 
   // The daggers: one per task, in card order, at most 7, stuck in the heart's top
   // edge. Sizes in heart space (below). Three more slots let daggers fall out
@@ -169,22 +174,22 @@
   var PULL = 0.35; // the share of the fall spent sliding out of the heart
   var GRAVITY = 12; // heart sides per second squared
 
-  // The spikes: one per usage limit, hanging from the bottom edge of the face.
+  // The spikes: one per usage limit, hanging from the bottom edge of the heart.
   // Sizes in heart space. Every spike has the same full length, so their lengths
   // compare, and an unused limit still shows 15% of it.
   var SPIKE_SLOTS = FRAME.maxSpikes;
   var SPIKE = {
-    full: 0.15, // the length out of the face at 100% (the centre one reaches the label gap)
+    full: 0.18, // the length out of the heart at 100% (the centre one reaches the label gap)
     least: 0.15, // the share of it shown at 0%
     width: 0.04, // half the width at the root, narrower when many spikes crowd
-    inset: 0.03, // how far the root reaches up into the face, hidden behind it
+    inset: 0.03, // how far the root reaches up into the heart, hidden behind it
   };
-  // The drip: from the lower lip, a thread that grows with the song and a drop at
-  // its end. It falls once when the song passes 99%.
+  // The drip: a drop of liquid chrome hanging from the heart's bottom point, a
+  // thread that grows with the song and a drop at its end. It falls once when the
+  // song passes 99%.
   var DRIP = {
-    root: [LIP[0] + 0.012, LIP[1] - 0.04], // just inside the lower lip, a little off centre
-    full: 0.17, // the thread's length at the song's end: the drop stays on the face
-    drop: 0.016, // the drop's radius
+    full: 0.13, // the thread's length at the song's end: about as long as a full spike
+    drop: 0.026, // the drop's radius
     fallAt: 0.99,
   };
   var DRIP_FALL_MS = 600;
@@ -212,15 +217,15 @@
   // distance field is the rounded circle of a lobe.
   function edgeAt(x) {
     var q = Math.sqrt(Math.pow(x * HEART.units, 2) + HEART.soft) - HEART.lobe[0], r = HEART.lobeRadius + HEART.round;
-    return (HEART.lobe[1] + Math.sqrt(Math.max(0, r * r - q * q)) - HEART.mid) / HEART.units;
+    return (HEART.lobe[1] + Math.sqrt(Math.max(0, r * r - q * q)) - HEART.mid) / HEART.units / HEART.squash;
   }
 
   // The height of the heart's bottom edge under x, in heart space: the rounded
-  // tip, then the straight sides running up to the lobes (for |x| up to 0.4).
+  // point, then the straight sides running up to the lobes (for |x| up to 0.4).
   function bottomAt(x) {
     var q = Math.sqrt(Math.pow(x * HEART.units, 2) + HEART.soft), r = HEART.round;
     var y = q < r / Math.SQRT2 ? -Math.sqrt(r * r - q * q) : q - r * Math.SQRT2;
-    return (y - HEART.mid) / HEART.units;
+    return (y - HEART.mid) / HEART.units / HEART.squash;
   }
 
   // A value that eases to a new goal over a given time, read at any moment.
@@ -245,8 +250,8 @@
   // ---- the shader ---------------------------------------------------------------
   //
   // Heart space: the heart's square box has side 1, its centre at 0, y up. Every
-  // layer drawn on the heart (eyes, daggers, spikes, the drip) works in heart
-  // space, so it breathes and drifts with the face for free.
+  // layer drawn on the heart (daggers, spikes, the drip) works in heart space,
+  // so it breathes and drifts with the heart for free.
 
   var VERTEX = "attribute vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }";
 
@@ -259,8 +264,7 @@
     "uniform vec2 uRes;      // canvas pixels",
     "uniform vec3 uHeart;    // centre (canvas px, y up), canvas px per heart-box side",
     "uniform vec3 uSkyTop;   // the top colour of the sky",
-    "uniform float uEyes;    // 0 shut, 1 open",
-    "uniform float uFadeOnly; // 1: the eyes cross-fade instead of opening (Reduce motion)",
+    "uniform float uLime;    // 0 to 1: the lime light that floods the chrome while an agent waits",
     "uniform float uSheen;   // 0 to 1 while the sheen crosses, below 0 when it rests",
     "uniform vec4 uDagPose[" + DAGGER_SLOTS + "];   // the tip, and the way the blade points up",
     "uniform vec4 uDagLook[" + DAGGER_SLOTS + "];   // opacity (0: no dagger), glint (below 0: none), lime, dim",
@@ -272,15 +276,14 @@
     "const vec3 SKY1 = vec3(" + rgbOf(SKY[1]).join(", ") + ");",
     "const vec3 SKY2 = vec3(" + rgbOf(SKY[2]).join(", ") + ");",
     "const vec3 SKY3 = vec3(" + rgbOf(SKY[3]).join(", ") + ");",
-    "const vec3 DEEP = vec3(" + rgbOf(FACE[0]).join(", ") + ");",
-    "const vec3 LIGHT = vec3(" + rgbOf(FACE[1]).join(", ") + ");",
-    "const vec2 LIP = vec2(" + LIP.map(function (v) { return v.toFixed(4); }).join(", ") + ");",
-    "const vec3 LID = vec3(0.36, 0.07, 0.16);",
+    "const vec3 DEEP = vec3(" + rgbOf(CHROME[0]).join(", ") + ");",
+    "const vec3 LIGHT = vec3(" + rgbOf(CHROME[1]).join(", ") + ");",
     "const vec3 NAVY = vec3(" + rgbOf(NAVY).join(", ") + ");",
     "const vec3 LIME = vec3(" + rgbOf(LIME).join(", ") + ");",
     "const float HR = " + HEART.round.toFixed(4) + ";",
     "const float HK = " + HEART.units.toFixed(4) + ";",
     "const float HMID = " + HEART.mid.toFixed(4) + ";",
+    "const float HSQ = " + HEART.squash.toFixed(4) + ";",
     "const vec2 LOBE = vec2(" + HEART.lobe.map(function (v) { return v.toFixed(4); }).join(", ") + ");",
     "const float LOBE_R = " + HEART.lobeRadius.toFixed(8) + ";",
     "float dot2(vec2 v) { return dot(v, v); }",
@@ -289,76 +292,64 @@
     "  if (q.y + q.x > 1.0) return sqrt(dot2(q - LOBE)) - LOBE_R;",
     "  return sqrt(min(dot2(q - vec2(0.0, 1.0)), dot2(q - 0.5 * max(q.x + q.y, 0.0)))) * sign(q.x - q.y);",
     "}",
-    "float heart(vec2 p) { return (heartUnits(p * HK + vec2(0.0, HMID)) - HR) / HK; }",
+    "float heart(vec2 p) { return (heartUnits(vec2(p.x, p.y * HSQ) * HK + vec2(0.0, HMID)) - HR) / HK; }",
     "float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }",
     "vec3 sky(float y) {",
     "  vec3 c = mix(uSkyTop, SKY1, smoothstep(0.0, 0.36, y));",
     "  c = mix(c, SKY2, smoothstep(0.3, 0.72, y));",
     "  return mix(c, SKY3, smoothstep(0.66, 1.0, y));",
     "}",
-    // The airbrushed skin: a soft pillow lit from the upper left, deep pink at the
-    // rim, pale in the middle, one glossy highlight and the sliding sheen.
-    "vec3 skin(vec2 p, float d) {",
-    "  float e = 0.004;",
-    "  vec2 g = vec2(heart(p + vec2(e, 0.0)) - heart(p - vec2(e, 0.0)), heart(p + vec2(0.0, e)) - heart(p - vec2(0.0, e)));",
-    "  g = g / max(length(g), 1e-5);",
-    "  float h = sqrt(clamp(-d / 0.16, 0.0, 1.0));",
-    "  vec3 n = normalize(vec3(g * 1.9 * pow(1.0 - h, 1.4), 1.0));",
-    "  vec3 l = normalize(vec3(-0.45, 0.55, 0.7));",
-    "  float lit = clamp(dot(n, l), 0.0, 1.0);",
-    "  vec3 c = mix(DEEP * 0.82, DEEP, smoothstep(0.0, 0.4, lit));",
-    "  c = mix(c, LIGHT, 0.85 * smoothstep(0.42, 0.95, lit) * smoothstep(-0.45, 0.25, p.y));",
-    "  float spec = pow(max(dot(n, normalize(l + vec3(0.0, 0.0, 1.0))), 0.0), 70.0);",
-    "  c += vec3(1.0) * (spec * 0.85 + pow(lit, 12.0) * 0.12);",
+    // Pink chrome. The metal mirrors a world around it: the sky above a bright
+    // horizon and a dark ground below, like chrome lettering. What it mirrors is
+    // carried onto the cover's pinks by brightness, keeping some of the sky's
+    // blue, more of it at the rim (Fresnel). A softbox and a sun give sharp white
+    // highlights; the sheen is a third one sliding across. While an agent waits,
+    // a lime light comes on: the sky and the highlights mirror lime.
+    "vec3 world(vec3 r) {",
+    "  float t = r.y + 0.04 - 0.3 * r.x + 0.03 * sin(5.0 * r.x + 1.0); // the horizon, tilted and waving a little",
+    "  vec3 up = mix(SKY3, uSkyTop, smoothstep(0.05, 1.0, t));",
+    "  up = mix(up, uSkyTop * 0.75, 0.55 * smoothstep(0.32, 0.4, t) * (1.0 - smoothstep(0.5, 0.75, t))); // a darker band of sky high up",
+    "  vec3 down = mix(vec3(0.1, 0.03, 0.06), vec3(0.42, 0.18, 0.28), smoothstep(0.0, -0.35, t));",
+    "  down += vec3(0.5, 0.42, 0.48) * smoothstep(-0.7, -0.95, t); // a pale floor far below",
+    "  vec3 c = mix(down, up, smoothstep(-0.014, 0.014, t)); // soft enough not to stair-step at half scale",
+    "  return c + mix(vec3(1.0, 0.94, 0.96), LIME, uLime) * 1.2 * exp(-pow((t - 0.018) / 0.02, 2.0));",
+    "}",
+    "float luma(vec3 c) { return dot(c, vec3(0.3, 0.55, 0.15)); }",
+    "vec3 metal(vec3 n) {",
+    "  vec3 r = reflect(vec3(0.0, 0.0, -1.0), n);",
+    "  vec3 seen = world(r);",
+    "  float t0 = r.y + 0.04 - 0.3 * r.x; // above the horizon",
+    "  float l = luma(seen);",
+    "  vec3 pink = mix(DEEP * 0.22, DEEP * 0.95, smoothstep(0.03, 0.42, l));",
+    "  pink = mix(pink, LIGHT, smoothstep(0.42, 0.78, l));",
+    "  pink = mix(pink, vec3(1.0, 0.97, 0.98), smoothstep(0.85, 1.15, l));",
+    "  float fres = pow(1.0 - n.z, 2.5);",
+    "  vec3 c = mix(pink, seen, mix(0.14, 0.7, fres));",
+    "  float glow = uLime * smoothstep(-0.01, 0.01, t0) * (1.0 - smoothstep(0.05, 0.85, t0)); // the lime light, low in the sky",
+    "  c = mix(c, LIME * (0.45 + 0.75 * l), 0.85 * glow);",
+    "  vec3 hot = mix(vec3(1.0), LIME + 0.2, 0.75 * uLime);",
+    "  vec2 soft = abs(r.xy - vec2(-0.5, 0.42)) - vec2(0.1, 0.035);",
+    "  float box = length(max(soft, 0.0)) + min(max(soft.x, soft.y), 0.0);",
+    "  c += hot * (1.0 - smoothstep(0.0, 0.02, box));",
+    "  c += hot * 1.2 * pow(max(dot(r, normalize(vec3(0.62, 0.55, 0.56))), 0.0), 300.0);",
+    "  c += hot * 0.8 * (1.0 - smoothstep(0.0, 0.012, abs(r.x - 0.28 - 0.25 * r.y) - 0.012)) * smoothstep(0.25, 0.35, r.y) * (1.0 - smoothstep(0.6, 0.7, r.y));",
     "  if (uSheen >= 0.0) {",
-    "    vec3 s = normalize(vec3(mix(-0.9, 0.9, uSheen), 0.25, 0.6));",
-    "    float sh = pow(max(dot(n, normalize(s + vec3(0.0, 0.0, 1.0))), 0.0), 40.0);",
-    "    c += vec3(1.0, 0.96, 0.97) * sh * 0.55 * sin(3.14159265 * uSheen);",
+    "    float band = abs(r.x - mix(-1.0, 1.0, uSheen) + 0.3 * r.y);",
+    "    c += hot * 0.35 * (1.0 - smoothstep(0.04, 0.16, band)) * sin(3.14159265 * uSheen);",
     "  }",
     "  return c;",
     "}",
-    // Distance to an arc of a circle: centre c, radius r, around the angle a, half-width w.
-    "float arc(vec2 p, vec2 c, float r, float a, float w) {",
-    "  vec2 v = p - c;",
-    "  float t = atan(v.y, v.x) - a;",
-    "  t = mod(t + 3.14159265, 6.28318531) - 3.14159265;",
-    "  if (abs(t) < w) return abs(length(v) - r);",
-    "  float s = sign(t) * w + a;",
-    "  return length(v - r * vec2(cos(s), sin(s)));",
-    "}",
-    // One eye at e: a shut lid curving down, or an open eye looking straight out.
-    "vec3 eye(vec2 p, vec2 e, vec3 c, float px) {",
-    "  float open = mix(uEyes, 1.0, uFadeOnly);",
-    "  float shut = 1.0 - uEyes;",
-    "  float lid = arc(p, e + vec2(0.0, 0.055), 0.085, -1.5708, 0.95);",
-    "  float thick = 0.012 * (1.0 - 0.55 * smoothstep(0.03, 0.085, abs(p.x - e.x)));",
-    "  c = mix(c, LID, shut * (1.0 - smoothstep(thick - px, thick + px, lid)));",
-    "  vec2 q = (p - e) / vec2(0.07, 0.05 * max(open, 0.02));",
-    "  float white = length(q);",
-    "  float shown = uEyes * (1.0 - smoothstep(1.0 - px * 20.0, 1.0, white));",
-    "  vec3 ec = mix(vec3(0.99, 0.95, 0.96), LID * 0.7, smoothstep(0.88, 1.0, white));",
-    "  float iris = length(p - e) / (0.034 * min(1.0, open * 1.6 + 0.01));",
-    "  ec = mix(ec, vec3(0.12, 0.03, 0.08), 1.0 - smoothstep(0.92, 1.0, iris));",
-    "  ec = mix(ec, vec3(1.0), 1.0 - smoothstep(0.8, 1.0, length(p - e - vec2(-0.011, 0.012)) / 0.009));",
-    "  return mix(c, ec, shown);",
-    "}",
-    // A small closed pout: a full lower lip, an upper lip with a soft bow, a dark
-    // line between them and a wet gloss on the lower lip, like the cover's lip.
-    "float blob(vec2 p, vec2 c, vec2 r) { return (length((p - c) / r) - 1.0) * min(r.x, r.y); }",
-    "const float LIP_SIZE = 1.35; // the lips' own scale, so their shape reads from across a room",
-    "vec3 lips(vec2 p, vec3 c, float px) {",
-    "  vec2 m = (p - LIP) / LIP_SIZE; px /= LIP_SIZE;",
-    "  vec2 q = vec2(abs(m.x), m.y);",
-    "  float upper = blob(q, vec2(0.0, 0.011), vec2(0.052, 0.016));",
-    "  upper = max(upper, -blob(q, vec2(0.0, 0.03), vec2(0.011, 0.009))); // the bow",
-    "  float lower = blob(q, vec2(0.0, -0.013), vec2(0.044, 0.021));",
-    "  float d = min(upper, lower);",
-    "  vec3 lc = mix(DEEP * 0.62, DEEP * 0.84, smoothstep(0.016, -0.006, abs(m.y + 0.012)));",
-    "  lc = mix(lc, LID, 0.3 * smoothstep(-0.03, 0.02, m.y));",
-    "  lc += vec3(1.0) * 0.55 * (1.0 - smoothstep(0.0, 1.0, length((m - vec2(-0.012, -0.015)) / vec2(0.014, 0.006))));",
-    "  float seam = 1.0 - smoothstep(0.0025, 0.0025 + 1.5 * px, abs(m.y - 0.0015));",
-    "  lc = mix(lc, LID, seam * (1.0 - smoothstep(0.036, 0.05, q.x)));",
-    "  return mix(c, lc, 1.0 - smoothstep(-px, px, d));",
+    // The heart's surface: one smooth dome over the whole heart, so the mirrored
+    // world curves across it in long bands, and a rim that bends away fast, so
+    // the bands tighten into thin bright lines at the edge.
+    "vec3 chrome(vec2 p, float d) {",
+    "  float e = 0.004;",
+    "  vec2 g = vec2(heart(p + vec2(e, 0.0)) - heart(p - vec2(e, 0.0)), heart(p + vec2(0.0, e)) - heart(p - vec2(0.0, e)));",
+    "  g = g / max(length(g), 1e-5);",
+    "  float rim = 1.0 - clamp(-d / 0.14, 0.0, 1.0);",
+    "  vec2 dome = (p - vec2(0.0, 0.07)) * vec2(1.25, 1.6);",
+    "  vec3 n = normalize(vec3(dome + g * 2.6 * rim * rim, 1.0));",
+    "  return metal(n);",
     "}",
     // A silver dagger standing on its tip, in its own space: x across, y up the
     // blade from the tip. A glossy blade with a bright ridge, a crossguard, a
@@ -381,7 +372,7 @@
     "  float pommel = length(knob) - POMMEL;",
     "  float metal = min(blade, min(guard, pommel));",
     "  float whole = min(metal, grip);",
-    // Chrome lit from the upper left, like the face. The blade's two faces meet
+    // Chrome lit from the upper left, like the heart. The blade's two faces meet
     // in a ridge: the lit one with a glossy stripe, the other one holding the sky.
     "  float across = u.x / max(w, 1e-4);",
     "  vec3 edge = mix(SHINE, STEEL, smoothstep(-1.0, 0.1, across));",
@@ -412,8 +403,8 @@
     "  }",
     "  return mix(c, part, shown);",
     "}",
-    // A glossy thorn hanging from its root: face pink at the root, the agent's
-    // colour at the tip, lit from the upper left like the face, outlined in navy.
+    // A glossy thorn hanging from its root: deep pink at the root, the agent's
+    // colour at the tip, lit from the upper left like the heart, outlined in navy.
     "vec3 spike(vec2 p, vec4 s, vec3 tint, vec3 c, float px) {",
     "  vec2 u = vec2(p.x - s.x, s.y - p.y); // x across, y down from the root",
     "  float t = clamp(u.y / s.z, 0.0, 1.0);",
@@ -425,23 +416,25 @@
     "  vec3 part = mix(NAVY, body, 1.0 - smoothstep(-px, px, d));",
     "  return mix(c, part, 1.0 - smoothstep(-px, px, d - uLine));",
     "}",
-    // The drip: a thin wet thread from the lower lip with a drop at its end, pale
-    // and glossy over the face, with a darker rim and a bright catchlight.
-    "const vec2 DRIP = vec2(" + DRIP.root.map(function (v) { return v.toFixed(4); }).join(", ") + ");",
+    // The drip: a thread of liquid chrome from the heart's bottom point with a
+    // round drop at its end, the same metal as the heart.
+    "const vec2 DRIP = vec2(0.0, " + (bottomAt(0) + 0.015).toFixed(4) + ");",
     "const float DROP = " + DRIP.drop.toFixed(4) + ";",
     "float smin(float a, float b, float k) { float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0); return mix(b, a, h) - k * h * (1.0 - h); }",
     "vec3 drip(vec2 p, vec3 c, float px) {",
     "  vec2 r = p - DRIP;",
     "  float len = uDrip.x;",
     "  float t = clamp(-r.y / max(len, 1e-4), 0.0, 1.0);",
-    "  float thread = max(abs(r.x) - mix(0.006, 0.009, t), max(r.y, -r.y - len));",
+    "  float w = mix(0.014, 0.007, sqrt(t)); // wide where it leaves the heart, thin above the drop",
+    "  float thread = max(abs(r.x) - w, max(r.y, -r.y - len));",
     "  vec2 b = r - vec2(0.0, -len - uDrip.y - 0.8 * DROP);",
-    "  float d = smin(thread, length(b * vec2(1.0, 0.87)) - DROP, 0.01);",
-    "  vec3 wet = mix(c, mix(LIGHT, vec3(1.0), 0.35), 0.6);",
-    "  wet = mix(wet, DEEP * 0.55, 0.75 * smoothstep(-0.006, 0.0, d));",
-    "  wet += vec3(0.85) * (1.0 - smoothstep(0.0, 1.0, length(b - vec2(-0.005, 0.005)) / 0.0045));",
-    "  wet += vec3(0.4) * (1.0 - smoothstep(0.0, 0.002, abs(r.x + 0.0025))) * step(-len, r.y) * step(r.y, 0.0);",
-    "  return mix(c, wet, uDrip.z * (1.0 - smoothstep(-px, px, d)));",
+    "  vec2 bq = b * vec2(1.0, 0.87);",
+    "  float ball = length(bq) - DROP;",
+    "  float d = smin(thread, ball, 0.012);",
+    "  vec2 sx = ball < thread ? bq / DROP : vec2(r.x / w, 0.0); // round across the drop, a tube along the thread",
+    "  sx = clamp(sx, -0.98, 0.98);",
+    "  vec3 n = normalize(vec3(sx, sqrt(max(0.04, 1.0 - dot(sx, sx)))));",
+    "  return mix(c, metal(n), uDrip.z * (1.0 - smoothstep(-px, px, d)));",
     "}",
     "void main() {",
     "  vec2 frag = gl_FragCoord.xy;",
@@ -449,20 +442,14 @@
     "  vec2 p = (frag - uHeart.xy) / uHeart.z;",
     "  float px = 1.0 / uHeart.z;",
     "  float d = heart(p);",
-    "  col *= 1.0 - 0.1 * exp(-max(d, 0.0) * 22.0); // a faint airbrushed shadow around the face",
-    "  for (int i = 0; i < " + SPIKE_SLOTS + "; i++) { // behind the face, which hides their roots",
+    "  col *= 1.0 - 0.1 * exp(-max(d, 0.0) * 22.0); // a faint shadow around the heart",
+    "  for (int i = 0; i < " + SPIKE_SLOTS + "; i++) { // behind the heart, which hides their roots",
     "    vec4 s = uSpike[i];",
     "    if (s.z <= 0.0 || abs(p.x - s.x) > s.w + 0.01 || p.y > s.y || p.y < s.y - s.z - 0.01) continue;",
     "    col = spike(p, s, uSpikeTint[i], col, px);",
     "  }",
-    "  if (d < px) {",
-    "    vec3 face = skin(p, d);",
-    "    face = eye(p, vec2(-0.185, 0.035), face, px);",
-    "    face = eye(p, vec2(0.185, 0.035), face, px);",
-    "    face = lips(p, face, px);",
-    "    col = mix(col, face, 1.0 - smoothstep(-px, px, d));",
-    "  }",
-    "  if (uDrip.z > 0.0 && abs(p.x - DRIP.x) < 0.03) col = drip(p, col, px);",
+    "  if (d < px) col = mix(col, chrome(p, d), 1.0 - smoothstep(-px, px, d));",
+    "  if (uDrip.z > 0.0 && abs(p.x - DRIP.x) < 0.04 && p.y < DRIP.y + 0.02) col = drip(p, col, px);",
     "  for (int i = 0; i < " + DAGGER_SLOTS + "; i++) {",
     "    vec4 look = uDagLook[i];",
     "    if (look.x <= 0.0) continue;",
@@ -477,7 +464,7 @@
     "}",
   ].join("\n");
 
-  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uEyes", "uFadeOnly", "uSheen", "uDagPose", "uDagLook", "uDagHandle", "uLine", "uSpike", "uSpikeTint", "uDrip"];
+  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uLime", "uSheen", "uDagPose", "uDagLook", "uDagHandle", "uLine", "uSpike", "uSpikeTint", "uDrip"];
 
   function compile(gl, type, source) {
     var shader = gl.createShader(type);
@@ -497,7 +484,7 @@
     var box, style, canvas, gl, uniforms = {}, cancelFrame, ctx, lastState;
     var fps = 12, scale = 0.5, driftMs = 4 * 60000, dirty = true;
     var frame, display = "main";
-    var eyes = tween(0), skyTop = tween(0);
+    var skyTop = tween(0); // 0 resting, 1 while an agent waits: the deep sky and the lime light
     var REST_TOP = rgbOf(SKY[0]), CALL_TOP = rgbOf(DEEP_SKY);
     // The daggers in drawing order: the tasks' daggers in card order, then the ones falling out.
     var daggers = [], firstState = true;
@@ -528,7 +515,7 @@
     function syncDaggers(state, nowMs) {
       var cards = state.display === "main" ? state.cards.slice(0, DAGGERS) : [];
       var call = moodOf(state) === "call", still = reduce.matches;
-      var lookMs = still ? FADE_MS : EYES_MS, slideMs = still ? 1 : STAB_MS;
+      var lookMs = still ? FADE_MS : LOOK_MS, slideMs = still ? 1 : STAB_MS;
       var byKey = {};
       daggers.forEach(function (dagger) { if (dagger.leftMs === null) byKey[dagger.key] = dagger; });
       var stay = cards.map(function (card) { return card.source + "\u0000" + card.session; });
@@ -568,7 +555,7 @@
         if (still) alpha *= 1 - t;
         else if (t < PULL) rise = (under + 0.01) * easeOut(t / PULL);
         else {
-          // Out of the heart: it tumbles outwards and falls past the face.
+          // Out of the heart: it tumbles outwards and falls past it.
           var fall = (t - PULL) / (1 - PULL), s = (fall * FALL_MS * (1 - PULL)) / 1000, side = x < 0 ? -1 : 1;
           rise = under + 0.01;
           drift = side * 0.12 * fall;
@@ -633,7 +620,7 @@
       if (still) return { length: DRIP.full, drop: 0, alpha: 1 - t };
       var s = (t * DRIP_FALL_MS) / 1000;
       return {
-        length: DRIP.full * (1 - easeOut(Math.min(1, t / PULL))), // the thread snaps back to the lip
+        length: DRIP.full * (1 - easeOut(Math.min(1, t / PULL))), // the thread snaps back into the heart
         drop: 0.5 * GRAVITY * s * s,
         alpha: 1 - Math.max(0, (t - 0.6) / 0.4),
       };
@@ -677,8 +664,7 @@
         REST_TOP[0] + (CALL_TOP[0] - REST_TOP[0]) * deep,
         REST_TOP[1] + (CALL_TOP[1] - REST_TOP[1]) * deep,
         REST_TOP[2] + (CALL_TOP[2] - REST_TOP[2]) * deep);
-      gl.uniform1f(uniforms.uEyes, eyes.at(nowMs));
-      gl.uniform1f(uniforms.uFadeOnly, reduce.matches ? 1 : 0);
+      gl.uniform1f(uniforms.uLime, deep);
       gl.uniform1f(uniforms.uSheen, sheenAt(nowMs));
       placeDaggers(nowMs);
       gl.uniform4fv(uniforms.uDagPose, dagPose);
@@ -699,7 +685,7 @@
       var seen = drip ? Math.round(drip.length * 1000) + "/" + drip.alpha.toFixed(2) : "";
       if (seen !== drawnDrip) { drawnDrip = seen; dirty = true; }
       // With "Reduce motion" the sky is drawn only when something changed, and while a fade runs.
-      if (reduce.matches && !dirty && !eyes.moving(nowMs) && !skyTop.moving(nowMs) && !daggersMoving(nowMs)) return;
+      if (reduce.matches && !dirty && !skyTop.moving(nowMs) && !daggersMoving(nowMs)) return;
       dirty = false;
       render(nowMs, drip);
     }
@@ -760,8 +746,7 @@
         lastState = state;
         if (!ctx) return;
         var nowMs = ctx.now(), call = moodOf(state) === "call";
-        // With "Reduce motion" the eyes cross-fade (uFadeOnly) instead of opening.
-        eyes.set(call ? 1 : 0, nowMs, reduce.matches ? FADE_MS : EYES_MS);
+        // With "Reduce motion" the sky and the lime cross-fade, quicker.
         skyTop.set(call ? 1 : 0, nowMs, reduce.matches ? FADE_MS : SKY_MS);
         syncDaggers(state, nowMs);
         syncSpikes(state);
@@ -780,7 +765,6 @@
         if (style) style.remove();
         box = style = canvas = gl = cancelFrame = ctx = lastState = frame = undefined;
         uniforms = {};
-        eyes = tween(0);
         skyTop = tween(0);
         daggers = [];
         firstState = true;
