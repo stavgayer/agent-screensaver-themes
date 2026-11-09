@@ -21,6 +21,10 @@
   var OWN = { claude: ["#ff4a2a", "#ffa12e"], codex: ["#8f7bff", "#5fb6ff"], cursor: ["#ffc94a", "#ff8a3d"] };
   var SPARE = [["#ff5fa2", "#ffa36b"], ["#5fd3c4", "#8fe36b"], ["#c7a6ff", "#ff8fd0"], ["#7fb2ff", "#b28cff"]];
   var MAX_BALLS = 8;
+
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
   // Shared with the shader below.
   var SLANT = 27, PERSP = 0.24, MARGIN = 3; // degrees, perspective strength, vmin of slack for the drift
   var reduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
@@ -93,7 +97,7 @@
     // With many cards the balls shrink with them, so they never touch.
     var room = xs.length > 1 ? (xs[1] - xs[0]) * 0.36 : Infinity;
     return state.cards.map(function (card, i) {
-      var done = card.kind === "finished";
+      var done = !isWorking(card);
       return { key: card.source + "\u0000" + card.session, x: xs[i], y: 55 * m.vh,
         r: Math.min((done ? 4.4 : 6.2) * m.vmin, room * (done ? 0.7 : 1)),
         hues: huesOf(card.source), thread: done ? 0.22 : 1, wake: done ? 0.35 : 1 };
@@ -331,7 +335,7 @@
     }
 
     function moodOf(state) {
-      var busy = state.cards.some(function (card) { return card.kind !== "finished"; });
+      var busy = state.cards.some(isWorking);
       if (state.display !== "main") return busy ? "away" : "idle";
       if (waitingOf(state).length > 0) return "call";
       if (state.cards.length === 0) return "idle";

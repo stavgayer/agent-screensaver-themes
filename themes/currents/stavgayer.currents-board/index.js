@@ -24,6 +24,10 @@
   var WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   var STYLE = [
     "@font-face { font-family: 'CS Display'; src: url('" + base + "fonts/Fraunces.ttf') format('truetype'); font-weight: 100 900; }",
     "@font-face { font-family: 'CS Text'; src: url('" + base + "fonts/Outfit.ttf') format('truetype'); font-weight: 100 900; }",
@@ -68,6 +72,8 @@
     ".csb .card .state { display: flex; align-items: center; gap: 0.2em; margin-top: 1vmin; font-size: min(7.6vmin, calc(100cqi / 4.5)); font-weight: 900; line-height: 1;",
     "  color: var(--hue); letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; padding-bottom: 0.12em; }",
     ".csb .card .state .word { display: inline-block; }",
+    // "N jobs running" is longer than the other state words, so it is set smaller to fit the card.
+    ".csb .card .state.jobs { font-size: min(5.2vmin, calc(100cqi / 7)); }",
     ".csb .card .state svg { flex: none; width: 0.7em; height: 0.7em; }",
     ".csb .card .state svg path { fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }",
     ".csb .card .what { margin-top: 1.4vmin; font-size: 2.9vmin; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em;",
@@ -153,6 +159,8 @@
       case "running":
         return { tone: "working", word: "Working", since: duration(nowMs - card.started_at_ms) };
       case "finished":
+        var jobs = jobsOf(card);
+        if (jobs > 0) return { tone: "working", word: jobs + (jobs === 1 ? " job running" : " jobs running"), long: true, since: duration(nowMs - card.started_at_ms) };
         var ago = nowMs - card.updated_at_ms;
         return { tone: "done", word: "Done", since: ago < MINUTE ? "just now" : duration(ago) + " ago" };
       case "no_activity":
@@ -203,7 +211,7 @@
       var date = WEEKDAYS[moment.getDay()] + " " + moment.getDate() + " " + MONTHS[moment.getMonth()];
       if (show === "time" || (tasks.length === 0 && waiting.length === 0)) return { time: true, word: time, sub: date, dots: 0 };
       if (waiting.length > 0) return { time: false, word: "Needs you", sub: "", dots: 0 };
-      var working = tasks.filter(function (card) { return card.kind !== "finished"; }).length;
+      var working = tasks.filter(isWorking).length;
       if (working === 0) return { time: false, word: "All done", sub: tasks.length === 1 ? "The task is finished" : tasks.length + " tasks finished", dots: tasks.length };
       return { time: false, word: working + " in motion", sub: "", dots: 0 };
     }
@@ -269,6 +277,7 @@
       parts.where.hidden = where === "";
       var changed = entry.word !== "" && (entry.word !== said.word || entry.tone !== said.tone);
       setText(parts.word, said.word);
+      parts.state.classList.toggle("jobs", said.long === true);
       if (entry.tone !== said.tone) {
         entry.node.classList.toggle("done", said.tone === "done");
         var mark = parts.state.querySelector("svg");
@@ -397,7 +406,7 @@
       var waiting = show === "time" || state.display !== "main" ? [] : approvals(state.cards);
       // The row keeps every card, the waiting one too, so nothing jumps when the call ends.
       var tasks = show === "time" ? [] : state.cards;
-      var busy = state.cards.some(function (card) { return card.kind !== "finished"; });
+      var busy = state.cards.some(isWorking);
       var next = waiting.length > 0 ? "call" : busy ? "work" : "rest";
       if (next !== mood) {
         box.classList.remove("work", "call", "rest");

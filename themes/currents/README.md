@@ -10,7 +10,7 @@ Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/r
 
 | State | Still |
 |---|---|
-| Agents working: one dark chrome ball per task, right above its card. Each ball's thread in the agent's own hue runs into it, pools around it, and leaves as a ribbon torn by the churning wake. `3 in motion` on a dark plate. | ![Working](media/working.jpg) |
+| Agents working: one dark chrome ball per task, right above its card. Each ball's thread in the agent's own hue runs into it, pools around it, and leaves as a ribbon torn by the churning wake. `3 in motion` on a dark plate. A finished task that still runs background jobs counts as working and says `N jobs running`. | ![Working](media/working.jpg) |
 | All done: the balls shrink, their threads fade, their wakes calm, and the surface dims. The cards turn to paper. `All done`. | ![Done](media/done.jpg) |
 | An agent waits for you: one large ball, and the agent's colour floods the surface. `Needs you`, then one large card: the agent, how long it has waited, the exact command on one line, the project. | ![Needs you](media/approval.jpg) |
 | Nothing running: one chrome ball in a dim, calm surface. The time very large, the date, and the limit rings grow. | ![Idle](media/idle.jpg) |
