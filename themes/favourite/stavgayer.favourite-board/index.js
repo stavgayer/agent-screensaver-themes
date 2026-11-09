@@ -29,7 +29,7 @@
     margin: 4, // above the clock
     clock: 14, // the time and the date
     gap: 2, // between blocks
-    rise: 0.24, // of the heart's size: the daggers stand above its top edge (always kept, so the heart never jumps)
+    rise: 0.32, // of the heart's size: the daggers stand above its top edge (always kept, so the heart never jumps)
     spikes: 0.12, // of the heart's size: the spikes hang under it (only with limits)
     labelRow: 6.5, // one row of limit labels
     labelWidth: 150, // CSS px per limit label

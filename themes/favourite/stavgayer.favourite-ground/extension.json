@@ -16,7 +16,7 @@
     },
     "scale": {
       "type": "number",
-      "default": 0.5,
+      "default": 0.75,
       "min": 0.25,
       "max": 1,
       "label": "Render scale of the sky"

@@ -1,12 +1,12 @@
 // The Favourite sky: a wide, hot pink heart, low and centred in a blue sky,
 // after the cover of the single. Everything is drawn in code by one WebGL 1
-// fragment shader on a canvas at half the screen's pixels.
+// fragment shader on a canvas at three quarters of the screen's size (option scale).
 //   rest, work, done: the resting sky and the heart, airbrushed with soft light;
 //   call: an agent waits: lime floods the heart's highlights and the sky goes
 //   to its deepest blue;
 //   second display: the sky and the heart.
-// Each task is a polished steel dagger stuck in the heart's top edge, its
-// wrapped grip in the agent's colour. It stabs in, sinks slowly over the first
+// Each task is a polished steel dagger stuck in the heart's top edge, shaped
+// like the cover's, with a thin band in the agent's colour on its grip. It stabs in, sinks slowly over the first
 // hour, glints once when the task is finished, turns lime while its agent waits
 // (the others dim), and slides out and falls when the task leaves. Where the
 // blade goes in, the liquid climbs it a little, ripples and takes its shadow.
@@ -41,7 +41,7 @@
     margin: 4, // above the clock
     clock: 14, // the time and the date
     gap: 2, // between blocks
-    rise: 0.24, // of the heart's size: the daggers stand above its top edge (always kept, so the heart never jumps)
+    rise: 0.32, // of the heart's size: the daggers stand above its top edge (always kept, so the heart never jumps)
     spikes: 0.12, // of the heart's size: the spikes hang under it (only with limits)
     labelRow: 6.5, // one row of limit labels
     labelWidth: 150, // CSS px per limit label
@@ -205,16 +205,18 @@
   var LOOK_MS = 250, SKY_MS = 1200, FADE_MS = 400;
 
   // The daggers: one per task, in card order, at most 7, stuck in the heart's top
-  // edge. Sizes in heart space (below). Three more slots let daggers fall out
-  // while new ones stab in.
+  // edge, shaped like the cover's. Sizes in heart space (below), for a dagger at
+  // full size; seven daggers are drawn a little smaller so their crossguards
+  // clear each other. Three more slots let daggers fall out while new ones stab in.
   var DAGGERS = 7, DAGGER_SLOTS = DAGGERS + 3;
   var DAGGER = {
     spread: 0.3, // the cover's left and right spots; the centre is 0
     lean: 0.5, // radians per unit from the centre: the outer daggers lean out a little
-    blade: 0.15, // the blade's length; over the first hour it sinks until a third of it is in
-    stuck: 0.03, // how deep a new dagger sits
-    lift: 0.06, // how high a new dagger stabs from
-    middle: 0.13, // from the tip to the balance point it tumbles around
+    blade: 0.22, // the blade's length; over the first hour it sinks until a third of it is in
+    guard: 0.066, // half the crossguard's length
+    stuck: 0.04, // how deep a new dagger sits
+    lift: 0.08, // how high a new dagger stabs from
+    middle: 0.19, // from the tip to the balance point it tumbles around
   };
   var LIME = "#9bf95e";
   var SINK_MS = 60 * 60000, STAB_MS = 400, GLINT_MS = 600, FALL_MS = 800;
@@ -227,11 +229,11 @@
   // full length, so their lengths compare, and an unused limit still shows 15% of it.
   var SPIKE_SLOTS = FRAME.maxSpikes;
   var SPIKE = {
-    full: 0.18, // the length out of the heart at 100% (the centre one reaches the label gap)
+    full: 0.27, // the length out of the heart at 100% (the centre one reaches the label gap)
     least: 0.15, // the share of it shown at 0%
-    width: 0.04, // half the width at the root, narrower when many spikes crowd
-    inset: 0.03, // how far the root reaches up into the heart, hidden behind it
-    tint: 0.02, // how far the agent's colour reaches down from where the thorn comes out
+    width: 0.06, // half the width at the root, narrower when many spikes crowd
+    inset: 0.035, // how far the root reaches up into the heart, hidden behind it
+    tint: 0.025, // how far the agent's colour reaches down from where the thorn comes out
     splay: 0.45, // the share of the surface's slope a thorn follows at rest
     sway: 1.8, // how much more it follows the slope's changes as the liquid moves
   };
@@ -377,9 +379,10 @@
     "uniform float uLime;    // 0 to 1: the lime light that floods the heart's reflections while an agent waits",
     "uniform float uWobble;  // the wobble's clock, seconds (stands still with Reduce motion)",
     "uniform float uWobbleAmount; // the share of the outline's wobble: 1, less while an agent waits",
-    "uniform vec4 uDagPose[" + DAGGER_SLOTS + "];   // the tip, and the way the blade points up",
+    "uniform vec4 uDagPose[" + DAGGER_SLOTS + "];   // the tip, and the way the blade points up, as long as the dagger's size",
     "uniform vec4 uDagLook[" + DAGGER_SLOTS + "];   // opacity (0: no dagger), glint (below 0: none), lime, dim",
     "uniform vec4 uDagHandle[" + DAGGER_SLOTS + "]; // the handle's agent colour, and 1 while it is stuck in the heart",
+    "uniform float uGuard;   // the share of the crossguards' length: 1, less while many daggers crowd",
     "uniform float uMotion;  // 1, or 0 with Reduce motion: no ripple",
     "uniform vec4 uSpike[" + SPIKE_SLOTS + "];     // the root's x and y, the length (0: no spike), half the width",
     "uniform vec2 uSpikeDir[" + SPIKE_SLOTS + "];  // the way the thorn points, from its root",
@@ -533,63 +536,65 @@
     "}",
     // A normal given across (x) and along (y) a part that points the way `up`, turned to the screen.
     "vec3 turned(vec2 n, float z, vec2 up) { return normalize(vec3(n.x * vec2(up.y, -up.x) + n.y * up, z)); }",
-    // A steel dagger standing on its tip, in its own space: x across, y up the
-    // blade from the tip. A bevelled blade (two faces that meet in a ridge, and a
-    // steeper edge bevel), a round-ended crossguard and a round pommel, all
-    // polished steel, and a grip of wrapped wire in the agent's colour. The lower
-    // blade, near the heart, mirrors its pink; the upper blade and the hilt the sky.
-    "const float BLADE = " + DAGGER.blade.toFixed(4) + ";",
-    "const float BLADE_W = 0.02;               // half the blade's width at the guard",
-    "const vec2 GUARD = vec2(0.042, 0.008);    // half the crossguard: 7 daggers just clear each other",
-    "const float GRIP = 0.075, GRIP_W = 0.013, POMMEL = 0.016;",
-    "const float GRIP_Y = BLADE + 2.0 * GUARD.y; // where the grip starts",
-    "const float REACH = GRIP_Y + GRIP + 2.0 * POMMEL; // tip to the top of the pommel",
-    "float box(vec2 p, vec2 c, vec2 h, float r) { vec2 q = abs(p - c) - h + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }",
+    // A steel dagger standing on its tip, in its own space at full size: x
+    // across, y up the blade from the tip. After the cover: a slim bevelled blade
+    // (two faces that meet in a ridge, a steeper bevel at each edge and a sharp
+    // bright line along the lit edge), a long, thin crossguard whose ends flare,
+    // a plain round grip with one thin band in the agent's colour, and a round
+    // pommel, all polished steel. The lower blade, near the heart, mirrors its
+    // pink; the upper blade and the hilt the sky.
+    "const float BLADE = " + DAGGER.blade.toFixed(4) + ", BLADE_W = 0.015; // half the blade's width",
+    "const float GUARD_L = " + DAGGER.guard.toFixed(4) + ", GUARD_H = 0.007; // half the crossguard's length and thickness at its middle",
+    "const float GRIP_Y = BLADE + 2.0 * GUARD_H, GRIP = 0.085, GRIP_W = 0.0105, POMMEL = 0.016;",
+    "const float REACH = GRIP_Y + GRIP + 1.7 * POMMEL; // tip to the top of the pommel",
     "vec3 dagger(vec2 u, vec2 up, vec3 c, vec4 look, vec4 handle, float d, float px) {",
-    "  float t = clamp(u.y / (BLADE * 0.45), 0.0, 1.0);",
+    "  float t = clamp(u.y / (BLADE * 0.3), 0.0, 1.0);",
     "  float w = BLADE_W * t * (2.0 - t); // a sharp point that swells into a straight blade",
     "  float blade = max(abs(u.x) - w, max(-u.y, u.y - BLADE));",
-    "  float guard = box(u, vec2(0.0, BLADE + GUARD.y), GUARD, GUARD.y);",
-    "  float grip = box(u, vec2(0.0, GRIP_Y + 0.5 * GRIP), vec2(GRIP_W, 0.5 * GRIP), 0.004);",
+    "  vec2 gq = u - vec2(0.0, BLADE + GUARD_H);",
+    "  float gl = GUARD_L * uGuard;",
+    "  float flare = smoothstep(0.55, 1.0, abs(gq.x) / gl);",
+    "  float gh = GUARD_H * (1.0 + 1.2 * flare * flare);",
+    "  float guard = max(abs(gq.x) - gl, abs(gq.y) - gh);",
+    "  float grip = max(abs(u.x) - GRIP_W, abs(u.y - GRIP_Y - 0.5 * GRIP) - 0.5 * GRIP);",
     "  vec2 knob = (u - vec2(0.0, GRIP_Y + GRIP + 0.7 * POMMEL)) / POMMEL;",
     "  float pommel = (length(knob) - 1.0) * POMMEL;",
-    "  float metal = min(blade, min(guard, pommel));",
-    "  float whole = min(metal, grip);",
+    "  float whole = min(min(blade, guard), min(grip, pommel));",
     // Each part's normal, then one mirror for all of them.
     "  float a = u.x / max(w, 1e-4);",
     "  float face = sign(a) * mix(0.45 * smoothstep(0.0, 0.14, abs(a)), 0.9, smoothstep(0.74, 0.9, abs(a)));",
-    "  vec3 n = turned(vec2(face, mix(-0.28, 0.28, u.y / BLADE) + 0.04 * sin(u.y * 70.0)), 0.8, up);",
-    "  vec2 g = (u - vec2(0.0, BLADE + GUARD.y)) / GUARD;",
+    "  vec3 n = turned(vec2(face, mix(-0.28, 0.28, u.y / BLADE) + 0.04 * sin(u.y * 50.0)), 0.8, up);",
     "  float onGuard = smoothstep(-px, px, blade - guard);",
-    "  n = mix(n, turned(vec2(sign(g.x) * 0.8 * smoothstep(0.7, 1.0, abs(g.x)), 0.6 * g.y + 0.15), 0.8, up), onGuard);",
+    "  n = mix(n, turned(vec2(sign(gq.x) * 0.75 * flare, 0.7 * gq.y / gh + 0.15), 0.8, up), onGuard);",
+    "  float onGrip = smoothstep(-px, px, min(blade, guard) - grip);",
+    "  vec2 rod = vec2(0.92 * clamp(u.x / GRIP_W, -1.0, 1.0), 0.1);",
+    "  n = mix(n, turned(rod, sqrt(max(0.05, 1.0 - dot(rod, rod))), up), onGrip);",
     "  vec2 k = knob * 0.95;",
-    "  float onPommel = smoothstep(-px, px, min(blade, guard) - pommel);",
-    "  n = mix(n, turned(k, sqrt(max(0.05, 1.0 - dot(k, k))), up), onPommel);",
-    "  float turn = fract((u.y - GRIP_Y) / 0.015); // the grip's rings",
-    "  vec2 wire = vec2(0.92 * clamp(u.x / GRIP_W, -1.0, 1.0), 0.12);",
-    "  float onGrip = 1.0 - smoothstep(-px, px, grip - metal);",
-    "  n = normalize(mix(n, turned(wire, sqrt(max(0.05, 1.0 - dot(wire, wire))), up), onGrip));",
+    "  float onPommel = smoothstep(-px, px, min(min(blade, guard), grip) - pommel);",
+    "  n = normalize(mix(n, turned(k, sqrt(max(0.05, 1.0 - dot(k, k))), up), onPommel));",
     "  vec3 part = chrome(n);",
+    "  float onBlade = 1.0 - max(max(onGuard, onGrip), onPommel);",
+    "  part += onBlade * 0.75 * exp(-pow((a + 0.8) / 0.09, 2.0)) * smoothstep(0.0, 0.3, t); // the bright edge",
     "  if (look.y >= 0.0) { // the glint runs down the blade once",
-    "    part += (1.0 - max(onGuard, max(onPommel, onGrip))) * exp(-pow((u.y - mix(BLADE, 0.0, look.y)) / 0.018, 2.0)) * sin(3.14159265 * look.y);",
+    "    part += onBlade * exp(-pow((u.y - mix(BLADE, 0.0, look.y)) / 0.025, 2.0)) * sin(3.14159265 * look.y);",
     "  }",
-    "  vec3 tint = mix(handle.rgb, LIME, look.z);",
-    "  vec3 wrapped = part * (1.2 * tint + 0.15) * (0.72 + 0.28 * smoothstep(0.0, 0.2, min(turn, 1.0 - turn))) + 0.2 * LIME * look.z;",
-    "  part = mix(part, wrapped, onGrip);",
+    "  float band = onGrip * (1.0 - smoothstep(0.01 - px, 0.01 + px, abs(u.y - GRIP_Y - 0.62 * GRIP)));",
+    "  vec3 tint = mix(handle.rgb, LIME, look.z); // coloured metal: the agent's colour, lit like the steel around it",
+    "  part = mix(part, tint * (0.4 + 0.8 * dot(part, vec3(0.3333))) + 0.15 * LIME * look.z, band);",
     "  float shown = (1.0 - smoothstep(-px, px, whole)) * look.x * mix(1.0, 0.4, look.w);",
     "  if (handle.w > 0.5) {",
     // Stuck in the heart: hidden inside it. The liquid climbs the blade a little
     // and ripples out from it, and the blade's soft shadow falls on the skin below
     // and to the right of it, away from the light.
     "    float side = max(abs(u.x) - w, 0.0);",
-    "    float ring = length(vec2(u.x, 2.6 * d));",
-    "    float wave = uMotion * sin(ring * 260.0 - uWobble * 6.0) * exp(-ring / 0.028) * smoothstep(0.0, 0.008, side);",
-    "    float lip = 0.008 * exp(-pow(side / 0.012, 2.0)) * (1.0 + 0.3 * wave);",
+    "    float ring = length(vec2(u.x, 2.4 * d));",
+    "    float wave = uMotion * sin(ring * 170.0 - uWobble * 5.0) * exp(-ring / 0.04) * smoothstep(0.0, 0.01, side);",
+    "    float lip = 0.012 * exp(-pow(side / 0.016, 2.0)) * (1.0 + 0.35 * wave);",
     "    float wet = 1.0 - smoothstep(-px, px, d - lip);",
     "    float onSkin = 1.0 - smoothstep(-px, px, d);",
-    "    vec2 caster = u - vec2(dot(vec2(0.012, -0.01), vec2(up.y, -up.x)), dot(vec2(0.012, -0.01), up));",
-    "    float shade = (1.0 - smoothstep(-0.004, 0.012, max(abs(caster.x) - BLADE_W, -caster.y))) * smoothstep(-0.045, -0.004, d);",
-    "    c *= 1.0 - look.x * onSkin * (0.2 * shade - 0.12 * wave * smoothstep(-0.04, 0.0, d));",
+    "    vec2 caster = u - vec2(dot(vec2(0.014, -0.012), vec2(up.y, -up.x)), dot(vec2(0.014, -0.012), up));",
+    "    float shade = (1.0 - smoothstep(-0.004, 0.014, max(abs(caster.x) - BLADE_W, -caster.y))) * smoothstep(-0.05, -0.004, d);",
+    "    c *= 1.0 - look.x * onSkin * (0.25 * shade - 0.24 * wave * smoothstep(-0.05, 0.0, d));",
     "    vec3 rise = turned(vec2(sign(u.x) * 0.55, 0.5), 0.65, up);",
     "    c = mix(c, surface(rise, 1.0) + gloss(rise), look.x * max(wet - onSkin, 0.0));",
     "    shown *= 1.0 - wet;",
@@ -632,17 +637,18 @@
     "    vec4 look = uDagLook[i];",
     "    if (look.x <= 0.0) continue;",
     "    vec4 pose = uDagPose[i];",
-    "    vec2 v = p - pose.xy;",
-    "    vec2 u = vec2(dot(v, vec2(pose.w, -pose.z)), dot(v, pose.zw));",
-    "    if (abs(u.x) > GUARD.x + 0.01 || u.y < -0.03 || u.y > REACH + 0.01) continue;",
-    "    col = dagger(u, pose.zw, col, look, uDagHandle[i], d, px);",
+    "    float k = length(pose.zw); // the dagger's size",
+    "    vec2 up = pose.zw / k, v = p - pose.xy;",
+    "    vec2 u = vec2(dot(v, vec2(up.y, -up.x)), dot(v, up)) / k;",
+    "    if (abs(u.x) > GUARD_L + 0.012 || u.y < -0.04 || u.y > REACH + 0.01) continue;",
+    "    col = dagger(u, up, col, look, uDagHandle[i], d / k, px / k);",
     "  }",
     "  col += (hash(frag) - 0.5) / 255.0; // no banding in the long gradients",
     "  gl_FragColor = vec4(col, 1.0);",
     "}",
   ]).join("\n");
 
-  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uLime", "uWobble", "uWobbleAmount", "uDagPose", "uDagLook", "uDagHandle", "uMotion", "uSpike", "uSpikeDir", "uSpikeTint", "uDrip", "uDripAt"];
+  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uLime", "uWobble", "uWobbleAmount", "uDagPose", "uDagLook", "uDagHandle", "uGuard", "uMotion", "uSpike", "uSpikeDir", "uSpikeTint", "uDrip", "uDripAt"];
 
   function compile(gl, type, source) {
     var shader = gl.createShader(type);
@@ -660,12 +666,13 @@
 
   window.agentScreensaver.register(function () {
     var box, style, canvas, gl, uniforms = {}, cancelFrame, ctx, lastState;
-    var fps = 12, scale = 0.5, driftMs = 4 * 60000, dirty = true, startMs = 0;
+    var fps = 12, scale = 0.75, driftMs = 4 * 60000, dirty = true, startMs = 0;
     var frame, display = "main";
     var skyTop = tween(0); // 0 resting, 1 while an agent waits: the deep sky and the lime light
     var REST_TOP = rgbOf(SKY[0]), CALL_TOP = rgbOf(DEEP_SKY);
     // The daggers in drawing order: the tasks' daggers in card order, then the ones falling out.
     var daggers = [], firstState = true;
+    var dagSize = tween(1), dagGuard = tween(1); // the daggers' size and their crossguards' length: 1, less while many crowd the edge
     var dagPose = new Float32Array(DAGGER_SLOTS * 4);
     var dagLook = new Float32Array(DAGGER_SLOTS * 4);
     var dagHandle = new Float32Array(DAGGER_SLOTS * 4);
@@ -701,6 +708,12 @@
       var leaving = Object.keys(byKey).some(function (key) { return stay.indexOf(key) < 0; });
       // The rest move up only once a leaving dagger is out of the heart, so they never cross it.
       var moveAt = leaving && !still ? nowMs + PULL * FALL_MS : nowMs;
+      // Six or seven daggers are drawn a little smaller, with shorter crossguards
+      // that keep a gap between neighbours.
+      var gap = cards.length < 2 ? Infinity : (2 * DAGGER.spread) / (cards.length - 1);
+      var size = Math.min(1, 0.55 + 3 * gap);
+      dagSize.set(size, moveAt, slideMs);
+      dagGuard.set(Math.min(1, (gap - 0.02) / (2 * DAGGER.guard * size)), moveAt, slideMs);
       var kept = cards.map(function (card, index) {
         var key = stay[index], x = slotX(index, cards.length);
         var dagger = byKey[key] || newDagger(card, key, x, moveAt);
@@ -723,11 +736,11 @@
 
     // One dagger this moment: its tip and direction, how it looks, and whether it is stuck.
     function placeDagger(dagger, nowMs, slot, t, amount) {
-      var still = reduce.matches, x = dagger.x.at(nowMs), lean = x * DAGGER.lean;
+      var still = reduce.matches, x = dagger.x.at(nowMs), lean = x * DAGGER.lean, k = dagSize.at(nowMs);
       var depth = depthOf((dagger.endMs === null ? nowMs : dagger.endMs) - dagger.startedMs);
-      var under = DAGGER.stuck + depth * (DAGGER.blade / 3 - DAGGER.stuck); // the blade inside the heart: a third at full depth
+      var under = k * (DAGGER.stuck + depth * (DAGGER.blade / 3 - DAGGER.stuck)); // the blade inside the heart: a third at full depth
       var stab = Math.min(1, Math.max(0, nowMs - dagger.bornMs) / (still ? FADE_MS : STAB_MS));
-      var alpha = still ? stab : Math.min(1, stab / 0.4), rise = still ? 0 : DAGGER.lift * (1 - easeOut(stab));
+      var alpha = still ? stab : Math.min(1, stab / 0.4), rise = still ? 0 : k * DAGGER.lift * (1 - easeOut(stab));
       var drift = 0, drop = 0, tumble = 0, stuck = 1;
       if (dagger.leftMs !== null) {
         var leave = Math.min(1, (nowMs - dagger.leftMs) / leaveMs());
@@ -745,11 +758,11 @@
         }
       }
       // The blade goes in at the edge above its slot; it tumbles around its balance point.
-      var reach = rise - under + DAGGER.middle;
+      var middle = k * DAGGER.middle, reach = rise - under + middle;
       var mx = x + Math.sin(lean) * reach + drift, my = edgeAt(x, t, amount) + Math.cos(lean) * reach - drop;
       var o = slot * 4, upX = Math.sin(lean + tumble), upY = Math.cos(lean + tumble);
       var glint = (nowMs - dagger.glintMs) / GLINT_MS;
-      dagPose.set([mx - upX * DAGGER.middle, my - upY * DAGGER.middle, upX, upY], o);
+      dagPose.set([mx - upX * middle, my - upY * middle, upX * k, upY * k], o);
       dagLook.set([alpha, still || glint < 0 || glint >= 1 ? -1 : glint, dagger.lime.at(nowMs), dagger.dim.at(nowMs)], o);
       dagHandle.set([dagger.colour[0], dagger.colour[1], dagger.colour[2], stuck], o);
     }
@@ -765,7 +778,7 @@
       return daggers.some(function (dagger) {
         return nowMs - dagger.bornMs < FADE_MS || dagger.leftMs !== null ||
           dagger.x.moving(nowMs) || dagger.lime.moving(nowMs) || dagger.dim.moving(nowMs);
-      });
+      }) || dagSize.moving(nowMs) || dagGuard.moving(nowMs);
     }
 
     // One spike per limit, in label order, longer the more of the limit is used.
@@ -910,6 +923,7 @@
       gl.uniform4fv(uniforms.uDagLook, dagLook);
       gl.uniform4fv(uniforms.uDagHandle, dagHandle);
       gl.uniform1f(uniforms.uMotion, reduce.matches ? 0 : 1);
+      gl.uniform1f(uniforms.uGuard, dagGuard.at(nowMs));
       gl.uniform4fv(uniforms.uSpike, spikeShape);
       gl.uniform2fv(uniforms.uSpikeDir, spikeDir);
       gl.uniform3fv(uniforms.uSpikeTint, spikeTint);
@@ -1014,6 +1028,8 @@
         uniforms = {};
         skyTop = tween(0);
         daggers = [];
+        dagSize = tween(1);
+        dagGuard = tween(1);
         firstState = true;
         spikeShape.fill(0);
         song = fellMs = null;
