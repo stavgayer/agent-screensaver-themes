@@ -52,6 +52,8 @@
     ".pb .card .band .since { flex: none; }",
     ".pb .card .state { display: flex; align-items: center; gap: 0.18em; padding: 2vmin 1.6vmin 0.8vmin; font-size: min(7.4vmin, 17cqi);",
     "  line-height: 0.82; letter-spacing: -0.045em; text-transform: uppercase; white-space: nowrap; overflow: hidden; }",
+    // "3 jobs running" is longer than the other words: smaller, so it still fits the card
+    ".pb .card .state.jobs { font-size: min(4.4vmin, 9.2cqi); }",
     ".pb .card .state svg { flex: none; width: 0.78em; height: 0.78em; }",
     ".pb .card .state svg path { fill: none; stroke: currentColor; stroke-width: 4.2; stroke-linecap: square; }",
     ".pb .card .what { padding: 0.6vmin 1.6vmin 0; font-size: 2.7vmin; line-height: 1.2; text-transform: uppercase; letter-spacing: -0.01em;",
@@ -149,11 +151,17 @@
     return (agent && agent.name) || source.charAt(0).toUpperCase() + source.slice(1);
   }
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return Number.isFinite(card.background) && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   function taskState(card, nowMs) {
     switch (card.kind) {
       case "running":
         return { tone: "working", word: "Working", since: duration(nowMs - card.started_at_ms) };
       case "finished":
+        var jobs = jobsOf(card);
+        if (jobs > 0) return { tone: "working", word: jobs + (jobs === 1 ? " job running" : " jobs running"), jobs: true, since: typeof card.started_at_ms === "number" ? duration(nowMs - card.started_at_ms) : "" };
         var ago = nowMs - card.updated_at_ms;
         return { tone: "done", word: "Done", since: ago < MINUTE ? "just now" : duration(ago) + " ago" };
       case "no_activity":
@@ -182,7 +190,7 @@
   function statement(state, show, waiting, tasks) {
     if (show === "time" || tasks.length === 0) return clock(state.nowMs);
     if (waiting.length > 0) return "Needs you";
-    var working = tasks.some(function (card) { return card.kind !== "finished"; });
+    var working = tasks.some(isWorking);
     return working ? "Still working" : "All done";
   }
 
@@ -311,6 +319,7 @@
       setText(parts.where, card.project && card.project !== heading ? card.project : "");
       parts.where.hidden = parts.where.textContent === "";
       var changed = entry.word !== "" && (entry.word !== said.word || entry.tone !== said.tone);
+      parts.state.classList.toggle("jobs", said.jobs === true);
       if (entry.word !== said.word) setText(parts.word, said.word);
       if (entry.tone !== said.tone) {
         entry.node.classList.toggle("done", said.tone === "done");

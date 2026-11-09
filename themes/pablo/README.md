@@ -10,7 +10,7 @@ Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/r
 
 | State | Still |
 |---|---|
-| Agents working: one black card per task, rows read `STILL WORKING`. | ![Working](media/working.jpg) |
+| Agents working: one black card per task, rows read `STILL WORKING`. A finished task that still runs background jobs stays a black card and says `N JOBS RUNNING`. | ![Working](media/working.jpg) |
 | A task finishes: the card turns into an outlined orange card with `DONE`. When all are done, the rows read `ALL DONE`. | ![Done](media/done.jpg) |
 | An agent waits for you: the poster turns black and one large card shows the command. | ![Needs you](media/approval.jpg) |
 | Nothing running: the time, repeated. The corner shows the date. | ![Idle](media/idle.jpg) |
