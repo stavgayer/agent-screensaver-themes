@@ -1,8 +1,8 @@
-// The Favourite sky: an oval heart of pink chrome, low and centred in a blue
-// sky, after the cover of the single. Everything is drawn in code by one WebGL 1
+// The Favourite sky: a wide, hot pink heart, low and centred in a blue sky,
+// after the cover of the single. Everything is drawn in code by one WebGL 1
 // fragment shader on a canvas at half the screen's pixels.
-//   rest, work, done: the resting sky, the chrome reflecting it;
-//   call: an agent waits: lime floods the chrome's reflections and the sky goes
+//   rest, work, done: the resting sky and the heart, airbrushed with soft light;
+//   call: an agent waits: lime floods the heart's highlights and the sky goes
 //   to its deepest blue;
 //   second display: the sky and the heart.
 // Each task is a silver dagger stuck in the heart's top edge, its handle in the
@@ -11,12 +11,15 @@
 // and slides out and falls when the task leaves.
 // Each usage limit is a glossy spike hanging under the heart, in its agent's
 // colour, longer the more of the limit is used. The song that plays is a drop of
-// liquid chrome hanging from the heart's bottom point: it grows with the song
+// the heart's pink liquid hanging from its bottom point: it grows with the song
 // and falls once at its end.
 //
-// The heart breathes (about 1.5% every 8 s), a sheen slides across the chrome
-// every 30 s, and the whole picture drifts a few pixels over minutes against
-// burn-in. JavaScript works out every moving value; the shader only paints them.
+// The heart is liquid: its outline and its surface wobble slowly like an inflated
+// balloon (waves of 20 to 35 s, about 2% of its size), the light sliding over it,
+// and the daggers, the spikes and the drip stay on its moving edge. It also
+// breathes (about 1.5% every 8 s), and the whole picture drifts a few pixels over
+// minutes against burn-in. JavaScript works out every moving value and the
+// shader paints them; both read the wobble from the same numbers (WOBBLE).
 // With "Reduce motion" it stands still, draws only when the state changes, the
 // lime cross-fades, and the drip is drawn again only when its length changed and
 // fades at the song's end. The page elements on top use the same frame (below).
@@ -135,25 +138,52 @@
   // The sky from top to bottom, as measured on the cover; an approval deepens its top.
   var SKY = ["#034d87", "#096faa", "#52a4c7", "#87c2c4"];
   var DEEP_SKY = "#021f3a";
-  // The chrome's two pinks, deep and pale, as measured on the cover.
-  var CHROME = ["#d34d68", "#eba6b3"];
+  // The heart's pinks, measured on the two covers (the Favourite cover and the
+  // Romance heart), from its shadow to its brightest highlight.
+  var SKIN = {
+    shade: "#b72342", // the darkest 5% of the Favourite heart
+    deep: "#d34663", // its darker quarter
+    body: "#f96c87", // the hot pink in the middle of the Romance heart
+    light: "#feb2d7", // the brightest 5% of the Romance heart
+    pearl: "#ffe1ee", // the airbrushed highlights, a little paler still
+    rim: "#e878bc", // the magenta at the Romance heart's edge
+  };
   // The heart's distance field (after Inigo Quilez), in its own units: the shader
-  // draws it and the daggers find its top edge with it. Plump rounding and a
-  // squashed height make it the cover's oval, wider than it is tall.
+  // draws it and the daggers, spikes and drip find its edges with the same field
+  // (heartField below). Plump rounding, a soft wide dip and a squashed height make
+  // the Favourite cover's heart: wide round lobes over sides that taper to a soft point.
   var HEART = {
-    round: 0.1, // plump lobes and a soft point, not a sharp card heart
-    soft: 0.0012, // a soft middle, so the shading has no fold there
+    round: 0.08, // plump lobes and a soft point, not a sharp card heart
+    soft: 0.004, // a wide, shallow dip between the lobes
     mid: 0.552, // the heart's vertical middle, before the squash
     lobe: [0.25, 0.75], // the centre of the right lobe's circle
     lobeRadius: 0.35355339, // its radius, before the rounding
-    aspect: 1.15, // width : height
+    aspect: 1.38, // width : height, between the two covers (1.32 and 1.47)
   };
   HEART.units = 1.207 + 2 * HEART.round; // heart units per box side: its width fills the box
   // How much the height is squashed: the plain shape is 1.207 + 2 * round wide and
   // lobe + lobeRadius + 2 * round tall, in heart units.
   HEART.squash = (HEART.aspect * (HEART.lobe[1] + HEART.lobeRadius + 2 * HEART.round)) / HEART.units;
+  // The liquid wobble: the heart's outline and surface move like an inflated
+  // balloon. A point p of heart space shows the heart at p - wobble(p, t): a sum
+  // of slow waves, each [x amount, y amount, x wave number, y wave number, radians
+  // per second, phase], plus slow swells that grow or shrink the heart around
+  // its centre ([amount, x wave number, y wave number, radians per second, phase]).
+  // Amounts in heart-box sides: about 2% at most. The waves take 20 to 35 s.
+  var WOBBLE = {
+    waves: [
+      [0, 0.009, 2.6, 0.5, 0.29, 0],
+      [0, 0.005, -4.1, 1.1, -0.21, 1.3],
+      [0.008, 0, 0.6, 2.4, 0.25, 0.5],
+      [0.005, 0, -1.2, 3.7, -0.18, 2.1],
+    ],
+    swells: [
+      [0.02, 2.1, -1.6, 0.2, 0.7],
+    ],
+    calm: [0.3, -0.34, 0.05], // near the point the wobble shrinks to this share, from y = -0.34 up to 0.05, so the point stays a point
+    still: 216.5, // the moment shown with "Reduce motion": the calmest, closest to the still heart
+  };
   var BREATH_S = 8, BREATH = 0.015; // one breath every 8 s, ±1.5% of the size
-  var SHEEN_S = 30, SHEEN_SLIDE_S = 5; // a sheen crosses the chrome in 5 s, every 30 s
   var DRIFT_VMIN = 0.6; // how far the picture drifts, about 5 px on a laptop
   var LOOK_MS = 250, SKY_MS = 1200, FADE_MS = 400;
 
@@ -184,7 +214,7 @@
     width: 0.04, // half the width at the root, narrower when many spikes crowd
     inset: 0.03, // how far the root reaches up into the heart, hidden behind it
   };
-  // The drip: a drop of liquid chrome hanging from the heart's bottom point, a
+  // The drip: a drop of the heart's pink liquid hanging from its bottom point, a
   // thread that grows with the song and a drop at its end. It falls once when the
   // song passes 99%.
   var DRIP = {
@@ -198,6 +228,9 @@
     var n = parseInt(hex.slice(1), 16);
     return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
   }
+
+  // A number as a GLSL float.
+  function glsl(value) { return value.toFixed(4); }
 
   function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
 
@@ -213,20 +246,57 @@
     return count < 2 ? 0 : DAGGER.spread * ((2 * index) / (count - 1) - 1);
   }
 
-  // The height of the heart's top edge above x, in heart space: on top the
-  // distance field is the rounded circle of a lobe.
-  function edgeAt(x) {
-    var q = Math.sqrt(Math.pow(x * HEART.units, 2) + HEART.soft) - HEART.lobe[0], r = HEART.lobeRadius + HEART.round;
-    return (HEART.lobe[1] + Math.sqrt(Math.max(0, r * r - q * q)) - HEART.mid) / HEART.units / HEART.squash;
+  // The still heart's distance at (x, y) in heart space, below 0 inside: the
+  // same sums as heart() in the shader.
+  function heartField(x, y) {
+    var qx = Math.sqrt(Math.pow(x * HEART.units, 2) + HEART.soft);
+    var qy = y * HEART.squash * HEART.units + HEART.mid, d;
+    if (qy + qx > 1) d = Math.hypot(qx - HEART.lobe[0], qy - HEART.lobe[1]) - HEART.lobeRadius;
+    else {
+      var m = 0.5 * Math.max(qx + qy, 0);
+      d = Math.sqrt(Math.min(qx * qx + (qy - 1) * (qy - 1), (qx - m) * (qx - m) + (qy - m) * (qy - m))) * Math.sign(qx - qy);
+    }
+    return (d - HEART.round) / HEART.units;
   }
 
-  // The height of the heart's bottom edge under x, in heart space: the rounded
-  // point, then the straight sides running up to the lobes (for |x| up to 0.4).
-  function bottomAt(x) {
-    var q = Math.sqrt(Math.pow(x * HEART.units, 2) + HEART.soft), r = HEART.round;
-    var y = q < r / Math.SQRT2 ? -Math.sqrt(r * r - q * q) : q - r * Math.SQRT2;
-    return (y - HEART.mid) / HEART.units / HEART.squash;
+  // How far the wobble moves the heart at (x, y) at moment t (seconds), as [x, y]:
+  // the same sums as wobble() in the shader.
+  function wobbleAt(x, y, t) {
+    var ox = 0, oy = 0;
+    WOBBLE.waves.forEach(function (w) {
+      var s = Math.sin(w[2] * x + w[3] * y + w[4] * t + w[5]);
+      ox += w[0] * s;
+      oy += w[1] * s;
+    });
+    WOBBLE.swells.forEach(function (w) {
+      var s = w[0] * Math.sin(w[1] * x + w[2] * y + w[3] * t + w[4]);
+      ox += x * s;
+      oy += y * s;
+    });
+    var c = WOBBLE.calm, k = Math.min(1, Math.max(0, (y - c[1]) / (c[2] - c[1])));
+    var calm = c[0] + (1 - c[0]) * k * k * (3 - 2 * k); // a smoothstep, as in the shader
+    return [ox * calm, oy * calm];
   }
+
+  // The moving heart's distance at (x, y), as the shader draws it at moment t.
+  function fieldAt(x, y, t) {
+    var o = wobbleAt(x, y, t);
+    return heartField(x - o[0], y - o[1]);
+  }
+
+  // Where the moving heart's edge crosses the line at x, between y = 0 (inside)
+  // and y = `to` (outside), found by halving: the daggers, the spikes and the drip
+  // stand on exactly the edge the shader draws.
+  function crossing(x, to, t) {
+    var inside = 0, outside = to;
+    for (var i = 0; i < 22; i++) {
+      var y = 0.5 * (inside + outside);
+      if (fieldAt(x, y, t) < 0) inside = y; else outside = y;
+    }
+    return 0.5 * (inside + outside);
+  }
+  function edgeAt(x, t) { return crossing(x, 0.6, t); } // the top edge above x
+  function bottomAt(x, t) { return crossing(x, -0.6, t); } // the bottom edge under x
 
   // A value that eases to a new goal over a given time, read at any moment.
   function tween(value) {
@@ -264,8 +334,8 @@
     "uniform vec2 uRes;      // canvas pixels",
     "uniform vec3 uHeart;    // centre (canvas px, y up), canvas px per heart-box side",
     "uniform vec3 uSkyTop;   // the top colour of the sky",
-    "uniform float uLime;    // 0 to 1: the lime light that floods the chrome while an agent waits",
-    "uniform float uSheen;   // 0 to 1 while the sheen crosses, below 0 when it rests",
+    "uniform float uLime;    // 0 to 1: the lime light that floods the heart's reflections while an agent waits",
+    "uniform float uWobble;  // the wobble's clock, seconds (stands still with Reduce motion)",
     "uniform vec4 uDagPose[" + DAGGER_SLOTS + "];   // the tip, and the way the blade points up",
     "uniform vec4 uDagLook[" + DAGGER_SLOTS + "];   // opacity (0: no dagger), glint (below 0: none), lime, dim",
     "uniform vec4 uDagHandle[" + DAGGER_SLOTS + "]; // the handle's agent colour, and 1 while it is stuck in the heart",
@@ -273,11 +343,16 @@
     "uniform vec4 uSpike[" + SPIKE_SLOTS + "];     // the root's x and y, the length (0: no spike), half the width",
     "uniform vec3 uSpikeTint[" + SPIKE_SLOTS + "]; // the agent's colour at the tip",
     "uniform vec3 uDrip;     // the thread's length, how far the drop has fallen, opacity (0: no drip)",
+    "uniform vec2 uDripAt;   // where the thread leaves the heart: just inside its moving bottom point",
     "const vec3 SKY1 = vec3(" + rgbOf(SKY[1]).join(", ") + ");",
     "const vec3 SKY2 = vec3(" + rgbOf(SKY[2]).join(", ") + ");",
     "const vec3 SKY3 = vec3(" + rgbOf(SKY[3]).join(", ") + ");",
-    "const vec3 DEEP = vec3(" + rgbOf(CHROME[0]).join(", ") + ");",
-    "const vec3 LIGHT = vec3(" + rgbOf(CHROME[1]).join(", ") + ");",
+    "const vec3 SHADE = vec3(" + rgbOf(SKIN.shade).join(", ") + ");",
+    "const vec3 DEEP = vec3(" + rgbOf(SKIN.deep).join(", ") + ");",
+    "const vec3 BODY = vec3(" + rgbOf(SKIN.body).join(", ") + ");",
+    "const vec3 LIGHT = vec3(" + rgbOf(SKIN.light).join(", ") + ");",
+    "const vec3 PEARL = vec3(" + rgbOf(SKIN.pearl).join(", ") + ");",
+    "const vec3 RIM = vec3(" + rgbOf(SKIN.rim).join(", ") + ");",
     "const vec3 NAVY = vec3(" + rgbOf(NAVY).join(", ") + ");",
     "const vec3 LIME = vec3(" + rgbOf(LIME).join(", ") + ");",
     "const float HR = " + HEART.round.toFixed(4) + ";",
@@ -299,57 +374,55 @@
     "  c = mix(c, SKY2, smoothstep(0.3, 0.72, y));",
     "  return mix(c, SKY3, smoothstep(0.66, 1.0, y));",
     "}",
-    // Pink chrome. The metal mirrors a world around it: the sky above a bright
-    // horizon and a dark ground below, like chrome lettering. What it mirrors is
-    // carried onto the cover's pinks by brightness, keeping some of the sky's
-    // blue, more of it at the rim (Fresnel). A softbox and a sun give sharp white
-    // highlights; the sheen is a third one sliding across. While an agent waits,
-    // a lime light comes on: the sky and the highlights mirror lime.
-    "vec3 world(vec3 r) {",
-    "  float t = r.y + 0.04 - 0.3 * r.x + 0.03 * sin(5.0 * r.x + 1.0); // the horizon, tilted and waving a little",
-    "  vec3 up = mix(SKY3, uSkyTop, smoothstep(0.05, 1.0, t));",
-    "  up = mix(up, uSkyTop * 0.75, 0.55 * smoothstep(0.32, 0.4, t) * (1.0 - smoothstep(0.5, 0.75, t))); // a darker band of sky high up",
-    "  vec3 down = mix(vec3(0.1, 0.03, 0.06), vec3(0.42, 0.18, 0.28), smoothstep(0.0, -0.35, t));",
-    "  down += vec3(0.5, 0.42, 0.48) * smoothstep(-0.7, -0.95, t); // a pale floor far below",
-    "  vec3 c = mix(down, up, smoothstep(-0.014, 0.014, t)); // soft enough not to stair-step at half scale",
-    "  return c + mix(vec3(1.0, 0.94, 0.96), LIME, uLime) * 1.2 * exp(-pow((t - 0.018) / 0.02, 2.0));",
+    // The wobble and the moving heart, from the same numbers as wobbleAt and fieldAt.
+    "vec2 wobble(vec2 p) {",
+    "  vec2 o = vec2(0.0);",
+  ].concat(WOBBLE.waves.map(function (w) {
+    return "  o += vec2(" + glsl(w[0]) + ", " + glsl(w[1]) + ") * sin(" + glsl(w[2]) + " * p.x + " + glsl(w[3]) + " * p.y + " + glsl(w[4]) + " * uWobble + " + glsl(w[5]) + ");";
+  }), WOBBLE.swells.map(function (w) {
+    return "  o += p * " + glsl(w[0]) + " * sin(" + glsl(w[1]) + " * p.x + " + glsl(w[2]) + " * p.y + " + glsl(w[3]) + " * uWobble + " + glsl(w[4]) + ");";
+  }), [
+    "  return o * mix(" + glsl(WOBBLE.calm[0]) + ", 1.0, smoothstep(" + glsl(WOBBLE.calm[1]) + ", " + glsl(WOBBLE.calm[2]) + ", p.y));",
     "}",
-    "float luma(vec3 c) { return dot(c, vec3(0.3, 0.55, 0.15)); }",
-    "vec3 metal(vec3 n) {",
-    "  vec3 r = reflect(vec3(0.0, 0.0, -1.0), n);",
-    "  vec3 seen = world(r);",
-    "  float t0 = r.y + 0.04 - 0.3 * r.x; // above the horizon",
-    "  float l = luma(seen);",
-    "  vec3 pink = mix(DEEP * 0.22, DEEP * 0.95, smoothstep(0.03, 0.42, l));",
-    "  pink = mix(pink, LIGHT, smoothstep(0.42, 0.78, l));",
-    "  pink = mix(pink, vec3(1.0, 0.97, 0.98), smoothstep(0.85, 1.15, l));",
-    "  float fres = pow(1.0 - n.z, 2.5);",
-    "  vec3 c = mix(pink, seen, mix(0.14, 0.7, fres));",
-    "  float glow = uLime * smoothstep(-0.01, 0.01, t0) * (1.0 - smoothstep(0.05, 0.85, t0)); // the lime light, low in the sky",
-    "  c = mix(c, LIME * (0.45 + 0.75 * l), 0.85 * glow);",
-    "  vec3 hot = mix(vec3(1.0), LIME + 0.2, 0.75 * uLime);",
-    "  vec2 soft = abs(r.xy - vec2(-0.5, 0.42)) - vec2(0.1, 0.035);",
-    "  float box = length(max(soft, 0.0)) + min(max(soft.x, soft.y), 0.0);",
-    "  c += hot * (1.0 - smoothstep(0.0, 0.02, box));",
-    "  c += hot * 1.2 * pow(max(dot(r, normalize(vec3(0.62, 0.55, 0.56))), 0.0), 300.0);",
-    "  c += hot * 0.8 * (1.0 - smoothstep(0.0, 0.012, abs(r.x - 0.28 - 0.25 * r.y) - 0.012)) * smoothstep(0.25, 0.35, r.y) * (1.0 - smoothstep(0.6, 0.7, r.y));",
-    "  if (uSheen >= 0.0) {",
-    "    float band = abs(r.x - mix(-1.0, 1.0, uSheen) + 0.3 * r.y);",
-    "    c += hot * 0.35 * (1.0 - smoothstep(0.04, 0.16, band)) * sin(3.14159265 * uSheen);",
-    "  }",
-    "  return c;",
+    "float body(vec2 p) { return heart(p - wobble(p)); }",
+    // The heart's skin, airbrushed like the covers: hot pink lit softly from the
+    // upper left, deep pink to dark red away from the light, a touch of magenta
+    // at the edge and a little of the sky in the lower rim. While an agent waits,
+    // a lime light comes on: the lit side, the rim and the highlights take lime.
+    "const vec3 LAMP = vec3(" + [-0.4, 0.55, 0.75].map(function (v) { return glsl(v / Math.hypot(0.4, 0.55, 0.75)); }).join(", ") + ");",
+    "vec3 surface(vec3 n, float rim) {",
+    "  float lit = clamp(dot(n, LAMP), 0.0, 1.0);",
+    "  vec3 c = mix(SHADE, DEEP, smoothstep(0.05, 0.42, lit));",
+    "  c = mix(c, BODY, smoothstep(0.36, 0.72, lit));",
+    "  c = mix(c, LIGHT, 0.7 * smoothstep(0.8, 1.0, lit));",
+    "  c = mix(c, RIM, 0.4 * rim * smoothstep(0.3, 0.7, lit));",
+    "  float fres = pow(1.0 - n.z, 3.0);",
+    "  c = mix(c, mix(SKY2, LIME, uLime), 0.35 * fres * smoothstep(0.1, -0.6, n.y));",
+    "  return mix(c, LIME * (0.55 + 0.5 * lit), 0.22 * uLime * smoothstep(0.5, 0.95, lit));",
     "}",
-    // The heart's surface: one smooth dome over the whole heart, so the mirrored
-    // world curves across it in long bands, and a rim that bends away fast, so
-    // the bands tighten into thin bright lines at the edge.
-    "vec3 chrome(vec2 p, float d) {",
+    "vec3 hotLight() { return mix(PEARL, LIME + 0.15, uLime); }",
+    "vec3 gloss(vec3 n) { return hotLight() * 0.7 * pow(max(dot(reflect(vec3(0.0, 0.0, -1.0), n), LAMP), 0.0), 16.0); }",
+    // The surface: one soft dome over the whole heart and a rim that bends away,
+    // both carried along by the wobble, so the light slides over the skin as it
+    // moves. On it, soft broad highlights on the lobes and one thin, soft band
+    // that follows the top edge a little inside it.
+    "vec3 skin(vec2 p, float d) {",
+    "  vec2 q = p - wobble(p); // the same spot of skin while the heart moves",
     "  float e = 0.004;",
-    "  vec2 g = vec2(heart(p + vec2(e, 0.0)) - heart(p - vec2(e, 0.0)), heart(p + vec2(0.0, e)) - heart(p - vec2(0.0, e)));",
+    "  vec2 g = vec2(body(p + vec2(e, 0.0)) - body(p - vec2(e, 0.0)), body(p + vec2(0.0, e)) - body(p - vec2(0.0, e)));",
     "  g = g / max(length(g), 1e-5);",
-    "  float rim = 1.0 - clamp(-d / 0.14, 0.0, 1.0);",
-    "  vec2 dome = (p - vec2(0.0, 0.07)) * vec2(1.25, 1.6);",
-    "  vec3 n = normalize(vec3(dome + g * 2.6 * rim * rim, 1.0));",
-    "  return metal(n);",
+    "  float rim = 1.0 - clamp(-d / 0.16, 0.0, 1.0);",
+    "  vec2 dome = (q - vec2(-0.04, 0.06)) * vec2(1.5, 2.3);",
+    "  vec3 n = normalize(vec3(dome + g * 2.0 * rim * rim, 1.0));",
+    "  vec3 c = surface(n, rim * rim);",
+    "  float glow = 0.85 * exp(-dot2((q - vec2(-0.22, 0.2)) / vec2(0.17, 0.075)))",
+    "    + 0.6 * exp(-dot2((q - vec2(0.24, 0.19)) / vec2(0.12, 0.06)))",
+    "    + 0.3 * exp(-dot2((q - vec2(-0.14, 0.0)) / vec2(0.2, 0.1)));",
+    "  float band = exp(-pow((d + 0.045) / 0.009, 2.0)) * smoothstep(0.08, 0.18, q.y) * smoothstep(0.02, 0.09, abs(q.x));",
+    "  band *= 1.0 - 0.45 * smoothstep(-0.1, 0.35, q.x); // brighter on the lit lobe",
+    "  vec3 soft = mix(PEARL, LIME + 0.1, 0.7 * uLime); // the broad highlights keep some pink under the lime",
+    "  c = mix(c, soft, clamp(glow * (1.0 - 0.2 * uLime), 0.0, 0.9));",
+    "  return mix(c, hotLight(), clamp(0.8 * band, 0.0, 0.9));",
     "}",
     // A silver dagger standing on its tip, in its own space: x across, y up the
     // blade from the tip. A glossy blade with a bright ridge, a crossguard, a
@@ -411,18 +484,17 @@
     "  float w = s.w * pow(1.0 - t, 1.3); // wide at the root, curving in to a point",
     "  float d = max(abs(u.x) - w, max(-u.y, u.y - s.z));",
     "  float across = u.x / max(w, 1e-4);",
-    "  vec3 body = mix(DEEP, tint, smoothstep(0.2, 0.75, t)) * mix(1.12, 0.62, smoothstep(-1.0, 1.0, across));",
-    "  body += vec3(1.0) * 0.55 * (1.0 - smoothstep(0.0, 0.25, abs(across + 0.45))) * (1.0 - 0.6 * t);",
-    "  vec3 part = mix(NAVY, body, 1.0 - smoothstep(-px, px, d));",
+    "  vec3 tone = mix(DEEP, tint, smoothstep(0.2, 0.75, t)) * mix(1.12, 0.62, smoothstep(-1.0, 1.0, across));",
+    "  tone += vec3(1.0) * 0.55 * (1.0 - smoothstep(0.0, 0.25, abs(across + 0.45))) * (1.0 - 0.6 * t);",
+    "  vec3 part = mix(NAVY, tone, 1.0 - smoothstep(-px, px, d));",
     "  return mix(c, part, 1.0 - smoothstep(-px, px, d - uLine));",
     "}",
-    // The drip: a thread of liquid chrome from the heart's bottom point with a
-    // round drop at its end, the same metal as the heart.
-    "const vec2 DRIP = vec2(0.0, " + (bottomAt(0) + 0.015).toFixed(4) + ");",
+    // The drip: a thread of the heart's liquid from its bottom point with a
+    // round drop at its end, the same skin as the heart.
     "const float DROP = " + DRIP.drop.toFixed(4) + ";",
     "float smin(float a, float b, float k) { float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0); return mix(b, a, h) - k * h * (1.0 - h); }",
     "vec3 drip(vec2 p, vec3 c, float px) {",
-    "  vec2 r = p - DRIP;",
+    "  vec2 r = p - uDripAt;",
     "  float len = uDrip.x;",
     "  float t = clamp(-r.y / max(len, 1e-4), 0.0, 1.0);",
     "  float w = mix(0.014, 0.007, sqrt(t)); // wide where it leaves the heart, thin above the drop",
@@ -434,22 +506,22 @@
     "  vec2 sx = ball < thread ? bq / DROP : vec2(r.x / w, 0.0); // round across the drop, a tube along the thread",
     "  sx = clamp(sx, -0.98, 0.98);",
     "  vec3 n = normalize(vec3(sx, sqrt(max(0.04, 1.0 - dot(sx, sx)))));",
-    "  return mix(c, metal(n), uDrip.z * (1.0 - smoothstep(-px, px, d)));",
+    "  return mix(c, surface(n, 0.0) + gloss(n), uDrip.z * (1.0 - smoothstep(-px, px, d)));",
     "}",
     "void main() {",
     "  vec2 frag = gl_FragCoord.xy;",
     "  vec3 col = sky(1.0 - frag.y / uRes.y);",
     "  vec2 p = (frag - uHeart.xy) / uHeart.z;",
     "  float px = 1.0 / uHeart.z;",
-    "  float d = heart(p);",
+    "  float d = body(p);",
     "  col *= 1.0 - 0.1 * exp(-max(d, 0.0) * 22.0); // a faint shadow around the heart",
     "  for (int i = 0; i < " + SPIKE_SLOTS + "; i++) { // behind the heart, which hides their roots",
     "    vec4 s = uSpike[i];",
     "    if (s.z <= 0.0 || abs(p.x - s.x) > s.w + 0.01 || p.y > s.y || p.y < s.y - s.z - 0.01) continue;",
     "    col = spike(p, s, uSpikeTint[i], col, px);",
     "  }",
-    "  if (d < px) col = mix(col, chrome(p, d), 1.0 - smoothstep(-px, px, d));",
-    "  if (uDrip.z > 0.0 && abs(p.x - DRIP.x) < 0.04 && p.y < DRIP.y + 0.02) col = drip(p, col, px);",
+    "  if (d < px) col = mix(col, skin(p, d), 1.0 - smoothstep(-px, px, d));",
+    "  if (uDrip.z > 0.0 && abs(p.x - uDripAt.x) < 0.04 && p.y < uDripAt.y + 0.02) col = drip(p, col, px);",
     "  for (int i = 0; i < " + DAGGER_SLOTS + "; i++) {",
     "    vec4 look = uDagLook[i];",
     "    if (look.x <= 0.0) continue;",
@@ -462,9 +534,9 @@
     "  col += (hash(frag) - 0.5) / 255.0; // no banding in the long gradients",
     "  gl_FragColor = vec4(col, 1.0);",
     "}",
-  ].join("\n");
+  ]).join("\n");
 
-  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uLime", "uSheen", "uDagPose", "uDagLook", "uDagHandle", "uLine", "uSpike", "uSpikeTint", "uDrip"];
+  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uLime", "uWobble", "uDagPose", "uDagLook", "uDagHandle", "uLine", "uSpike", "uSpikeTint", "uDrip", "uDripAt"];
 
   function compile(gl, type, source) {
     var shader = gl.createShader(type);
@@ -543,7 +615,7 @@
     function leaveMs() { return reduce.matches ? FADE_MS : FALL_MS; }
 
     // One dagger this moment: its tip and direction, how it looks, and whether it is stuck.
-    function placeDagger(dagger, nowMs, slot) {
+    function placeDagger(dagger, nowMs, slot, t) {
       var still = reduce.matches, x = dagger.x.at(nowMs), lean = x * DAGGER.lean;
       var depth = depthOf((dagger.endMs === null ? nowMs : dagger.endMs) - dagger.startedMs);
       var under = DAGGER.stuck + depth * (DAGGER.blade / 3 - DAGGER.stuck); // the blade inside the heart: a third at full depth
@@ -567,7 +639,7 @@
       }
       // The blade goes in at the edge above its slot; it tumbles around its balance point.
       var reach = rise - under + DAGGER.middle;
-      var mx = x + Math.sin(lean) * reach + drift, my = edgeAt(x) + Math.cos(lean) * reach - drop;
+      var mx = x + Math.sin(lean) * reach + drift, my = edgeAt(x, t) + Math.cos(lean) * reach - drop;
       var o = slot * 4, upX = Math.sin(lean + tumble), upY = Math.cos(lean + tumble);
       var glint = (nowMs - dagger.glintMs) / GLINT_MS;
       dagPose.set([mx - upX * DAGGER.middle, my - upY * DAGGER.middle, upX, upY], o);
@@ -575,11 +647,11 @@
       dagHandle.set([dagger.colour[0], dagger.colour[1], dagger.colour[2], stuck], o);
     }
 
-    function placeDaggers(nowMs) {
+    function placeDaggers(nowMs, t) {
       var wait = leaveMs();
       daggers = daggers.filter(function (dagger) { return dagger.leftMs === null || nowMs - dagger.leftMs < wait; });
       dagLook.fill(0);
-      daggers.slice(0, DAGGER_SLOTS).forEach(function (dagger, slot) { placeDagger(dagger, nowMs, slot); });
+      daggers.slice(0, DAGGER_SLOTS).forEach(function (dagger, slot) { placeDagger(dagger, nowMs, slot, t); });
     }
 
     function daggersMoving(nowMs) {
@@ -590,6 +662,7 @@
     }
 
     // One spike per limit, in label order, longer the more of the limit is used.
+    // Its root's height is found each frame on the moving edge (placeSpikes).
     function syncSpikes(state) {
       var limits = state.display === "main" ? limitsInOrder(state).slice(0, SPIKE_SLOTS) : [];
       var count = limits.length, spacing = count < 2 ? 1 : (2 * FRAME.spikeSpread) / (count - 1);
@@ -598,10 +671,26 @@
       limits.forEach(function (limit, index) {
         var x = spikeOffset(index, count), used = usedPercent(limit, state.nowMs) / 100;
         var length = SPIKE.full * (SPIKE.least + (1 - SPIKE.least) * used);
-        spikeShape.set([x, bottomAt(x) + SPIKE.inset, SPIKE.inset + length, width], index * 4);
+        spikeShape.set([x, 0, SPIKE.inset + length, width], index * 4);
         spikeTint.set(rgbOf(agentColour(limit.source)), index * 3);
       });
     }
+
+    function placeSpikes(t) {
+      for (var o = 0; o < spikeShape.length; o += 4) {
+        if (spikeShape[o + 2] > 0) spikeShape[o + 1] = bottomAt(spikeShape[o], t) + SPIKE.inset;
+      }
+    }
+
+    // Where the drip leaves the heart: just inside its bottom point, which the
+    // wobble moves a little to the side.
+    function dripRoot(t) {
+      var x = wobbleAt(0, bottomAt(0, t), t)[0];
+      return [x, bottomAt(x, t) + 0.015];
+    }
+
+    // The wobble's clock in seconds: frozen at one calm moment with "Reduce motion".
+    function wobbleClock(nowMs) { return reduce.matches ? WOBBLE.still : nowMs / 1000; }
 
     // The drip this moment: the thread's length, how far the drop has fallen and
     // its opacity, or null for no drip. A song with no length hangs it at half
@@ -649,14 +738,8 @@
       return { x: (heart.cx + dx) * k, y: canvas.height - (heart.cy + dy) * k, side: heart.size * breath * k };
     }
 
-    function sheenAt(nowMs) {
-      if (reduce.matches) return -1;
-      var t = (nowMs / 1000) % SHEEN_S;
-      return t < SHEEN_SLIDE_S ? t / SHEEN_SLIDE_S : -1;
-    }
-
     function render(nowMs, drip) {
-      var at = pose(nowMs), deep = skyTop.at(nowMs);
+      var at = pose(nowMs), deep = skyTop.at(nowMs), t = wobbleClock(nowMs), root = dripRoot(t);
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.uniform2f(uniforms.uRes, canvas.width, canvas.height);
       gl.uniform3f(uniforms.uHeart, at.x, at.y, at.side);
@@ -665,8 +748,9 @@
         REST_TOP[1] + (CALL_TOP[1] - REST_TOP[1]) * deep,
         REST_TOP[2] + (CALL_TOP[2] - REST_TOP[2]) * deep);
       gl.uniform1f(uniforms.uLime, deep);
-      gl.uniform1f(uniforms.uSheen, sheenAt(nowMs));
-      placeDaggers(nowMs);
+      gl.uniform1f(uniforms.uWobble, t);
+      placeDaggers(nowMs, t);
+      placeSpikes(t);
       gl.uniform4fv(uniforms.uDagPose, dagPose);
       gl.uniform4fv(uniforms.uDagLook, dagLook);
       gl.uniform4fv(uniforms.uDagHandle, dagHandle);
@@ -674,6 +758,7 @@
       gl.uniform4fv(uniforms.uSpike, spikeShape);
       gl.uniform3fv(uniforms.uSpikeTint, spikeTint);
       gl.uniform3f(uniforms.uDrip, drip ? drip.length : 0, drip ? drip.drop : 0, drip ? drip.alpha : 0);
+      gl.uniform2f(uniforms.uDripAt, root[0], root[1]);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 

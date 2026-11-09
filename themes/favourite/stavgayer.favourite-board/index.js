@@ -6,7 +6,7 @@
 //   one label under each spike, on a dark blue plate;
 //   the task cards in the open sky left and right of the heart, or in one row
 //   under the labels on narrow (4:3) screens;
-//   while an agent waits, one large card over the lower half of the heart, and
+//   while an agent waits, one large card over the heart's point, and
 //   the cards and labels fade back.
 // The second display shows only the clock and the date. Text is built with
 // textContent only, long text is cut with "…", fields that are missing are left
@@ -461,9 +461,9 @@
       command.classList.add("long");
     }
 
-    // The agent that has waited longest, over the lower half of the heart, so the
-    // lime in the chrome above it shows; raised when it would run off the bottom
-    // of the screen.
+    // The agent that has waited longest, over the heart's point, so the lobes,
+    // the lime in their reflections and most of the taper show above it; raised
+    // when it would run off the bottom of the screen.
     function drawCall(waiting, state, frame) {
       call.hidden = waiting.length === 0;
       if (call.hidden) return;
@@ -483,7 +483,7 @@
       var cardWidth = Math.min(width - 2 * FRAME.gutter * width, Math.max(1.4 * heart.size, 70 * vmin));
       place(call, heart.cx - cardWidth / 2, 0, cardWidth);
       fitCommand();
-      call.style.top = Math.max(0, Math.min(heart.cy + 0.06 * heart.size, height - FRAME.bottom * vmin - call.offsetHeight)) + "px";
+      call.style.top = Math.max(0, Math.min(heart.cy + 0.2 * heart.size, height - FRAME.bottom * vmin - call.offsetHeight)) + "px";
     }
 
     function draw(state) {
