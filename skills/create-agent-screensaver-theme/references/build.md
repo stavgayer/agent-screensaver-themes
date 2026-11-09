@@ -88,12 +88,18 @@ The `attention` mode above leaves the limits out on purpose: while an agent wait
 The layout's modes are coarse: `idle` covers nothing running, working and all done; `attention` is an approval; `secondary` is a second screen. Work out the five states of [design.md](design.md#3-design-every-screen-state) from the view state yourself, as every theme here does:
 
 ```js
+// A finished turn with background jobs still running is still working.
+function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
 function moodOf(state) {
   if (state.display !== "main" || state.cards.length === 0) return "rest";
   if (state.cards.some(function (card) { return card.kind === "approval"; })) return "call";
-  return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
+  return state.cards.some(isWorking) ? "work" : "done";
 }
 ```
+
+Why `isWorking`: when an agent ends its turn but a shell, a subagent or a monitor still runs, the work is not done, and "All done" would be a lie. Such a card keeps the working look and the working element in your picture, and where a running card says "working", it says "1 job running" or "N jobs running". An approval still wins: `call` comes first. Only a finite number above 0 counts, so a missing, `0` or odd `background` means no jobs, and "NaN" never prints. Privacy mode does not remove `background`.
 
 ## The entry file
 
@@ -135,7 +141,7 @@ The view state your `update` gets:
 | Field | What it holds |
 |---|---|
 | `mode` | `"idle"`, `"attention"` or `"secondary"`. |
-| `cards` | One per task: `source`, `session`, `kind` (`approval`, `running`, `finished`, `unknown`, `no_activity`), `started_at_ms` and `updated_at_ms`, and when known `project`, `title`, `request`, `name`, `model`, `branch`, `context_percent`, `background`, `approval_since_ms`. |
+| `cards` | One per task: `source`, `session`, `kind` (`approval`, `running`, `finished`, `unknown`, `no_activity`), `started_at_ms` and `updated_at_ms`, and when known `project`, `title`, `request`, `name`, `model`, `branch`, `context_percent`, `background` (how many background jobs the session still runs), `approval_since_ms`. |
 | `agents` | By card `source`: `name` and `mark_url`. |
 | `agentOrder` | The agents' sources, in the order limits are shown. |
 | `limits` | One per usage window: `source`, `window` (`5h`, `week`, `plan`), `used_percent`, `resets_at` (seconds), `updated_at_ms`, `estimated`. |

@@ -49,7 +49,7 @@ The screen saver has five states. Design each one on purpose; do not let one be 
 | State | When | What it must do |
 |---|---|---|
 | Nothing running | No tasks | Show the source at rest, close to the original. The time large, the date, the usage limits. This is the state people see most. |
-| Working | Tasks run | One element per task, a count ("3 working"), and a card per task: the agent, how long, the task, the project. |
+| Working | Tasks run | One element per task, a count ("3 working"), and a card per task: the agent, how long, the task, the project. A finished task that still runs background jobs counts as working: it keeps this look and says "N jobs running" (see [build.md](build.md#five-states-from-three-modes)). |
 | All done | Every task finished | Calm down: elements settle, colours fade toward the source's base, cards say done. |
 | Needs you | An agent waits for approval | One move takes over the screen: the waiting agent's colour, a large "Needs you", the agent, how long it has waited, the exact command, the project. Everything else steps back or hides. |
 | Second display | A second screen | The source and the time only. No tasks, no approval. |

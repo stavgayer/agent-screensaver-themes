@@ -126,4 +126,4 @@ Use `builtin.limit-rings` in your layout, or draw your own from a copy of a them
 
 ## Missing data and privacy
 
-Any card field can be missing, and privacy mode removes titles, commands, conversation names and branches before your code gets the state. Leave out what is not there. Without a command, an approval says "Look at the terminal". Never fill a gap with made-up text.
+Any card field can be missing, and privacy mode removes titles, commands, conversation names and branches before your code gets the state. Leave out what is not there. Without a command, an approval says "Look at the terminal". Never fill a gap with made-up text. `background` (how many background jobs a card still runs) stays in privacy mode; count it only when it is a number above 0.

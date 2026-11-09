@@ -10,7 +10,7 @@ Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/r
 
 | State | Still |
 |---|---|
-| Agents working: <one element per task, the count, the cards>. | ![Working](media/working.jpg) |
+| Agents working: <one element per task, the count, the cards>. A finished task that still runs background jobs counts as working and says "N jobs running". | ![Working](media/working.jpg) |
 | All done: <how it calms down>. | ![Done](media/done.jpg) |
 | An agent waits for you: <the one move that takes over the screen>. | ![Needs you](media/approval.jpg) |
 | Nothing running: <the source at rest, the time, the date, the limits>. | ![Idle](media/idle.jpg) |

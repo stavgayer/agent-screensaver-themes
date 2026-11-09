@@ -28,6 +28,7 @@ http://localhost:8000/skills/create-agent-screensaver-theme/assets/preview.html?
 | `privacy` | `1`: what privacy mode does: no title, command, conversation name or branch on any card, and no song. |
 | `missing` | `1`: leaves out the fields the service may leave out: `project` and `approval_since_ms`. (`started_at_ms` and `updated_at_ms` are always sent.) |
 | `agent` | `unknown`: one more task from `gemini`, an agent with no extension, so it has no entry in `agents`. |
+| `jobs` | `N`: the first finished card (in `state=done`, the first card) gets `background: N`, as if the session still runs N background jobs. |
 
 The page fades in like the screen saver. A browser pane that is not visible may run no animation frames at all and no resize events: it shows the layout, but frame rates, "Reduce motion" and stills cannot be checked there. Use the headless check below for those, and load the page again for each screen size instead of resizing it.
 
@@ -42,6 +43,7 @@ Check every theme in every cell before you ship it:
 | Long text | `title=long&song=long`, in `work` and `call`: cut with "…", never over another element |
 | Privacy mode | `privacy=1`, in `work` and `call`: no empty rows or made-up text; the approval says "Look at the terminal" |
 | Missing fields | `missing=1`: no "NaN", no "undefined", no empty line |
+| Background jobs | `state=done&jobs=3`: the card says "3 jobs running" and the theme stays in its working look; `jobs=1` says "1 job running" |
 | Unknown agent | `agent=unknown`: the task shows with a colour from your palette and a name |
 | No length | `song=stream`: the song shows without progress |
 | The song steps away | `state=call&song=normal`: hidden |

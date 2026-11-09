@@ -46,11 +46,15 @@
     return SPARE[Math.abs(hash) % SPARE.length];
   }
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   // The five states of the design, from the view state.
   function moodOf(state, show) {
     if (show === "time" || state.display !== "main" || state.cards.length === 0) return "rest";
     if (state.cards.some(function (card) { return card.kind === "approval"; })) return "call";
-    return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
+    return state.cards.some(isWorking) ? "work" : "done";
   }
 
   // An agent with no extension has no name in state.agents: show its source, capitalised.
@@ -75,7 +79,7 @@
     var box, say, sub, cards, call, song, track, show = "agents", cancelSong, now, lastState;
 
     function card(task, state) {
-      var node = el("card" + (task.kind === "finished" ? " done" : ""));
+      var node = el("card" + (isWorking(task) ? "" : " done"));
       node.style.setProperty("--hue", hueOf(task.source));
       var top = el("top");
       var name = document.createElement("span");
@@ -83,9 +87,11 @@
       top.appendChild(name);
       // started_at_ms can be missing: then leave the time out, never show "NaN".
       var started = Number.isFinite(task.started_at_ms) ? task.started_at_ms : undefined;
+      var jobs = task.kind === "finished" ? jobsOf(task) : 0;
       if (task.kind === "finished" || started !== undefined) {
         var since = document.createElement("span");
-        since.textContent = task.kind === "finished" ? "done" : minutes(state.nowMs - started);
+        since.textContent = jobs > 0 ? jobs + (jobs === 1 ? " job running" : " jobs running")
+          : task.kind === "finished" ? "done" : minutes(state.nowMs - started);
         top.appendChild(since);
       }
       node.appendChild(top);
@@ -124,7 +130,7 @@
         say.textContent = "Needs you";
         sub.textContent = "";
       } else {
-        var working = state.cards.filter(function (task) { return task.kind !== "finished"; }).length;
+        var working = state.cards.filter(isWorking).length;
         say.textContent = mood === "done" ? "All done" : working + " working";
         sub.textContent = "";
       }
