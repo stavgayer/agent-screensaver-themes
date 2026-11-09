@@ -71,12 +71,16 @@
       .map(function (entry) { return entry.card; });
   }
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   // rest: nothing runs (and the second display); work: tasks run; done: all
   // finished; call: an agent waits for you.
   function moodOf(state) {
     if (state.display !== "main" || state.cards.length === 0) return "rest";
     if (waitingOf(state.cards).length > 0) return "call";
-    return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
+    return state.cards.some(isWorking) ? "work" : "done";
   }
 
   // The ring field in screen px. At rest it keeps the proportions of the 1976
@@ -374,9 +378,11 @@
         var entry = k >= 1 && k <= list.length ? list[k - 1] : null;
         if (entry) {
           var col = rgbOf(entry.hue.ring), kind = entry.card.kind;
+          // A finished task with background jobs keeps the light of a running ring.
+          var alive = kind === "running" || (kind === "finished" && jobsOf(entry.card) > 0);
           goal.tr = col[0]; goal.tg = col[1]; goal.tb = col[2];
-          goal.tint = kind === "finished" ? 0 : kind === "running" ? 0.62 : 0.4;
-          goal.pulse = kind === "running" && !reduce.matches ? 1 : 0;
+          goal.tint = alive ? 0.62 : kind === "finished" ? 0 : 0.4;
+          goal.pulse = alive && !reduce.matches ? 1 : 0;
         } else if (next === "work" || next === "done") {
           goal.dim = k > list.length ? 0.1 : 0;
         }

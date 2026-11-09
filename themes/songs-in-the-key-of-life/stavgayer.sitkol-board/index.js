@@ -64,12 +64,16 @@
       .map(function (entry) { return entry.card; });
   }
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   // rest: nothing runs (and the second display); work: tasks run; done: all
   // finished; call: an agent waits for you.
   function moodOf(state) {
     if (state.display !== "main" || state.cards.length === 0) return "rest";
     if (waitingOf(state.cards).length > 0) return "call";
-    return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
+    return state.cards.some(isWorking) ? "work" : "done";
   }
 
   // The ring field in screen px. At rest it keeps the proportions of the 1976
@@ -287,6 +291,8 @@
         var ran = nowMs - card.started_at_ms;
         return { done: false, text: ran < MINUTE ? "under 1 min" : compact(ran) };
       case "finished":
+        var jobs = jobsOf(card);
+        if (jobs > 0) return { done: false, text: jobs + (jobs === 1 ? " job running" : " jobs running") };
         var ago = compact(nowMs - card.updated_at_ms);
         return { done: true, text: ago === "now" ? "done now" : "done " + ago + " ago" };
       case "no_activity":
@@ -412,7 +418,7 @@
     }
 
     function drawSay(tasks) {
-      var working = tasks.filter(function (card) { return card.kind !== "finished"; }).length;
+      var working = tasks.filter(isWorking).length;
       var finished = tasks.length - working;
       var count = working > 0 ? String(working) : "";
       var word = working > 0 ? "working" : "All done";

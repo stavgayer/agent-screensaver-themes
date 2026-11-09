@@ -62,12 +62,16 @@
       .map(function (entry) { return entry.card; });
   }
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   // rest: nothing runs (and the second display); work: tasks run; done: all
   // finished; call: an agent waits for you.
   function moodOf(state) {
     if (state.display !== "main" || state.cards.length === 0) return "rest";
     if (waitingOf(state.cards).length > 0) return "call";
-    return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
+    return state.cards.some(isWorking) ? "work" : "done";
   }
 
   // The ring field in screen px. At rest it keeps the proportions of the 1976
