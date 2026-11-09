@@ -120,3 +120,13 @@ The owner saw the stills. Everything but the heart was approved. The heart looke
 - **Needs you.** The one move is now the chrome flooding with lime: the heart's reflections take the lime `#9bf95e` as if a lime light came on, and the sky darkens as before. Nothing pulses. Everything else in needs-you stays as it was (lime waiting daggers, other daggers dim, cards fade, the large card).
 - **The song.** The drip is a drop of liquid chrome that hangs from the heart's bottom point. It grows as the song plays and falls when it ends; it hangs at half length when the song has no length.
 - **Reduce motion.** The lime flood cross-fades in and out.
+
+## Second owner change (2026-11-09)
+
+The owner shared three references: the *Romance* album heart, the *Favourite* cover, and the stage heart from the Romance tour (a large inflated mylar heart). Decisions:
+
+- **Lighter pink.** The heart is the covers' hot pink with light pink highlights, not maroon. Colours are measured from the references, not guessed.
+- **Thin, soft reflection.** One soft, thin highlight band and soft broad highlights, airbrushed like the covers. No heavy band that splits the heart in two.
+- **The heart shape reads first.** Wide rounded top lobes, a shallow dip between them, sides that taper to a soft, slightly blunt point, wider than tall, as on the *Favourite* cover. It reads as a heart at a glance in every state, including needs-you.
+- **Liquid motion.** The heart is alive like the original Chrome theme's liquid shape: its outline and surface wobble slowly like an inflated balloon or a liquid blob, and its reflections shift with it. The motion is slow and low (a screen saver), never rubbery or fast. Daggers, spikes and the drip stay attached to the moving edge.
+- **Reduce motion.** The heart stands still (no wobble).
