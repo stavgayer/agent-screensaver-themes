@@ -85,6 +85,9 @@
     return [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255];
   }
 
+  // A finished turn with background jobs still running is still working.
+  function isWorking(card) { return card.kind !== "finished" || (Number.isFinite(card.background) && Math.floor(card.background) > 0); }
+
   // What the picture should be in each state: how dark the window is, how far
   // the call has taken over, how calm the colours are.
   function targetOf(state) {
@@ -92,7 +95,7 @@
     var waiting = cards.filter(function (card) { return card.kind === "approval"; })[0];
     if (waiting) return { dim: 0.6, call: 1, calm: 0, hue: rgb(hueOf(waiting.source)) };
     if (cards.length === 0) return { dim: 0.3, call: 0, calm: 0, hue: null };
-    var busy = cards.some(function (card) { return card.kind !== "finished"; });
+    var busy = cards.some(isWorking);
     return busy ? { dim: 0.45, call: 0, calm: 0, hue: null } : { dim: 0.4, call: 0, calm: 1, hue: null };
   }
 

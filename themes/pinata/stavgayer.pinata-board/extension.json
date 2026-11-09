@@ -1,7 +1,7 @@
 {
   "id": "stavgayer.pinata-board",
   "name": "Piñata board",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "component",
   "api": 2,
   "requires": "0.5.0",

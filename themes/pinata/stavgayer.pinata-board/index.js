@@ -113,11 +113,15 @@
     return SPARE[Math.abs(hash) % SPARE.length];
   }
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return Number.isFinite(card.background) && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   // The five states of the design, from the view state.
   function moodOf(state, show) {
     if (show === "time" || state.display !== "main" || state.cards.length === 0) return "rest";
     if (state.cards.some(function (card) { return card.kind === "approval"; })) return "call";
-    return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
+    return state.cards.some(isWorking) ? "work" : "done";
   }
 
   function minutes(ms) {
@@ -237,9 +241,10 @@
     var cancelSong, now, lastState, lastLimits = "", lastMood = "";
 
     function card(task, state) {
-      var finished = task.kind === "finished";
+      var finished = !isWorking(task);
+      var jobs = jobsOf(task);
       var band = el("band");
-      var since = finished ? "Done" : task.started_at_ms !== undefined ? minutes(state.nowMs - task.started_at_ms) : "";
+      var since = jobs > 0 ? jobs + (jobs === 1 ? " job running" : " jobs running") : finished ? "Done" : task.started_at_ms !== undefined ? minutes(state.nowMs - task.started_at_ms) : "";
       band.append(span(agentName(state, task.source)), span(since));
       var body = el("body");
       if (task.title) body.appendChild(el("what", task.title)); // privacy mode removes it: leave the line out
@@ -291,7 +296,7 @@
       big.className = "big " + (mood === "rest" ? "clock" : "word");
       if (mood === "rest") big.textContent = clock;
       else if (mood === "done") big.textContent = "All done";
-      else if (mood === "work") big.textContent = state.cards.filter(function (task) { return task.kind !== "finished"; }).length + " working";
+      else if (mood === "work") big.textContent = state.cards.filter(isWorking).length + " working";
       big.hidden = mood === "call";
 
       cards.hidden = mood !== "work" && mood !== "done";

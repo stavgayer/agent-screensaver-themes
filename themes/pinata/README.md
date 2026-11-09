@@ -10,7 +10,7 @@ Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/r
 
 | State | Still |
 |---|---|
-| Agents working: the window darkens a little and says `3 WORKING` in big letters. Each task is a small plate at the bottom of the window: a gold band with the agent and how long it has run, then the task and the project, with dots in the agent's colour. More than four tasks (three on 4:3 and 5:4 screens) end with a `+N MORE` plate. | ![Working](media/working.jpg) |
+| Agents working: the window darkens a little and says `3 WORKING` in big letters. Each task is a small plate at the bottom of the window: a gold band with the agent and how long it has run, then the task and the project, with dots in the agent's colour. A finished task that still runs background jobs counts as working and its band says `N jobs running`. More than four tasks (three on 4:3 and 5:4 screens) end with a `+N MORE` plate. | ![Working](media/working.jpg) |
 | All done: the park light turns grey and calm, the big word says `ALL DONE`, and every plate says `DONE`. | ![Done](media/done.jpg) |
 | An agent waits for you: the light stripes of the fur turn the agent's colour, the window goes dark, and one big plate drops into it: `NEEDS YOU`, the agent, how long it has waited, the exact command and the project. The name plate, the limits and the song step away. | ![Needs you](media/approval.jpg) |
 | Nothing running: the frame and the park at rest, the time very large in the window, the date on the gold plate, and the usage limits in the bottom border. | ![Idle](media/idle.jpg) |
