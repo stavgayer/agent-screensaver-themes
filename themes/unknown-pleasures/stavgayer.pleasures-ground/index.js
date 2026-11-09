@@ -32,6 +32,10 @@
   var SAMPLES = 300;
   var MAX_BANDS = 5;
   var GAP = 3; // quiet lines at the back of each band, between it and the band behind
+
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
   // Each agent's pulse has its own shape, so a band reads as that agent from across a room.
   var SIGNATURE = { claude: 0, codex: 1, cursor: 2 }; // 0 needles, 1 twin shoulders, 2 a comb of teeth
 
@@ -272,7 +276,7 @@
       if (state.cards.length === 0) return "idle";
       if (state.display === "main" && waitingOf(state.cards).length > 0) return "call";
       if (state.display !== "main") return "away";
-      return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "rest";
+      return state.cards.some(isWorking) ? "work" : "rest";
     }
 
     function hueIndex(hex) {
@@ -308,7 +312,7 @@
       lay.bands.forEach(function (band, i) {
         var card = cards[i];
         var key = card.source + "\u0000" + card.session;
-        var done = card.kind === "finished";
+        var done = !isWorking(card);
         var hue = hueIndex(hueOf(card.source));
         if (!bandPhase.has(key)) bandPhase.set(key, 1000 + 97 * bandPhase.size);
         var amp = done ? 0.35 : busyAmp(card, state.nowMs);

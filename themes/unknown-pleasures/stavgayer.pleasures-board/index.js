@@ -24,6 +24,10 @@
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   var reduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   var STYLE = [
     "@font-face { font-family: 'UP Sans'; src: url('" + base + "fonts/InstrumentSans.ttf') format('truetype'); font-weight: 400 700; font-stretch: 75% 100%; }",
     "@font-face { font-family: 'UP Mono'; src: url('" + base + "fonts/GeistMono.ttf') format('truetype'); font-weight: 100 900; }",
@@ -157,6 +161,8 @@
         var ran = nowMs - card.started_at_ms;
         return { done: false, text: ran < MINUTE ? "under 1 min" : compact(ran) };
       case "finished":
+        var jobs = jobsOf(card);
+        if (jobs > 0) return { done: false, text: jobs + (jobs === 1 ? " job running" : " jobs running") };
         var ago = compact(nowMs - card.updated_at_ms);
         return { done: true, text: ago === "now" ? "done now" : "done " + ago + " ago" };
       case "no_activity":
@@ -218,7 +224,7 @@
     // ---- the statement --------------------------------------------------
 
     function drawSay(state, tasks) {
-      var working = tasks.filter(function (card) { return card.kind !== "finished"; }).length;
+      var working = tasks.filter(isWorking).length;
       var word = working > 0 ? working + " working" : "All done";
       var line = working > 0 ? "" : tasks.length === 1 ? "The task is finished" : tasks.length + " tasks finished";
       var key = word + "|" + line;
