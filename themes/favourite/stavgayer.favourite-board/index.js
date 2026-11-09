@@ -90,11 +90,15 @@
     return SPARE_COLOURS[Math.abs(hash) % SPARE_COLOURS.length];
   }
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   // The five states of the design, from the view state.
   function moodOf(state) {
     if (state.display !== "main" || state.cards.length === 0) return "rest";
     if (state.cards.some(function (card) { return card.kind === "approval"; })) return "call";
-    return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
+    return state.cards.some(isWorking) ? "work" : "done";
   }
 
   // The limits that can be read, from left to right: by state.agentOrder, then each
@@ -286,7 +290,10 @@
     switch (card.kind) {
       case "running": return { word: "working", since: since(card.started_at_ms, nowMs) };
       case "approval": return { word: "waiting", since: since(card.approval_since_ms, nowMs) };
-      case "finished": return { word: "done", since: Number.isFinite(card.updated_at_ms) ? (nowMs - card.updated_at_ms < MINUTE ? "just now" : duration(nowMs - card.updated_at_ms) + " ago") : "" };
+      case "finished":
+        var jobs = jobsOf(card);
+        if (jobs > 0) return { word: jobs + (jobs === 1 ? " job running" : " jobs running"), since: since(card.started_at_ms, nowMs) };
+        return { word: "done", since: Number.isFinite(card.updated_at_ms) ? (nowMs - card.updated_at_ms < MINUTE ? "just now" : duration(nowMs - card.updated_at_ms) + " ago") : "" };
       case "no_activity": return { word: "quiet", since: since(card.updated_at_ms, nowMs) };
       default: return { word: "", since: "" };
     }

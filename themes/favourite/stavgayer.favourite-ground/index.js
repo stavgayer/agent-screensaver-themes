@@ -103,11 +103,15 @@
     return SPARE_COLOURS[Math.abs(hash) % SPARE_COLOURS.length];
   }
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   // The five states of the design, from the view state.
   function moodOf(state) {
     if (state.display !== "main" || state.cards.length === 0) return "rest";
     if (state.cards.some(function (card) { return card.kind === "approval"; })) return "call";
-    return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
+    return state.cards.some(isWorking) ? "work" : "done";
   }
 
   // The limits that can be read, from left to right: by state.agentOrder, then each
@@ -689,7 +693,7 @@
         key: key,
         colour: rgbOf(agentColour(card.source)),
         startedMs: card.started_at_ms,
-        endMs: card.kind === "finished" ? card.updated_at_ms : null, // finished: the depth stops here
+        endMs: isWorking(card) ? null : card.updated_at_ms, // finished: the depth stops here
         // The daggers already there when the screen saver starts do not stab in.
         bornMs: firstState ? -Infinity : nowMs,
         glintMs: -Infinity,
@@ -720,7 +724,7 @@
         var key = stay[index], x = slotX(index, cards.length);
         var dagger = byKey[key] || newDagger(card, key, x, moveAt);
         delete byKey[key];
-        var finished = card.kind === "finished";
+        var finished = !isWorking(card); // jobs still running: it keeps sinking and does not glint
         if (finished && dagger.endMs === null) { dagger.endMs = state.nowMs; dagger.glintMs = nowMs; }
         if (!finished) dagger.endMs = null;
         dagger.startedMs = card.started_at_ms;
