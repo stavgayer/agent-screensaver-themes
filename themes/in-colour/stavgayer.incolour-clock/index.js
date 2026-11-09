@@ -3,6 +3,10 @@
 // shows the time large, so this corner stays empty. It checks the clock once
 // a second and writes only on change.
 (function () {
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   var scriptSrc = (document.currentScript && document.currentScript.src) || "";
   var base = scriptSrc.replace(/[^/]*$/, "");
   var WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -56,7 +60,7 @@
       },
       update: function (state) {
         if (!box) return;
-        var busy = state.cards.some(function (card) { return card.kind !== "finished"; });
+        var busy = state.cards.some(isWorking);
         box.classList.toggle("rest", !busy);
         box.classList.toggle("away", state.cards.length === 0);
       },

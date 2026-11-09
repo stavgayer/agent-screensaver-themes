@@ -10,7 +10,7 @@ Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/r
 
 | State | Still |
 |---|---|
-| Agents working: the full spectrum turns very slowly. One white card per task, with a band in the agent's own hue. | ![Working](media/working.jpg) |
+| Agents working: the full spectrum turns very slowly. One white card per task, with a band in the agent's own hue. A finished task that still runs background jobs counts as working and says `N jobs running`. | ![Working](media/working.jpg) |
 | All done: a dark veil settles on the wheel, and `ALL DONE` shows in white. | ![Done](media/done.jpg) |
 | An agent waits for you: the agent's hue blooms from the centre and one large card shows the command. | ![Needs you](media/approval.jpg) |
 | Nothing running: the dark wheel, the time very large, and the date. | ![Idle](media/idle.jpg) |

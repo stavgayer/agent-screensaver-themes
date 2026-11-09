@@ -10,6 +10,10 @@
 // Only transform (the turn) and opacity (the mono wheel, the veil) animate,
 // with one CSS animation and short WAAPI moves. No script runs per frame.
 (function () {
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   var SPECTRUM = [
     "#fbd713", "#f7a416", "#f07915", "#e6471d", "#e7302a", "#dd0834", "#df0655", "#e0186e",
     "#da0581", "#bc107e", "#89207f", "#5c2578", "#3e287b", "#193e8f", "#1d61ac", "#2784c7",
@@ -171,7 +175,7 @@
         if (!box) return;
         var waiting = state.display === "main" ? state.cards.filter(function (card) { return card.kind === "approval"; }) : [];
         waiting.sort(function (a, b) { return (a.approval_since_ms || Infinity) - (b.approval_since_ms || Infinity); });
-        var busy = state.cards.some(function (card) { return card.kind !== "finished"; });
+        var busy = state.cards.some(isWorking);
         var next = waiting.length > 0 ? "call" : busy ? "work" : "rest";
         if (next === "call") {
           var hue = hueOf(waiting[0].source);

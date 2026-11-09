@@ -7,6 +7,10 @@
 // dimmed and says its age, an estimate says "est.", and a window that reset
 // since the reading is empty and says "Reset". Time comes from state.nowMs.
 (function () {
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   var scriptSrc = (document.currentScript && document.currentScript.src) || "";
   var base = scriptSrc.replace(/[^/]*$/, "");
   var MINUTE = 60000;
@@ -169,7 +173,7 @@
       },
       update: function (state) {
         if (!box) return;
-        var busy = state.cards.some(function (card) { return card.kind !== "finished"; });
+        var busy = state.cards.some(isWorking);
         box.classList.toggle("rest", !busy);
         box.classList.toggle("big", state.cards.length === 0);
         box.hidden = state.limits.length === 0;
