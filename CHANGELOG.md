@@ -2,6 +2,18 @@
 
 The release notes of agent-screensaver-themes, newest first. This file is where they are written: the message of each release tag is made from the section of its version, and CI refuses to release a version that has no section here. See the README for how to release.
 
+## v1.4.1 (2026-11-09)
+
+## Background jobs keep a task working
+
+When a Claude Code turn ends but jobs it started still run in the background (shells, subagents, monitors), the task is not done yet. Every theme now shows such a task as working: its card says "3 jobs running" (or "1 job running") and its part of the picture keeps moving like a running task. "All done" comes only when nothing is working. Before, these tasks showed as done.
+
+New versions: Currents 1.4.1, Prism 1.2.1, Favourite 1.4.1, In Colour 1.2.1, Kid A 1.3.1, Pablo 2.3.1, Piñata 1.1.1, Key of Life 1.2.1, Unknown Pleasures 1.3.1. Install the new zip over the old one to update. Each still needs agent-screensaver 0.5.0 or later.
+
+## Also
+
+- The create-agent-screensaver-theme skill (1.5.0) teaches the rule: the view state's `background` field, a helper in the starter, and a `jobs=N` parameter in the preview page to test it.
+
 ## v1.4.0 (2026-11-08)
 
 ## New theme: Favourite
