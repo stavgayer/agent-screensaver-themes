@@ -193,12 +193,18 @@
     return (agent && agent.name) || source.charAt(0).toUpperCase() + source.slice(1);
   }
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   function since(card, nowMs) {
     switch (card.kind) {
       case "running":
         var ran = nowMs - card.started_at_ms;
         return { done: false, text: ran < MINUTE ? "under 1 min" : compact(ran) };
       case "finished":
+        var jobs = jobsOf(card);
+        if (jobs > 0) return { done: false, text: jobs + (jobs === 1 ? " job running" : " jobs running") };
         var ago = compact(nowMs - card.updated_at_ms);
         return { done: true, text: ago === "now" ? "done now" : "done " + ago + " ago" };
       case "no_activity":
@@ -268,7 +274,7 @@
     // ---- the count ------------------------------------------------------
 
     function drawSay(tasks) {
-      var working = tasks.filter(function (card) { return card.kind !== "finished"; }).length;
+      var working = tasks.filter(isWorking).length;
       var finished = tasks.length - working;
       var text = working > 0 ? working + " working" : "All done";
       var line = working > 0 ? (finished > 0 ? finished + " done" : "") : tasks.length === 1 ? "The task is finished" : tasks.length + " tasks finished";

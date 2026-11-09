@@ -129,9 +129,13 @@
     });
   }
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   // How busy a task is, 0 to 1: it grows with the time it has run, full after 40 minutes.
   function busyOf(card, nowMs) {
-    if (card.kind === "finished") return 0;
+    if (!isWorking(card)) return 0;
     if (card.kind !== "running") return 0.35;
     var ran = Math.max(0, nowMs - card.started_at_ms);
     return Math.sqrt(Math.min(1, ran / (40 * 60000)));
@@ -262,7 +266,7 @@
     function moodOf(state) {
       if (state.display !== "main" || state.cards.length === 0) return "rest";
       if (waitingOf(state.cards).length > 0) return "call";
-      return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "done";
+      return state.cards.some(isWorking) ? "work" : "done";
     }
 
     function want(key, goal, order) {
@@ -308,7 +312,7 @@
         var waiting = next === "call" ? waitingOf(state.cards)[0] : undefined;
         var weights = list.map(function (entry) {
           var busy = busyOf(entry.card, state.nowMs);
-          return entry.card.kind === "finished" ? 0.28 : 0.5 + busy;
+          return isWorking(entry.card) ? 0.5 + busy : 0.28;
         });
         var sum = weights.reduce(function (x, y) { return x + y; }, 0) || 1, at = 0;
         list.forEach(function (entry, i) {
@@ -316,7 +320,7 @@
           var f0 = at / sum, f1 = (at + weights[i]) / sum;
           at += weights[i];
           var a = g.face(g.uTop + (g.uBot - g.uTop) * f0), b = g.face(g.uTop + (g.uBot - g.uTop) * f1);
-          var busy = busyOf(card, state.nowMs), done = card.kind === "finished";
+          var busy = busyOf(card, state.nowMs), done = !isWorking(card);
           var thick = (done ? 0.006 : 0.012 + 0.032 * busy) * g.h;
           var c = rgbOf(entry.hue.band), alpha = 1;
           if (done) {
