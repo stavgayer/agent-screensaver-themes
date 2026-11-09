@@ -109,3 +109,14 @@ A reviewer read this document as a builder. These are the answers to its questio
 - The exact agent colours, the plain text face and the monospace face.
 - How the face, the eyes, the daggers and the spikes are drawn in the shader, as long as the result follows the measured facts.
 - Exact sizes, spacing and timings, inside the rules above.
+
+## Owner change after the first build (2026-11-09)
+
+The owner saw the stills. Everything but the heart was approved. The heart looked like a cartoon: on the cover it is more metallic and more oval, and its face is not a cartoon. These decisions replace every mention of the face, the eyes and the lip above:
+
+- **No face.** The heart has no eyes, no lips and no face of any kind.
+- **Pink chrome.** The heart is a mirror-like metal surface tinted the cover's pinks (`#d34d68`, `#eba6b3`). It reflects the blue sky and has sharp, bright highlights. It must read as metal, not as glossy plastic.
+- **Oval.** The heart is wider than it is tall, about 1.15 : 1, like the album's heart.
+- **Needs you.** The one move is now the chrome flooding with lime: the heart's reflections take the lime `#9bf95e` as if a lime light came on, and the sky darkens as before. Nothing pulses. Everything else in needs-you stays as it was (lime waiting daggers, other daggers dim, cards fade, the large card).
+- **The song.** The drip is a drop of liquid chrome that hangs from the heart's bottom point. It grows as the song plays and falls when it ends; it hangs at half length when the song has no length.
+- **Reduce motion.** The lime flood cross-fades in and out.
