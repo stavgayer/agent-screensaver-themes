@@ -1,7 +1,7 @@
 {
   "id": "stavgayer.favourite-layout",
   "name": "Favourite layout",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "type": "layout",
   "api": 1,
   "requires": "0.5.0",

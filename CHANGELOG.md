@@ -2,6 +2,14 @@
 
 The release notes of agent-screensaver-themes, newest first. This file is where they are written: the message of each release tag is made from the section of its version, and CI refuses to release a version that has no section here. See the README for how to release.
 
+## v1.4.2 (2026-11-09)
+
+## Favourite flows more smoothly
+
+Favourite's liquid heart now draws 24 frames a second by default, up from 12, so its flowing outline, swaying spikes and swinging drip move smoothly. To use less power, set the background's `fps` option lower in the settings window, or raise it up to 30 for the smoothest motion.
+
+New version: Favourite 1.4.2. Install the new `favourite.zip` over the old one to update. The other eight themes are unchanged.
+
 ## v1.4.1 (2026-11-09)
 
 ## Background jobs keep a task working

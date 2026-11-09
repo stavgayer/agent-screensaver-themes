@@ -1,7 +1,7 @@
 {
   "id": "stavgayer.favourite-ground",
   "name": "Favourite sky",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "type": "background",
   "api": 2,
   "requires": "0.5.0",
@@ -9,7 +9,7 @@
   "options": {
     "fps": {
       "type": "number",
-      "default": 12,
+      "default": 24,
       "min": 1,
       "max": 30,
       "label": "Frames per second of the sky"

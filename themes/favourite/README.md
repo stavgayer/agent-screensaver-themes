@@ -29,7 +29,7 @@ Each agent owns one colour from the cover: Claude red `#d34d68`, Codex sea green
 - The daggers and the spikes are polished steel. Like a mirror, they show the sky above and the heart's pink below, with a bright line where the two meet, sharp white highlights, and darker steel at their edges. The daggers follow the cover's shape: a slim blade with two faces that meet in a ridge, a steeper bevel at each edge and a sharp bright line along its lit edge, a long, thin crossguard whose ends flare, a plain steel grip and a round pommel. A thin band on the grip is in the agent's colour (lime while that agent waits for you). With six or seven tasks the daggers are drawn a little smaller, with shorter crossguards, so they do not overlap. Where a blade goes into the heart, the liquid climbs it a little, small ripples run out from it, and the blade casts a soft shadow on the skin.
 - The whole picture drifts a few pixels over minutes, so no pixel stays lit in one place. Option `drift` sets the minutes for one drift (4 by default).
 - One move for each event. A new task stabs a dagger in with one short move. A finished task glints once. When an agent needs you, lime floods the heart's highlights and the sky goes deep blue, both over about a second. Nothing pulses.
-- The background is one WebGL shader. It draws at three quarters of the screen's size (option `scale`, 0.75 by default), so the steel edges stay crisp. It draws 12 frames a second (option `fps`, at most 30), and it starts again on its own if the graphics card resets.
+- The background is one WebGL shader. It draws at three quarters of the screen's size (option `scale`, 0.75 by default), so the steel edges stay crisp. It draws 24 frames a second so the liquid flows smoothly (option `fps`, at most 30), and it starts again on its own if the graphics card resets.
 - With "Reduce motion" on in macOS, the picture stands still: the heart does not flow, breathe or drift, the spikes do not sway, the liquid around the blades does not ripple, and the picture is drawn again only when something changes. The drip still gets longer as the song plays, without swinging, and it fades out when the song ends. The lime cross-fades in and out, and daggers fade in and out instead of moving.
 
 ## What is in this folder
@@ -69,7 +69,7 @@ This removes the theme and its parts that no other theme uses.
 To use less power, lower the frame rate or the render scale. To move the picture more slowly, raise the minutes for one drift:
 
 ```
-agent-screensaver option set stavgayer.favourite-ground fps 10
+agent-screensaver option set stavgayer.favourite-ground fps 12
 agent-screensaver option set stavgayer.favourite-ground scale 0.35
 agent-screensaver option set stavgayer.favourite-ground drift 8
 ```

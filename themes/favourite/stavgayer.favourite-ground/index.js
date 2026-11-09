@@ -671,7 +671,7 @@
 
   window.agentScreensaver.register(function () {
     var box, style, canvas, gl, uniforms = {}, cancelFrame, ctx, lastState;
-    var fps = 12, scale = 0.75, driftMs = 4 * 60000, dirty = true, startMs = 0;
+    var fps = 24, scale = 0.75, driftMs = 4 * 60000, dirty = true, startMs = 0;
     var frame, display = "main";
     var skyTop = tween(0); // 0 resting, 1 while an agent waits: the deep sky and the lime light
     var REST_TOP = rgbOf(SKY[0]), CALL_TOP = rgbOf(DEEP_SKY);
