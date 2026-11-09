@@ -6,9 +6,10 @@
 //   to its deepest blue;
 //   second display: the sky and the heart.
 // Each task is a polished steel dagger stuck in the heart's top edge, shaped
-// like the cover's, with a thin band in the agent's colour on its grip. It stabs in, sinks slowly over the first
-// hour, glints once when the task is finished, turns lime while its agent waits
-// (the others dim), and slides out and falls when the task leaves. Where the
+// like the cover's, with a thin band in the agent's colour on its grip. It stabs
+// in, sinks slowly over the first hour, glints once when the task is finished,
+// its grip band turns lime while its agent waits (the others dim), and it slides
+// out and falls when the task leaves. Where the
 // blade goes in, the liquid climbs it a little, ripples and takes its shadow.
 // Each usage limit is a steel thorn coming out of the heart's bottom, longer the
 // more of the limit is used, with the agent's colour as a thin tint at its root.
@@ -242,7 +243,7 @@
   // the heart in one smooth surface. It swings and stretches as the point moves,
   // a moment behind it. The drop breaks off and falls once when the song passes 99%.
   var DRIP = {
-    full: 0.13, // the thread's length at the song's end: about as long as a full spike
+    full: 0.13, // the thread's length at the song's end: about half a full spike
     drop: 0.03, // the drop's radius at the song's end
     bud: 0.4, // the share of it at the song's start, a swelling of the point
     fallAt: 0.99,
@@ -588,7 +589,7 @@
     // and to the right of it, away from the light.
     "    float side = max(abs(u.x) - w, 0.0);",
     "    float ring = length(vec2(u.x, 2.4 * d));",
-    "    float wave = uMotion * sin(ring * 170.0 - uWobble * 5.0) * exp(-ring / 0.04) * smoothstep(0.0, 0.01, side);",
+    "    float wave = uMotion * sin(ring * 170.0 - uWobble * 5.0) * exp(-ring / 0.04) * smoothstep(0.0, 0.01, side) * smoothstep(GUARD_L + 0.01, GUARD_L - 0.02, abs(u.x)); // gone before the dagger's box ends",
     "    float lip = 0.012 * exp(-pow(side / 0.016, 2.0)) * (1.0 + 0.35 * wave);",
     "    float wet = 1.0 - smoothstep(-px, px, d - lip);",
     "    float onSkin = 1.0 - smoothstep(-px, px, d);",
@@ -678,6 +679,7 @@
     var dagHandle = new Float32Array(DAGGER_SLOTS * 4);
     var spikeShape = new Float32Array(SPIKE_SLOTS * 4), spikeTint = new Float32Array(SPIKE_SLOTS * 3);
     var spikeDir = new Float32Array(SPIKE_SLOTS * 2), spikeX = new Float32Array(SPIKE_SLOTS); // where each thorn hangs
+    var spikeRest = new Float32Array(SPIKE_SLOTS); // the still heart's slope where each thorn comes out
     // The song the drip follows (none on the second display or while an agent
     // waits), when the drop began to fall, and the drip as last drawn.
     var song = null, fellMs = null, drawnDrip = "";
@@ -792,6 +794,7 @@
         var x = spikeOffset(index, count), used = usedPercent(limit, state.nowMs) / 100;
         var length = SPIKE.full * (SPIKE.least + (1 - SPIKE.least) * used);
         spikeX[index] = x;
+        spikeRest[index] = slopeAt(x, bottomAt(x, 0, 0), 0, 0);
         spikeShape.set([x, 0, SPIKE.inset + length, width], index * 4);
         spikeTint.set(rgbOf(agentColour(limit.source)), index * 3);
       });
@@ -813,7 +816,7 @@
       for (var i = 0; i < SPIKE_SLOTS; i++) {
         var o = i * 4, x = spikeX[i];
         if (spikeShape[o + 2] <= 0) continue;
-        var y = bottomAt(x, t, amount), rest = slopeAt(x, bottomAt(x, t, 0), t, 0);
+        var y = bottomAt(x, t, amount), rest = spikeRest[i];
         var angle = SPIKE.splay * rest + SPIKE.sway * (slopeAt(x, y, t, amount) - rest);
         var dx = Math.sin(angle), dy = -Math.cos(angle);
         spikeDir.set([dx, dy], i * 2);
