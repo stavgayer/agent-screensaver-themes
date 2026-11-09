@@ -56,6 +56,10 @@
     return out;
   }
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return Number.isFinite(card.background) && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   function waitingOf(state) {
     return state.cards.filter(function (card) { return card.kind === "approval"; }).sort(function (a, b) {
       return (a.approval_since_ms || Infinity) - (b.approval_since_ms || Infinity);
@@ -80,7 +84,7 @@
       var busy = state.cards.slice(0, MAX_PEAKS - 2);
       var step = 46 / Math.max(1, busy.length);
       return calmRange.slice(0, 2).concat(busy.map(function (card, i) {
-        var done = card.kind === "finished";
+        var done = !isWorking(card);
         return { key: card.source + "\u0000" + card.session, x: (52 + step * (i + 0.5)) * m.vw, half: Math.min(15, step * 0.7) * m.vw,
           height: (40 + 8 * ((i + 1) % 2)) * m.vh, melt: done ? 0 : 1, task: 1, hue: hueOf(card.source) };
       }));
@@ -92,7 +96,7 @@
     }
     var slots = cardSlots(state.cards.length, m);
     return state.cards.map(function (card, i) {
-      var done = card.kind === "finished";
+      var done = !isWorking(card);
       // A peak grows with the time its task has run, from a hill to a summit in 40 minutes.
       var ran = Math.max(0, (done ? card.updated_at_ms : state.nowMs) - card.started_at_ms);
       var grown = Math.min(1, ran / (40 * 60000));
@@ -397,7 +401,7 @@
       if (state.cards.length === 0) return "idle";
       if (state.display !== "main") return "away";
       if (state.display === "main" && waitingOf(state).length > 0) return "call";
-      return state.cards.some(function (card) { return card.kind !== "finished"; }) ? "work" : "rest";
+      return state.cards.some(isWorking) ? "work" : "rest";
     }
 
     // From screen px to the shader's units: y up from the bottom of the canvas, one unit per canvas height.

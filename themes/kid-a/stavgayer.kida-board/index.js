@@ -142,11 +142,17 @@
     return (agent && agent.name) || source.charAt(0).toUpperCase() + source.slice(1);
   }
 
+  // A finished turn with background jobs still running is still working.
+  function jobsOf(card) { return Number.isFinite(card.background) && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
+
   function taskState(card, nowMs) {
     switch (card.kind) {
       case "running":
         return { tone: "working", word: "Working", since: duration(nowMs - card.started_at_ms) };
       case "finished":
+        var jobs = jobsOf(card);
+        if (jobs > 0) return { tone: "working", word: jobs + (jobs === 1 ? " job running" : " jobs running"), since: typeof card.started_at_ms === "number" ? duration(nowMs - card.started_at_ms) : "" };
         var ago = nowMs - card.updated_at_ms;
         return { tone: "done", word: "Done", since: ago < MINUTE ? "just now" : duration(ago) + " ago" };
       case "no_activity":
@@ -319,7 +325,7 @@
       var date = WEEKDAYS[moment.getDay()] + " " + moment.getDate() + " " + MONTHS[moment.getMonth()];
       if (show === "time" || (tasks.length === 0 && waiting.length === 0)) return { time: true, word: time, sub: date };
       if (waiting.length > 0) return { time: false, word: "Needs you", sub: "", stamp: hueOf(waiting[0].source) };
-      var working = tasks.filter(function (card) { return card.kind !== "finished"; }).length;
+      var working = tasks.filter(isWorking).length;
       if (working === 0) return { time: false, word: "All done", sub: tasks.length === 1 ? "The task is finished" : tasks.length + " tasks finished" };
       return { time: false, word: working + " working", sub: "" };
     }
@@ -552,7 +558,7 @@
       var waiting = show === "time" || state.display !== "main" ? [] : approvals(state.cards);
       // The row keeps every card, the waiting one too, so nothing jumps when the call ends.
       var tasks = show === "time" ? [] : state.cards;
-      var busy = state.cards.some(function (card) { return card.kind !== "finished"; });
+      var busy = state.cards.some(isWorking);
       var next = waiting.length > 0 ? "call" : busy ? "work" : "rest";
       if (next !== mood) {
         box.classList.remove("work", "call", "rest");

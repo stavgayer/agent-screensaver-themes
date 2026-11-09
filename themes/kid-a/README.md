@@ -10,7 +10,7 @@ Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/r
 
 | State | Still |
 |---|---|
-| Agents working: one ridge per task, right above its card. The ridge grows with the time the task has run. The agent's colour runs down the face in thin stains, a small pixel fire burns over the summit, and the colour travels along the conduits under the range. `3 WORKING`, and one card per task in a frame of nested lines, with a pixel stamp `WORKING` in the agent's colour. | ![Working](media/working.jpg) |
+| Agents working: one ridge per task, right above its card. The ridge grows with the time the task has run. The agent's colour runs down the face in thin stains, a small pixel fire burns over the summit, and the colour travels along the conduits under the range. `3 WORKING`, and one card per task in a frame of nested lines, with a pixel stamp `WORKING` in the agent's colour. A finished task that still runs background jobs counts as working and says `N JOBS RUNNING`. | ![Working](media/working.jpg) |
 | All done: the stains stop, the fires go out, and the ridges freeze white. Soot marks stay in the snow. The cards turn to snow, with a stamp `DONE`. `ALL DONE`. | ![Done](media/done.jpg) |
 | An agent waits for you: its ridge stands tall, a great fire burns over it, the sky and the dots turn its colour, and the conduits fill. A pixel stamp `NEEDS YOU`, then one wide card: the agent, how long it has waited, the exact command, the project. | ![Needs you](media/approval.jpg) |
 | Nothing running: the range comes down to the foot of the screen and fills it, with no colour, under a wide dot sky. The time very large, the date, and the limit rings grow. | ![Idle](media/idle.jpg) |
