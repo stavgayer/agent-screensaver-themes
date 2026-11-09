@@ -138,3 +138,12 @@ The owner saw the first liquid heart and said it did not move. The owner then sh
 - **Visible motion.** The outline flows and bulges by about 5 to 8% of the heart's size, in waves of about 6 to 14 s, made of waves feeding into waves. It stays calmer near the point so the point stays a point.
 - **A liquid surface.** The light on the heart flows and swirls (domain-warped noise), with sharp chrome-like glints and the blue sky reflected in the darker parts. The separate 30 s sheen is gone; the flowing light replaces it.
 - **Calmer while an agent needs you.** The outline wobble is halved in needs-you, so the heart keeps its lobes and dip. It eases in and out with the lime.
+
+## Fourth owner change (2026-11-09)
+
+The owner said the drip and the spikes are static and look like they do not belong, and the daggers look cartoonish. Decisions:
+
+- **Spikes are silver steel**, like the cover: polished metal thorns that come out of the heart's surface, reflect the sky and the pink skin, and sway with the liquid as they ride its moving edge. The limit still sets each spike's length; the agent colour moves to a thin tint near its root.
+- **Daggers are real polished steel.** No outline and no flat colours: a bevelled blade with chrome reflections of the sky and the heart, sharp highlights, and a soft shadow and a small ripple in the liquid where the blade goes in. The agent's colour stays on the handle as tinted metal or a wrapped grip; lime still marks a waiting agent.
+- **The drip is the heart's own liquid.** It grows out of the bottom point with no seam (one smooth surface), sways and stretches with the wobble, slowly forms a drop as the song plays, and the drop breaks off and falls when the song ends. With no song there is no drip.
+- Reduce motion: no sway, no ripple; the drip still changes length without moving.
