@@ -34,7 +34,7 @@
   var GAP = 3; // quiet lines at the back of each band, between it and the band behind
 
   // A finished turn with background jobs still running is still working.
-  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function jobsOf(card) { return Number.isFinite(card.background) && card.background > 0 ? Math.floor(card.background) : 0; }
   function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
   // Each agent's pulse has its own shape, so a band reads as that agent from across a room.
   var SIGNATURE = { claude: 0, codex: 1, cursor: 2 }; // 0 needles, 1 twin shoulders, 2 a comb of teeth

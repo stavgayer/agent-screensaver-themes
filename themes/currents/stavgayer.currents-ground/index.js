@@ -23,7 +23,7 @@
   var MAX_BALLS = 8;
 
   // A finished turn with background jobs still running is still working.
-  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function jobsOf(card) { return Number.isFinite(card.background) && card.background > 0 ? Math.floor(card.background) : 0; }
   function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
   // Shared with the shader below.
   var SLANT = 27, PERSP = 0.24, MARGIN = 3; // degrees, perspective strength, vmin of slack for the drift

@@ -4,7 +4,7 @@
 // a second and writes only on change.
 (function () {
   // A finished turn with background jobs still running is still working.
-  function jobsOf(card) { return typeof card.background === "number" && card.background > 0 ? Math.floor(card.background) : 0; }
+  function jobsOf(card) { return Number.isFinite(card.background) && card.background > 0 ? Math.floor(card.background) : 0; }
   function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
 
   var scriptSrc = (document.currentScript && document.currentScript.src) || "";
