@@ -189,6 +189,7 @@
     swells: [
       [0.06, 2.3, -1.8, 0.47, 0.7],
     ],
+    call: 0.5, // the share of the outline's wobble left while an agent waits, so the heart never swells into a bun
     calm: [0.25, -0.34, 0.05], // near the point the wobble shrinks to this share, from y = -0.34 up to 0.05, so the point stays a point
     still: 0, // the moment shown with "Reduce motion" (set below: the calmest moment)
   };
@@ -283,9 +284,10 @@
     return o;
   }
 
-  // How far the wobble moves the heart at (x, y) at moment t (seconds), as [x, y]:
-  // the same sums as wobble() in the shader.
-  function wobbleAt(x, y, t) {
+  // How far the wobble moves the heart at (x, y) at moment t (seconds), as [x, y],
+  // scaled by `amount` (1 unless given; less while an agent waits): the same sums
+  // as wobble() in the shader.
+  function wobbleAt(x, y, t, amount) {
     var o = wavesAt(WOBBLE.waves, x, y, t, [0, 0]);
     var mx = x + o[0], my = y + o[1]; // where the second layer is read
     wavesAt(WOBBLE.flow, mx, my, t, o);
@@ -296,6 +298,7 @@
     });
     var c = WOBBLE.calm, k = Math.min(1, Math.max(0, (y - c[1]) / (c[2] - c[1])));
     var calm = c[0] + (1 - c[0]) * k * k * (3 - 2 * k); // a smoothstep, as in the shader
+    calm *= amount === undefined ? 1 : amount;
     return [o[0] * calm, o[1] * calm];
   }
 
@@ -317,24 +320,24 @@
   })();
 
   // The moving heart's distance at (x, y), as the shader draws it at moment t.
-  function fieldAt(x, y, t) {
-    var o = wobbleAt(x, y, t);
+  function fieldAt(x, y, t, amount) {
+    var o = wobbleAt(x, y, t, amount);
     return heartField(x - o[0], y - o[1]);
   }
 
   // Where the moving heart's edge crosses the line at x, between y = 0 (inside)
   // and y = `to` (outside), found by halving: the daggers, the spikes and the drip
   // stand on exactly the edge the shader draws.
-  function crossing(x, to, t) {
+  function crossing(x, to, t, amount) {
     var inside = 0, outside = to;
     for (var i = 0; i < 22; i++) {
       var y = 0.5 * (inside + outside);
-      if (fieldAt(x, y, t) < 0) inside = y; else outside = y;
+      if (fieldAt(x, y, t, amount) < 0) inside = y; else outside = y;
     }
     return 0.5 * (inside + outside);
   }
-  function edgeAt(x, t) { return crossing(x, 0.6, t); } // the top edge above x
-  function bottomAt(x, t) { return crossing(x, -0.6, t); } // the bottom edge under x
+  function edgeAt(x, t, amount) { return crossing(x, 0.6, t, amount); } // the top edge above x
+  function bottomAt(x, t, amount) { return crossing(x, -0.6, t, amount); } // the bottom edge under x
 
   // A value that eases to a new goal over a given time, read at any moment.
   function tween(value) {
@@ -374,6 +377,7 @@
     "uniform vec3 uSkyTop;   // the top colour of the sky",
     "uniform float uLime;    // 0 to 1: the lime light that floods the heart's reflections while an agent waits",
     "uniform float uWobble;  // the wobble's clock, seconds (stands still with Reduce motion)",
+    "uniform float uWobbleAmount; // the share of the outline's wobble: 1, less while an agent waits",
     "uniform vec4 uDagPose[" + DAGGER_SLOTS + "];   // the tip, and the way the blade points up",
     "uniform vec4 uDagLook[" + DAGGER_SLOTS + "];   // opacity (0: no dagger), glint (below 0: none), lime, dim",
     "uniform vec4 uDagHandle[" + DAGGER_SLOTS + "]; // the handle's agent colour, and 1 while it is stuck in the heart",
@@ -420,7 +424,7 @@
   ], WOBBLE.flow.map(function (w) { return glslWave(w, "m"); }), WOBBLE.swells.map(function (w) {
     return "  o += p * " + glsl(w[0]) + " * sin(" + glsl(w[1]) + " * m.x + " + glsl(w[2]) + " * m.y + " + glsl(w[3]) + " * uWobble + " + glsl(w[4]) + ");";
   }), [
-    "  return o * mix(" + glsl(WOBBLE.calm[0]) + ", 1.0, smoothstep(" + glsl(WOBBLE.calm[1]) + ", " + glsl(WOBBLE.calm[2]) + ", p.y));",
+    "  return o * uWobbleAmount * mix(" + glsl(WOBBLE.calm[0]) + ", 1.0, smoothstep(" + glsl(WOBBLE.calm[1]) + ", " + glsl(WOBBLE.calm[2]) + ", p.y));",
     "}",
     "float body(vec2 p) { return heart(p - wobble(p)); }",
     // The liquid's surface flow: cheap value noise in two octaves, warped by
@@ -601,7 +605,7 @@
     "}",
   ]).join("\n");
 
-  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uLime", "uWobble", "uDagPose", "uDagLook", "uDagHandle", "uLine", "uSpike", "uSpikeTint", "uDrip", "uDripAt"];
+  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uLime", "uWobble", "uWobbleAmount", "uDagPose", "uDagLook", "uDagHandle", "uLine", "uSpike", "uSpikeTint", "uDrip", "uDripAt"];
 
   function compile(gl, type, source) {
     var shader = gl.createShader(type);
@@ -680,7 +684,7 @@
     function leaveMs() { return reduce.matches ? FADE_MS : FALL_MS; }
 
     // One dagger this moment: its tip and direction, how it looks, and whether it is stuck.
-    function placeDagger(dagger, nowMs, slot, t) {
+    function placeDagger(dagger, nowMs, slot, t, amount) {
       var still = reduce.matches, x = dagger.x.at(nowMs), lean = x * DAGGER.lean;
       var depth = depthOf((dagger.endMs === null ? nowMs : dagger.endMs) - dagger.startedMs);
       var under = DAGGER.stuck + depth * (DAGGER.blade / 3 - DAGGER.stuck); // the blade inside the heart: a third at full depth
@@ -704,7 +708,7 @@
       }
       // The blade goes in at the edge above its slot; it tumbles around its balance point.
       var reach = rise - under + DAGGER.middle;
-      var mx = x + Math.sin(lean) * reach + drift, my = edgeAt(x, t) + Math.cos(lean) * reach - drop;
+      var mx = x + Math.sin(lean) * reach + drift, my = edgeAt(x, t, amount) + Math.cos(lean) * reach - drop;
       var o = slot * 4, upX = Math.sin(lean + tumble), upY = Math.cos(lean + tumble);
       var glint = (nowMs - dagger.glintMs) / GLINT_MS;
       dagPose.set([mx - upX * DAGGER.middle, my - upY * DAGGER.middle, upX, upY], o);
@@ -712,11 +716,11 @@
       dagHandle.set([dagger.colour[0], dagger.colour[1], dagger.colour[2], stuck], o);
     }
 
-    function placeDaggers(nowMs, t) {
+    function placeDaggers(nowMs, t, amount) {
       var wait = leaveMs();
       daggers = daggers.filter(function (dagger) { return dagger.leftMs === null || nowMs - dagger.leftMs < wait; });
       dagLook.fill(0);
-      daggers.slice(0, DAGGER_SLOTS).forEach(function (dagger, slot) { placeDagger(dagger, nowMs, slot, t); });
+      daggers.slice(0, DAGGER_SLOTS).forEach(function (dagger, slot) { placeDagger(dagger, nowMs, slot, t, amount); });
     }
 
     function daggersMoving(nowMs) {
@@ -741,17 +745,17 @@
       });
     }
 
-    function placeSpikes(t) {
+    function placeSpikes(t, amount) {
       for (var o = 0; o < spikeShape.length; o += 4) {
-        if (spikeShape[o + 2] > 0) spikeShape[o + 1] = bottomAt(spikeShape[o], t) + SPIKE.inset;
+        if (spikeShape[o + 2] > 0) spikeShape[o + 1] = bottomAt(spikeShape[o], t, amount) + SPIKE.inset;
       }
     }
 
     // Where the drip leaves the heart: just inside its bottom point, which the
     // wobble moves a little to the side.
-    function dripRoot(t) {
-      var x = wobbleAt(0, bottomAt(0, t), t)[0];
-      return [x, bottomAt(x, t) + 0.015];
+    function dripRoot(t, amount) {
+      var x = wobbleAt(0, bottomAt(0, t, amount), t, amount)[0];
+      return [x, bottomAt(x, t, amount) + 0.015];
     }
 
     // The wobble's clock in seconds: frozen at one calm moment with "Reduce motion".
@@ -807,7 +811,10 @@
     }
 
     function render(nowMs, drip) {
-      var at = pose(nowMs), deep = skyTop.at(nowMs), t = wobbleClock(nowMs), root = dripRoot(t);
+      var at = pose(nowMs), deep = skyTop.at(nowMs), t = wobbleClock(nowMs);
+      // While an agent waits the outline calms with the same ease as the sky and
+      // the lime; the surface light keeps flowing.
+      var amount = 1 - (1 - WOBBLE.call) * deep, root = dripRoot(t, amount);
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.uniform2f(uniforms.uRes, canvas.width, canvas.height);
       gl.uniform3f(uniforms.uHeart, at.x, at.y, at.side);
@@ -817,8 +824,9 @@
         REST_TOP[2] + (CALL_TOP[2] - REST_TOP[2]) * deep);
       gl.uniform1f(uniforms.uLime, deep);
       gl.uniform1f(uniforms.uWobble, t);
-      placeDaggers(nowMs, t);
-      placeSpikes(t);
+      gl.uniform1f(uniforms.uWobbleAmount, amount);
+      placeDaggers(nowMs, t, amount);
+      placeSpikes(t, amount);
       gl.uniform4fv(uniforms.uDagPose, dagPose);
       gl.uniform4fv(uniforms.uDagLook, dagLook);
       gl.uniform4fv(uniforms.uDagHandle, dagHandle);
