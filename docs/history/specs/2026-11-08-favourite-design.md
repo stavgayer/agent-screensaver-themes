@@ -130,3 +130,11 @@ The owner shared three references: the *Romance* album heart, the *Favourite* co
 - **The heart shape reads first.** Wide rounded top lobes, a shallow dip between them, sides that taper to a soft, slightly blunt point, wider than tall, as on the *Favourite* cover. It reads as a heart at a glance in every state, including needs-you.
 - **Liquid motion.** The heart is alive like the original Chrome theme's liquid shape: its outline and surface wobble slowly like an inflated balloon or a liquid blob, and its reflections shift with it. The motion is slow and low (a screen saver), never rubbery or fast. Daggers, spikes and the drip stay attached to the moving edge.
 - **Reduce motion.** The heart stands still (no wobble).
+
+## Third owner change (2026-11-09)
+
+The owner saw the first liquid heart and said it did not move. The owner then shared a board of liquid-design references (glossy pink dripping liquid, liquid chrome, flowing blobs) and approved the result. These replace "slow and low" and "soft highlights" above:
+
+- **Visible motion.** The outline flows and bulges by about 5 to 8% of the heart's size, in waves of about 6 to 14 s, made of waves feeding into waves. It stays calmer near the point so the point stays a point.
+- **A liquid surface.** The light on the heart flows and swirls (domain-warped noise), with sharp chrome-like glints and the blue sky reflected in the darker parts. The separate 30 s sheen is gone; the flowing light replaces it.
+- **Calmer while an agent needs you.** The outline wobble is halved in needs-you, so the heart keeps its lobes and dip. It eases in and out with the lime.
