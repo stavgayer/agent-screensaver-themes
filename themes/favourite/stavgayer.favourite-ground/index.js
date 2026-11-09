@@ -14,8 +14,8 @@
 // the heart's pink liquid hanging from its bottom point: it grows with the song
 // and falls once at its end.
 //
-// The heart is liquid: its outline and its surface wobble slowly like an inflated
-// balloon (waves of 20 to 35 s, about 2% of its size), the light sliding over it,
+// The heart is liquid: its outline and its surface flow like an inflated balloon
+// (a two-layer warp of waves of 6 to 14 s, 5 to 8% of its size), the light flowing with it,
 // and the daggers, the spikes and the drip stay on its moving edge. It also
 // breathes (about 1.5% every 8 s), and the whole picture drifts a few pixels over
 // minutes against burn-in. JavaScript works out every moving value and the
@@ -164,24 +164,33 @@
   // How much the height is squashed: the plain shape is 1.207 + 2 * round wide and
   // lobe + lobeRadius + 2 * round tall, in heart units.
   HEART.squash = (HEART.aspect * (HEART.lobe[1] + HEART.lobeRadius + 2 * HEART.round)) / HEART.units;
-  // The liquid wobble: the heart's outline and surface move like an inflated
-  // balloon. A point p of heart space shows the heart at p - wobble(p, t): a sum
-  // of slow waves, each [x amount, y amount, x wave number, y wave number, radians
-  // per second, phase], plus slow swells that grow or shrink the heart around
-  // its centre ([amount, x wave number, y wave number, radians per second, phase]).
-  // Amounts in heart-box sides: about 2% at most. The waves take 20 to 35 s.
+  // The liquid wobble: the heart's outline and surface flow like an inflated
+  // balloon or a liquid blob. A point p of heart space shows the heart at
+  // p - wobble(p, t). The wobble is a domain warp in two layers, so bulges travel
+  // across the surface instead of the outline only shifting:
+  //   waves: slow waves, each [x amount, y amount, x wave number, y wave number,
+  //     radians per second, phase];
+  //   flow: more waves of the same form, read at p moved by the first layer
+  //     (waves feeding into waves);
+  //   swells: grow or shrink the heart around its centre, also read at the moved
+  //     point ([amount, x wave number, y wave number, radians per second, phase]).
+  // Amounts in heart-box sides: together about 5 to 8% of the heart's size. The
+  // waves take 6 to 14 s, so a few seconds of watching show the heart flow.
   var WOBBLE = {
     waves: [
-      [0, 0.009, 2.6, 0.5, 0.29, 0],
-      [0, 0.005, -4.1, 1.1, -0.21, 1.3],
-      [0.008, 0, 0.6, 2.4, 0.25, 0.5],
-      [0.005, 0, -1.2, 3.7, -0.18, 2.1],
+      [0.012, 0.03, 2.4, 0.9, 0.62, 0],
+      [0.026, 0.008, 0.8, 2.7, -0.53, 1.9],
+    ],
+    flow: [
+      [0, 0.022, -3.4, 1.6, 0.81, 0.7],
+      [0.018, 0, 1.3, 3.2, 0.71, 2.6],
+      [0.01, 0.01, 4.1, -2.2, -0.95, 4.2],
     ],
     swells: [
-      [0.02, 2.1, -1.6, 0.2, 0.7],
+      [0.06, 2.3, -1.8, 0.47, 0.7],
     ],
-    calm: [0.3, -0.34, 0.05], // near the point the wobble shrinks to this share, from y = -0.34 up to 0.05, so the point stays a point
-    still: 216.5, // the moment shown with "Reduce motion": the calmest, closest to the still heart
+    calm: [0.25, -0.34, 0.05], // near the point the wobble shrinks to this share, from y = -0.34 up to 0.05, so the point stays a point
+    still: 0, // the moment shown with "Reduce motion" (set below: the calmest moment)
   };
   var BREATH_S = 8, BREATH = 0.015; // one breath every 8 s, ±1.5% of the size
   var DRIFT_VMIN = 0.6; // how far the picture drifts, about 5 px on a laptop
@@ -219,7 +228,7 @@
   // song passes 99%.
   var DRIP = {
     full: 0.13, // the thread's length at the song's end: about as long as a full spike
-    drop: 0.026, // the drop's radius
+    drop: 0.03, // the drop's radius
     fallAt: 0.99,
   };
   var DRIP_FALL_MS = 600;
@@ -231,6 +240,11 @@
 
   // A number as a GLSL float.
   function glsl(value) { return value.toFixed(4); }
+
+  // One wave of WOBBLE as a GLSL line, read at the point named `at`.
+  function glslWave(w, at) {
+    return "  o += vec2(" + glsl(w[0]) + ", " + glsl(w[1]) + ") * sin(" + glsl(w[2]) + " * " + at + ".x + " + glsl(w[3]) + " * " + at + ".y + " + glsl(w[4]) + " * uWobble + " + glsl(w[5]) + ");";
+  }
 
   function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
 
@@ -259,24 +273,48 @@
     return (d - HEART.round) / HEART.units;
   }
 
+  // One layer of waves at (x, y) at moment t, added to `o` ([x, y]).
+  function wavesAt(waves, x, y, t, o) {
+    waves.forEach(function (w) {
+      var s = Math.sin(w[2] * x + w[3] * y + w[4] * t + w[5]);
+      o[0] += w[0] * s;
+      o[1] += w[1] * s;
+    });
+    return o;
+  }
+
   // How far the wobble moves the heart at (x, y) at moment t (seconds), as [x, y]:
   // the same sums as wobble() in the shader.
   function wobbleAt(x, y, t) {
-    var ox = 0, oy = 0;
-    WOBBLE.waves.forEach(function (w) {
-      var s = Math.sin(w[2] * x + w[3] * y + w[4] * t + w[5]);
-      ox += w[0] * s;
-      oy += w[1] * s;
-    });
+    var o = wavesAt(WOBBLE.waves, x, y, t, [0, 0]);
+    var mx = x + o[0], my = y + o[1]; // where the second layer is read
+    wavesAt(WOBBLE.flow, mx, my, t, o);
     WOBBLE.swells.forEach(function (w) {
-      var s = w[0] * Math.sin(w[1] * x + w[2] * y + w[3] * t + w[4]);
-      ox += x * s;
-      oy += y * s;
+      var s = w[0] * Math.sin(w[1] * mx + w[2] * my + w[3] * t + w[4]);
+      o[0] += x * s;
+      o[1] += y * s;
     });
     var c = WOBBLE.calm, k = Math.min(1, Math.max(0, (y - c[1]) / (c[2] - c[1])));
     var calm = c[0] + (1 - c[0]) * k * k * (3 - 2 * k); // a smoothstep, as in the shader
-    return [ox * calm, oy * calm];
+    return [o[0] * calm, o[1] * calm];
   }
+
+  // The calmest moment for "Reduce motion": the smallest wobble over the heart
+  // in the first ten minutes, sampled once at load.
+  WOBBLE.still = (function () {
+    var best = 0, least = Infinity;
+    for (var t = 0; t < 600; t += 0.5) {
+      var sum = 0;
+      for (var x = -0.5; x <= 0.5; x += 0.1) {
+        for (var y = -0.36; y <= 0.36; y += 0.08) {
+          var o = wobbleAt(x, y, t);
+          sum += o[0] * o[0] + o[1] * o[1];
+        }
+      }
+      if (sum < least) { least = sum; best = t; }
+    }
+    return best;
+  })();
 
   // The moving heart's distance at (x, y), as the shader draws it at moment t.
   function fieldAt(x, y, t) {
@@ -377,18 +415,34 @@
     // The wobble and the moving heart, from the same numbers as wobbleAt and fieldAt.
     "vec2 wobble(vec2 p) {",
     "  vec2 o = vec2(0.0);",
-  ].concat(WOBBLE.waves.map(function (w) {
-    return "  o += vec2(" + glsl(w[0]) + ", " + glsl(w[1]) + ") * sin(" + glsl(w[2]) + " * p.x + " + glsl(w[3]) + " * p.y + " + glsl(w[4]) + " * uWobble + " + glsl(w[5]) + ");";
-  }), WOBBLE.swells.map(function (w) {
-    return "  o += p * " + glsl(w[0]) + " * sin(" + glsl(w[1]) + " * p.x + " + glsl(w[2]) + " * p.y + " + glsl(w[3]) + " * uWobble + " + glsl(w[4]) + ");";
+  ].concat(WOBBLE.waves.map(function (w) { return glslWave(w, "p"); }), [
+    "  vec2 m = p + o; // where the second layer is read",
+  ], WOBBLE.flow.map(function (w) { return glslWave(w, "m"); }), WOBBLE.swells.map(function (w) {
+    return "  o += p * " + glsl(w[0]) + " * sin(" + glsl(w[1]) + " * m.x + " + glsl(w[2]) + " * m.y + " + glsl(w[3]) + " * uWobble + " + glsl(w[4]) + ");";
   }), [
     "  return o * mix(" + glsl(WOBBLE.calm[0]) + ", 1.0, smoothstep(" + glsl(WOBBLE.calm[1]) + ", " + glsl(WOBBLE.calm[2]) + ", p.y));",
     "}",
     "float body(vec2 p) { return heart(p - wobble(p)); }",
-    // The heart's skin, airbrushed like the covers: hot pink lit softly from the
+    // The liquid's surface flow: cheap value noise in two octaves, warped by
+    // itself (noise into noise), tilting the surface only. The outline keeps the
+    // wave warp above, which the daggers can follow exactly; this moves only the
+    // light, so the highlights flow and swirl like thick liquid.
+    "float vnoise(vec2 p) {",
+    "  vec2 i = floor(p), f = fract(p);",
+    "  f = f * f * (3.0 - 2.0 * f);",
+    "  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);",
+    "}",
+    "float fbm2(vec2 p) { return 0.65 * vnoise(p) + 0.35 * vnoise(p * 2.03 + vec2(3.1, 1.7)); }",
+    "vec2 flow(vec2 q) {",
+    "  vec2 s = q * 2.4 + 20.0;",
+    "  vec2 a = vec2(fbm2(s + vec2(0.0, 0.11 * uWobble)), fbm2(s + vec2(5.2, 1.3) - 0.09 * uWobble));",
+    "  return vec2(fbm2(s + 2.2 * a + vec2(1.7, 9.2)), fbm2(s + 2.2 * a + vec2(8.3, 2.8))) - 0.5;",
+    "}",
+    // The heart's skin, thick glossy pink liquid: hot pink lit softly from the
     // upper left, deep pink to dark red away from the light, a touch of magenta
-    // at the edge and a little of the sky in the lower rim. While an agent waits,
-    // a lime light comes on: the lit side, the rim and the highlights take lime.
+    // at the edge, and in the darker parts a soft reflection of the blue sky, like
+    // liquid chrome. While an agent waits, a lime light comes on: the lit side,
+    // the rim, the reflections and the highlights take lime.
     "const vec3 LAMP = vec3(" + [-0.4, 0.55, 0.75].map(function (v) { return glsl(v / Math.hypot(0.4, 0.55, 0.75)); }).join(", ") + ");",
     "vec3 surface(vec3 n, float rim) {",
     "  float lit = clamp(dot(n, LAMP), 0.0, 1.0);",
@@ -396,24 +450,34 @@
     "  c = mix(c, BODY, smoothstep(0.36, 0.72, lit));",
     "  c = mix(c, LIGHT, 0.7 * smoothstep(0.8, 1.0, lit));",
     "  c = mix(c, RIM, 0.4 * rim * smoothstep(0.3, 0.7, lit));",
-    "  float fres = pow(1.0 - n.z, 3.0);",
-    "  c = mix(c, mix(SKY2, LIME, uLime), 0.35 * fres * smoothstep(0.1, -0.6, n.y));",
+    "  vec3 r = reflect(vec3(0.0, 0.0, -1.0), n);",
+    "  vec3 mirrored = mix(mix(SKY3, SKY1, smoothstep(-0.3, 0.7, r.y)), LIME, uLime); // the sky the liquid mirrors",
+    "  float fres = pow(1.0 - n.z, 2.5);",
+    "  c = mix(c, mirrored, 0.24 * (1.0 - smoothstep(0.25, 0.7, lit)) + 0.3 * fres * smoothstep(0.1, -0.6, n.y));",
     "  return mix(c, LIME * (0.55 + 0.5 * lit), 0.22 * uLime * smoothstep(0.5, 0.95, lit));",
     "}",
     "vec3 hotLight() { return mix(PEARL, LIME + 0.15, uLime); }",
-    "vec3 gloss(vec3 n) { return hotLight() * 0.7 * pow(max(dot(reflect(vec3(0.0, 0.0, -1.0), n), LAMP), 0.0), 16.0); }",
+    // Sharp glints like liquid chrome: two small lights, upper left and upper right.
+    "vec3 gloss(vec3 n) {",
+    "  vec3 r = reflect(vec3(0.0, 0.0, -1.0), n);",
+    "  float s = pow(max(dot(r, vec3(" + [-0.5, 0.6, 0.62].map(function (v) { return glsl(v / Math.hypot(0.5, 0.6, 0.62)); }).join(", ") + ")), 0.0), 70.0);",
+    "  s += 0.6 * pow(max(dot(r, vec3(" + [0.55, 0.45, 0.7].map(function (v) { return glsl(v / Math.hypot(0.55, 0.45, 0.7)); }).join(", ") + ")), 0.0), 120.0);",
+    "  return hotLight() * min(s, 1.2);",
+    "}",
     // The surface: one soft dome over the whole heart and a rim that bends away,
-    // both carried along by the wobble, so the light slides over the skin as it
-    // moves. On it, soft broad highlights on the lobes and one thin, soft band
-    // that follows the top edge a little inside it.
+    // both carried along by the wobble, and tilted by the wobble itself, so the
+    // bulges catch the light like a metaball and the light flows over the skin.
+    // On it, soft broad highlights on the lobes, sharp glints, and one thin, soft
+    // band that follows the top edge a little inside it.
     "vec3 skin(vec2 p, float d) {",
-    "  vec2 q = p - wobble(p); // the same spot of skin while the heart moves",
+    "  vec2 w = wobble(p);",
+    "  vec2 q = p - w; // the same spot of skin while the heart moves",
     "  float e = 0.004;",
     "  vec2 g = vec2(body(p + vec2(e, 0.0)) - body(p - vec2(e, 0.0)), body(p + vec2(0.0, e)) - body(p - vec2(0.0, e)));",
     "  g = g / max(length(g), 1e-5);",
     "  float rim = 1.0 - clamp(-d / 0.16, 0.0, 1.0);",
     "  vec2 dome = (q - vec2(-0.04, 0.06)) * vec2(1.5, 2.3);",
-    "  vec3 n = normalize(vec3(dome + g * 2.0 * rim * rim, 1.0));",
+    "  vec3 n = normalize(vec3(dome + g * 2.0 * rim * rim + w * 7.0 + 0.45 * flow(q) * (1.0 - rim), 1.0));",
     "  vec3 c = surface(n, rim * rim);",
     "  float glow = 0.85 * exp(-dot2((q - vec2(-0.22, 0.2)) / vec2(0.17, 0.075)))",
     "    + 0.6 * exp(-dot2((q - vec2(0.24, 0.19)) / vec2(0.12, 0.06)))",
@@ -422,7 +486,8 @@
     "  band *= 1.0 - 0.45 * smoothstep(-0.1, 0.35, q.x); // brighter on the lit lobe",
     "  vec3 soft = mix(PEARL, LIME + 0.1, 0.7 * uLime); // the broad highlights keep some pink under the lime",
     "  c = mix(c, soft, clamp(glow * (1.0 - 0.2 * uLime), 0.0, 0.9));",
-    "  return mix(c, hotLight(), clamp(0.8 * band, 0.0, 0.9));",
+    "  c = mix(c, hotLight(), clamp(0.8 * band, 0.0, 0.9));",
+    "  return c + gloss(n) * (1.0 - 0.6 * rim);",
     "}",
     // A silver dagger standing on its tip, in its own space: x across, y up the
     // blade from the tip. A glossy blade with a bright ridge, a crossguard, a
@@ -497,12 +562,12 @@
     "  vec2 r = p - uDripAt;",
     "  float len = uDrip.x;",
     "  float t = clamp(-r.y / max(len, 1e-4), 0.0, 1.0);",
-    "  float w = mix(0.014, 0.007, sqrt(t)); // wide where it leaves the heart, thin above the drop",
+    "  float w = mix(0.024, 0.009, sqrt(t)); // thick where it leaves the heart, stretched thin above the drop",
     "  float thread = max(abs(r.x) - w, max(r.y, -r.y - len));",
     "  vec2 b = r - vec2(0.0, -len - uDrip.y - 0.8 * DROP);",
-    "  vec2 bq = b * vec2(1.0, 0.87);",
+    "  vec2 bq = b * vec2(1.0, 0.8); // a drop that hangs heavy, longer than wide",
     "  float ball = length(bq) - DROP;",
-    "  float d = smin(thread, ball, 0.012);",
+    "  float d = smin(thread, ball, 0.018);",
     "  vec2 sx = ball < thread ? bq / DROP : vec2(r.x / w, 0.0); // round across the drop, a tube along the thread",
     "  sx = clamp(sx, -0.98, 0.98);",
     "  vec3 n = normalize(vec3(sx, sqrt(max(0.04, 1.0 - dot(sx, sx)))));",
@@ -554,7 +619,7 @@
 
   window.agentScreensaver.register(function () {
     var box, style, canvas, gl, uniforms = {}, cancelFrame, ctx, lastState;
-    var fps = 12, scale = 0.5, driftMs = 4 * 60000, dirty = true;
+    var fps = 12, scale = 0.5, driftMs = 4 * 60000, dirty = true, startMs = 0;
     var frame, display = "main";
     var skyTop = tween(0); // 0 resting, 1 while an agent waits: the deep sky and the lime light
     var REST_TOP = rgbOf(SKY[0]), CALL_TOP = rgbOf(DEEP_SKY);
@@ -690,7 +755,10 @@
     }
 
     // The wobble's clock in seconds: frozen at one calm moment with "Reduce motion".
-    function wobbleClock(nowMs) { return reduce.matches ? WOBBLE.still : nowMs / 1000; }
+    // It counts from the start, not from 1970: the shader's 32-bit floats would
+    // lose the seconds of a clock that large, and its edge would part from the
+    // edge the daggers find here.
+    function wobbleClock(nowMs) { return reduce.matches ? WOBBLE.still : (nowMs - startMs) / 1000; }
 
     // The drip this moment: the thread's length, how far the drop has fallen and
     // its opacity, or null for no drip. A song with no length hangs it at half
@@ -802,6 +870,7 @@
     var api = {
       start: function (root, context) {
         ctx = context;
+        startMs = ctx.now();
         display = ctx.display || "main";
         var options = ctx.options || {};
         var wantFps = Number(options.fps), wantScale = Number(options.scale), wantDrift = Number(options.drift);
