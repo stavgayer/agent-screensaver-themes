@@ -30,7 +30,7 @@ https://github.com/user-attachments/assets/9a1826d2-a335-49b4-98be-1e8459d3d9ff
 | Piñata | ![Piñata](themes/pinata/media/working.jpg) | [themes/pinata](themes/pinata) |
 | Favourite | ![Favourite](themes/favourite/media/working.jpg) | [themes/favourite](themes/favourite) |
 
-All nine are fan-made tributes, inspired by album covers. They include no album artwork or logos.
+All nine are fan-made tributes, inspired by album and single covers. They include no album artwork or logos.
 
 ## Install a theme
 
