@@ -5,24 +5,27 @@
 //   call: an agent waits: lime floods the heart's highlights and the sky goes
 //   to its deepest blue;
 //   second display: the sky and the heart.
-// Each task is a silver dagger stuck in the heart's top edge, its handle in the
-// agent's colour. It stabs in, sinks slowly over the first hour, glints once
-// when the task is finished, turns lime while its agent waits (the others dim),
-// and slides out and falls when the task leaves.
-// Each usage limit is a glossy spike hanging under the heart, in its agent's
-// colour, longer the more of the limit is used. The song that plays is a drop of
-// the heart's pink liquid hanging from its bottom point: it grows with the song
-// and falls once at its end.
+// Each task is a polished steel dagger stuck in the heart's top edge, its
+// wrapped grip in the agent's colour. It stabs in, sinks slowly over the first
+// hour, glints once when the task is finished, turns lime while its agent waits
+// (the others dim), and slides out and falls when the task leaves. Where the
+// blade goes in, the liquid climbs it a little, ripples and takes its shadow.
+// Each usage limit is a steel thorn coming out of the heart's bottom, longer the
+// more of the limit is used, with the agent's colour as a thin tint at its root.
+// The song that plays is the heart's own liquid running from its bottom point,
+// one smooth surface with the heart: a drop forms as the song plays and breaks
+// off and falls at its end.
 //
 // The heart is liquid: its outline and its surface flow like an inflated balloon
 // (a two-layer warp of waves of 6 to 14 s, 5 to 8% of its size), the light flowing with it,
-// and the daggers, the spikes and the drip stay on its moving edge. It also
+// and the daggers, the spikes and the drip stay on its moving edge: the thorns
+// sway with it and the drip swings and stretches. It also
 // breathes (about 1.5% every 8 s), and the whole picture drifts a few pixels over
 // minutes against burn-in. JavaScript works out every moving value and the
 // shader paints them; both read the wobble from the same numbers (WOBBLE).
-// With "Reduce motion" it stands still, draws only when the state changes, the
-// lime cross-fades, and the drip is drawn again only when its length changed and
-// fades at the song's end. The page elements on top use the same frame (below).
+// With "Reduce motion" it stands still (no sway, no ripple), draws only when the
+// state changes, the lime cross-fades, and the drip is drawn again only when its
+// length changed and fades at the song's end. The page elements on top use the same frame (below).
 (function () {
   var reduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
 
@@ -213,28 +216,37 @@
     lift: 0.06, // how high a new dagger stabs from
     middle: 0.13, // from the tip to the balance point it tumbles around
   };
-  var LIME = "#9bf95e", NAVY = "#022a4a";
+  var LIME = "#9bf95e";
   var SINK_MS = 60 * 60000, STAB_MS = 400, GLINT_MS = 600, FALL_MS = 800;
   var PULL = 0.35; // the share of the fall spent sliding out of the heart
   var GRAVITY = 12; // heart sides per second squared
 
-  // The spikes: one per usage limit, hanging from the bottom edge of the heart.
-  // Sizes in heart space. Every spike has the same full length, so their lengths
-  // compare, and an unused limit still shows 15% of it.
+  // The spikes: one steel thorn per usage limit, coming out of the bottom edge of
+  // the heart, square to its surface (a little less, so they do not splay) and
+  // swaying as the surface turns. Sizes in heart space. Every spike has the same
+  // full length, so their lengths compare, and an unused limit still shows 15% of it.
   var SPIKE_SLOTS = FRAME.maxSpikes;
   var SPIKE = {
     full: 0.18, // the length out of the heart at 100% (the centre one reaches the label gap)
     least: 0.15, // the share of it shown at 0%
     width: 0.04, // half the width at the root, narrower when many spikes crowd
     inset: 0.03, // how far the root reaches up into the heart, hidden behind it
+    tint: 0.02, // how far the agent's colour reaches down from where the thorn comes out
+    splay: 0.45, // the share of the surface's slope a thorn follows at rest
+    sway: 1.8, // how much more it follows the slope's changes as the liquid moves
   };
-  // The drip: a drop of the heart's pink liquid hanging from its bottom point, a
-  // thread that grows with the song and a drop at its end. It falls once when the
-  // song passes 99%.
+  // The drip: the heart's own liquid running from its bottom point, a thread that
+  // grows with the song and a drop at its end that swells as it plays, joined to
+  // the heart in one smooth surface. It swings and stretches as the point moves,
+  // a moment behind it. The drop breaks off and falls once when the song passes 99%.
   var DRIP = {
     full: 0.13, // the thread's length at the song's end: about as long as a full spike
-    drop: 0.03, // the drop's radius
+    drop: 0.03, // the drop's radius at the song's end
+    bud: 0.4, // the share of it at the song's start, a swelling of the point
     fallAt: 0.99,
+    lag: 1.4, // seconds the drop's swing lags the point
+    swing: 3, // how far it swings, against how far the point moved in that time
+    stretch: 1.2, // how much it stretches, against how far the point rose in 0.9 s
   };
   var DRIP_FALL_MS = 600;
 
@@ -368,11 +380,12 @@
     "uniform vec4 uDagPose[" + DAGGER_SLOTS + "];   // the tip, and the way the blade points up",
     "uniform vec4 uDagLook[" + DAGGER_SLOTS + "];   // opacity (0: no dagger), glint (below 0: none), lime, dim",
     "uniform vec4 uDagHandle[" + DAGGER_SLOTS + "]; // the handle's agent colour, and 1 while it is stuck in the heart",
-    "uniform float uLine;    // the navy outline, in heart units",
+    "uniform float uMotion;  // 1, or 0 with Reduce motion: no ripple",
     "uniform vec4 uSpike[" + SPIKE_SLOTS + "];     // the root's x and y, the length (0: no spike), half the width",
-    "uniform vec3 uSpikeTint[" + SPIKE_SLOTS + "]; // the agent's colour at the tip",
-    "uniform vec3 uDrip;     // the thread's length, how far the drop has fallen, opacity (0: no drip)",
-    "uniform vec2 uDripAt;   // where the thread leaves the heart: just inside its moving bottom point",
+    "uniform vec2 uSpikeDir[" + SPIKE_SLOTS + "];  // the way the thorn points, from its root",
+    "uniform vec3 uSpikeTint[" + SPIKE_SLOTS + "]; // the agent's colour at the root",
+    "uniform vec4 uDrip;     // the thread's length, how deep the drop's centre hangs, opacity (0: no drip), the drop's radius",
+    "uniform vec3 uDripAt;   // where the thread leaves the heart (just inside its moving bottom point), and how far the drop swings to the side",
     "const vec3 SKY1 = vec3(" + rgbOf(SKY[1]).join(", ") + ");",
     "const vec3 SKY2 = vec3(" + rgbOf(SKY[2]).join(", ") + ");",
     "const vec3 SKY3 = vec3(" + rgbOf(SKY[3]).join(", ") + ");",
@@ -382,7 +395,6 @@
     "const vec3 LIGHT = vec3(" + rgbOf(SKIN.light).join(", ") + ");",
     "const vec3 PEARL = vec3(" + rgbOf(SKIN.pearl).join(", ") + ");",
     "const vec3 RIM = vec3(" + rgbOf(SKIN.rim).join(", ") + ");",
-    "const vec3 NAVY = vec3(" + rgbOf(NAVY).join(", ") + ");",
     "const vec3 LIME = vec3(" + rgbOf(LIME).join(", ") + ");",
     "const float HR = " + HEART.round.toFixed(4) + ";",
     "const float HK = " + HEART.units.toFixed(4) + ";",
@@ -449,12 +461,34 @@
     "}",
     "vec3 hotLight() { return mix(PEARL, LIME + 0.15, uLime); }",
     // Sharp glints like liquid chrome: two small lights, upper left and upper right.
+    "const vec3 GLINT1 = vec3(" + [-0.5, 0.6, 0.62].map(function (v) { return glsl(v / Math.hypot(0.5, 0.6, 0.62)); }).join(", ") + ");",
+    "const vec3 GLINT2 = vec3(" + [0.55, 0.45, 0.7].map(function (v) { return glsl(v / Math.hypot(0.55, 0.45, 0.7)); }).join(", ") + ");",
     "vec3 gloss(vec3 n) {",
     "  vec3 r = reflect(vec3(0.0, 0.0, -1.0), n);",
-    "  float s = pow(max(dot(r, vec3(" + [-0.5, 0.6, 0.62].map(function (v) { return glsl(v / Math.hypot(0.5, 0.6, 0.62)); }).join(", ") + ")), 0.0), 70.0);",
-    "  s += 0.6 * pow(max(dot(r, vec3(" + [0.55, 0.45, 0.7].map(function (v) { return glsl(v / Math.hypot(0.55, 0.45, 0.7)); }).join(", ") + ")), 0.0), 120.0);",
+    "  float s = pow(max(dot(r, GLINT1), 0.0), 70.0) + 0.6 * pow(max(dot(r, GLINT2), 0.0), 120.0);",
     "  return hotLight() * min(s, 1.2);",
     "}",
+    // The drip is the heart's own liquid: a thread from just inside its bottom
+    // point and a drop at its end, joined to the heart by a smooth union, so the
+    // two are one surface and the skin below paints both. Its lower end swings
+    // to the side by uDripAt.z, the drop the most.
+    "const float DRIP_K = 0.03; // how wide the neck flares where the drip leaves the heart",
+    "float smin(float a, float b, float k) { float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0); return mix(b, a, h) - k * h * (1.0 - h); }",
+    "bool nearDrip(vec2 p) {",
+    "  vec2 r = p - uDripAt.xy;",
+    "  return uDrip.z > 0.0 && abs(r.x - 0.5 * uDripAt.z) < 0.07 + abs(uDripAt.z) && r.y < 0.06 && r.y > -uDrip.y - 1.3 * uDrip.w - 0.05;",
+    "}",
+    "float dripField(vec2 p) {",
+    "  vec2 r = p - uDripAt.xy;",
+    "  float len = uDrip.x;",
+    "  float s = clamp(-r.y / max(len, 1e-4), 0.0, 1.0);",
+    "  float w = mix(0.02, 0.0055, sqrt(s)); // thick where it leaves the heart, stretched thin above the drop",
+    "  float thread = max(abs(r.x - uDripAt.z * s * s) - w, max(r.y, -r.y - len));",
+    "  float ball = length((r - vec2(uDripAt.z, -uDrip.y)) * vec2(1.0, 0.86)) - uDrip.w; // a drop that hangs heavy, longer than wide",
+    "  return smin(thread, ball, 0.014);",
+    "}",
+    // The heart and the drip as one liquid.
+    "float liquid(vec2 p) { float d = body(p); return nearDrip(p) ? smin(d, dripField(p), DRIP_K) : d; }",
     // The surface: one soft dome over the whole heart and a rim that bends away,
     // both carried along by the wobble, and tilted by the wobble itself, so the
     // bulges catch the light like a metaball and the light flows over the skin.
@@ -464,7 +498,7 @@
     "  vec2 w = wobble(p);",
     "  vec2 q = p - w; // the same spot of skin while the heart moves",
     "  float e = 0.004;",
-    "  vec2 g = vec2(body(p + vec2(e, 0.0)) - body(p - vec2(e, 0.0)), body(p + vec2(0.0, e)) - body(p - vec2(0.0, e)));",
+    "  vec2 g = vec2(liquid(p + vec2(e, 0.0)) - liquid(p - vec2(e, 0.0)), liquid(p + vec2(0.0, e)) - liquid(p - vec2(0.0, e)));",
     "  g = g / max(length(g), 1e-5);",
     "  float rim = 1.0 - clamp(-d / 0.16, 0.0, 1.0);",
     "  vec2 dome = (q - vec2(-0.04, 0.06)) * vec2(1.5, 2.3);",
@@ -480,89 +514,101 @@
     "  c = mix(c, hotLight(), clamp(0.8 * band, 0.0, 0.9));",
     "  return c + gloss(n) * (1.0 - 0.6 * rim);",
     "}",
-    // A silver dagger standing on its tip, in its own space: x across, y up the
-    // blade from the tip. A glossy blade with a bright ridge, a crossguard, a
-    // wrapped grip in the agent's colour and a round pommel, all outlined in navy.
+    // Polished steel, after the cover's daggers and spikes: a mirror that holds
+    // the sky above its horizon (darker at the top while an agent waits), a
+    // bright line at the horizon, the heart's pink below it (lime while an agent
+    // waits), sharp highlights from the heart's two lights, and darker where it
+    // turns away, so it reads on the sky without an outline.
+    "const vec3 STEEL_DARK = vec3(0.2, 0.22, 0.27);",
+    "vec3 chrome(vec3 n) {",
+    "  vec3 r = reflect(vec3(0.0, 0.0, -1.0), n);",
+    "  vec3 above = mix(vec3(0.8, 0.84, 0.9), mix(SKY2, uSkyTop, 0.55), smoothstep(0.12, 0.85, r.y));",
+    "  vec3 pink = mix(mix(BODY, LIGHT, 0.35), LIME * 0.8, 0.55 * uLime);",
+    "  vec3 below = mix(mix(pink, STEEL_DARK, 0.35), STEEL_DARK, smoothstep(-0.04, -0.45, r.y));",
+    "  vec3 c = mix(below, above, smoothstep(-0.03, 0.03, r.y));",
+    "  c += 0.8 * exp(-pow((r.y - 0.035) / 0.045, 2.0));",
+    "  c = mix(vec3(0.5, 0.53, 0.58), c, 0.75) * (1.0 - 0.5 * smoothstep(0.5, 0.95, length(n.xy)));",
+    "  float s = pow(max(dot(r, GLINT1), 0.0), 80.0) + 0.7 * pow(max(dot(r, GLINT2), 0.0), 140.0);",
+    "  return c + mix(vec3(1.0), LIME + 0.2, 0.6 * uLime) * min(s, 1.5);",
+    "}",
+    // A normal given across (x) and along (y) a part that points the way `up`, turned to the screen.
+    "vec3 turned(vec2 n, float z, vec2 up) { return normalize(vec3(n.x * vec2(up.y, -up.x) + n.y * up, z)); }",
+    // A steel dagger standing on its tip, in its own space: x across, y up the
+    // blade from the tip. A bevelled blade (two faces that meet in a ridge, and a
+    // steeper edge bevel), a round-ended crossguard and a round pommel, all
+    // polished steel, and a grip of wrapped wire in the agent's colour. The lower
+    // blade, near the heart, mirrors its pink; the upper blade and the hilt the sky.
     "const float BLADE = " + DAGGER.blade.toFixed(4) + ";",
     "const float BLADE_W = 0.02;               // half the blade's width at the guard",
     "const vec2 GUARD = vec2(0.042, 0.008);    // half the crossguard: 7 daggers just clear each other",
     "const float GRIP = 0.075, GRIP_W = 0.013, POMMEL = 0.016;",
     "const float GRIP_Y = BLADE + 2.0 * GUARD.y; // where the grip starts",
     "const float REACH = GRIP_Y + GRIP + 2.0 * POMMEL; // tip to the top of the pommel",
-    "const vec3 STEEL = vec3(0.6, 0.65, 0.72), SHINE = vec3(0.97, 0.98, 1.0);",
     "float box(vec2 p, vec2 c, vec2 h, float r) { vec2 q = abs(p - c) - h + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }",
-    "vec3 dagger(vec2 u, vec3 c, vec4 look, vec4 handle, float d, float px) {",
+    "vec3 dagger(vec2 u, vec2 up, vec3 c, vec4 look, vec4 handle, float d, float px) {",
     "  float t = clamp(u.y / (BLADE * 0.45), 0.0, 1.0);",
     "  float w = BLADE_W * t * (2.0 - t); // a sharp point that swells into a straight blade",
     "  float blade = max(abs(u.x) - w, max(-u.y, u.y - BLADE));",
     "  float guard = box(u, vec2(0.0, BLADE + GUARD.y), GUARD, GUARD.y);",
     "  float grip = box(u, vec2(0.0, GRIP_Y + 0.5 * GRIP), vec2(GRIP_W, 0.5 * GRIP), 0.004);",
-    "  vec2 knob = u - vec2(0.0, GRIP_Y + GRIP + 0.7 * POMMEL);",
-    "  float pommel = length(knob) - POMMEL;",
+    "  vec2 knob = (u - vec2(0.0, GRIP_Y + GRIP + 0.7 * POMMEL)) / POMMEL;",
+    "  float pommel = (length(knob) - 1.0) * POMMEL;",
     "  float metal = min(blade, min(guard, pommel));",
     "  float whole = min(metal, grip);",
-    // Chrome lit from the upper left, like the heart. The blade's two faces meet
-    // in a ridge: the lit one with a glossy stripe, the other one holding the sky.
-    "  float across = u.x / max(w, 1e-4);",
-    "  vec3 edge = mix(SHINE, STEEL, smoothstep(-1.0, 0.1, across));",
-    "  edge = mix(edge, mix(STEEL * 0.7, SKY1, 0.35), smoothstep(-0.05, 0.05, across));",
-    "  edge += vec3(0.6) * (1.0 - smoothstep(0.0, 0.18, abs(across + 0.45)));",
-    "  edge += vec3(0.35) * smoothstep(0.7, 1.0, across);",
-    "  if (look.y >= 0.0) { // the glint runs down the blade once",
-    "    edge += vec3(1.0) * exp(-pow((u.y - mix(BLADE, 0.0, look.y)) / 0.018, 2.0)) * sin(3.14159265 * look.y);",
-    "  }",
+    // Each part's normal, then one mirror for all of them.
+    "  float a = u.x / max(w, 1e-4);",
+    "  float face = sign(a) * mix(0.45 * smoothstep(0.0, 0.14, abs(a)), 0.9, smoothstep(0.74, 0.9, abs(a)));",
+    "  vec3 n = turned(vec2(face, mix(-0.28, 0.28, u.y / BLADE) + 0.04 * sin(u.y * 70.0)), 0.8, up);",
     "  vec2 g = (u - vec2(0.0, BLADE + GUARD.y)) / GUARD;",
-    "  vec3 hilt = mix(SHINE, STEEL * 0.6, smoothstep(-0.6, 1.0, 0.3 * g.x - 0.8 * g.y));",
-    "  vec3 ball = mix(STEEL * 0.6, SHINE, 1.0 - smoothstep(0.0, 1.2, length(knob / POMMEL - vec2(-0.35, 0.35))));",
-    "  vec3 steel = mix(edge, hilt, smoothstep(-px, px, blade - guard));",
-    "  steel = mix(steel, ball, smoothstep(-px, px, min(blade, guard) - pommel));",
-    "  vec3 grain = mix(handle.rgb, LIME, look.z);",
-    "  float curve = 1.0 - abs(u.x / GRIP_W + 0.3) / 1.3;",
-    "  grain *= 0.62 + 0.5 * curve;",
-    "  grain *= 0.86 + 0.14 * smoothstep(0.15, 0.5, abs(fract((u.y - GRIP_Y) / 0.0125) - 0.5));",
-    "  grain += vec3(0.35) * (1.0 - smoothstep(0.0, 0.25, abs(u.x / GRIP_W + 0.45)));",
-    "  vec3 part = mix(grain, steel, smoothstep(-px, px, grip - metal));",
-    "  part = mix(NAVY, part, 1.0 - smoothstep(-px, px, whole));",
-    "  float shown = (1.0 - smoothstep(-px, px, whole - uLine)) * look.x * mix(1.0, 0.4, look.w);",
+    "  float onGuard = smoothstep(-px, px, blade - guard);",
+    "  n = mix(n, turned(vec2(sign(g.x) * 0.8 * smoothstep(0.7, 1.0, abs(g.x)), 0.6 * g.y + 0.15), 0.8, up), onGuard);",
+    "  vec2 k = knob * 0.95;",
+    "  float onPommel = smoothstep(-px, px, min(blade, guard) - pommel);",
+    "  n = mix(n, turned(k, sqrt(max(0.05, 1.0 - dot(k, k))), up), onPommel);",
+    "  float turn = fract((u.y - GRIP_Y) / 0.015); // the grip's rings",
+    "  vec2 wire = vec2(0.92 * clamp(u.x / GRIP_W, -1.0, 1.0), 0.12);",
+    "  float onGrip = 1.0 - smoothstep(-px, px, grip - metal);",
+    "  n = normalize(mix(n, turned(wire, sqrt(max(0.05, 1.0 - dot(wire, wire))), up), onGrip));",
+    "  vec3 part = chrome(n);",
+    "  if (look.y >= 0.0) { // the glint runs down the blade once",
+    "    part += (1.0 - max(onGuard, max(onPommel, onGrip))) * exp(-pow((u.y - mix(BLADE, 0.0, look.y)) / 0.018, 2.0)) * sin(3.14159265 * look.y);",
+    "  }",
+    "  vec3 tint = mix(handle.rgb, LIME, look.z);",
+    "  vec3 wrapped = part * (1.2 * tint + 0.15) * (0.72 + 0.28 * smoothstep(0.0, 0.2, min(turn, 1.0 - turn))) + 0.2 * LIME * look.z;",
+    "  part = mix(part, wrapped, onGrip);",
+    "  float shown = (1.0 - smoothstep(-px, px, whole)) * look.x * mix(1.0, 0.4, look.w);",
     "  if (handle.w > 0.5) {",
-    // Stuck in the heart: hidden inside it, with a soft crease where the blade goes in.
-    "    float inside = 1.0 - smoothstep(-px, px, d);",
-    "    c *= 1.0 - 0.3 * look.x * inside * smoothstep(-0.03, 0.0, d) * (1.0 - smoothstep(0.0, 0.02, blade));",
-    "    shown *= 1.0 - inside;",
+    // Stuck in the heart: hidden inside it. The liquid climbs the blade a little
+    // and ripples out from it, and the blade's soft shadow falls on the skin below
+    // and to the right of it, away from the light.
+    "    float side = max(abs(u.x) - w, 0.0);",
+    "    float ring = length(vec2(u.x, 2.6 * d));",
+    "    float wave = uMotion * sin(ring * 260.0 - uWobble * 6.0) * exp(-ring / 0.028) * smoothstep(0.0, 0.008, side);",
+    "    float lip = 0.008 * exp(-pow(side / 0.012, 2.0)) * (1.0 + 0.3 * wave);",
+    "    float wet = 1.0 - smoothstep(-px, px, d - lip);",
+    "    float onSkin = 1.0 - smoothstep(-px, px, d);",
+    "    vec2 caster = u - vec2(dot(vec2(0.012, -0.01), vec2(up.y, -up.x)), dot(vec2(0.012, -0.01), up));",
+    "    float shade = (1.0 - smoothstep(-0.004, 0.012, max(abs(caster.x) - BLADE_W, -caster.y))) * smoothstep(-0.045, -0.004, d);",
+    "    c *= 1.0 - look.x * onSkin * (0.2 * shade - 0.12 * wave * smoothstep(-0.04, 0.0, d));",
+    "    vec3 rise = turned(vec2(sign(u.x) * 0.55, 0.5), 0.65, up);",
+    "    c = mix(c, surface(rise, 1.0) + gloss(rise), look.x * max(wet - onSkin, 0.0));",
+    "    shown *= 1.0 - wet;",
     "  }",
     "  return mix(c, part, shown);",
     "}",
-    // A glossy thorn hanging from its root: deep pink at the root, the agent's
-    // colour at the tip, lit from the upper left like the heart, outlined in navy.
-    "vec3 spike(vec2 p, vec4 s, vec3 tint, vec3 c, float px) {",
-    "  vec2 u = vec2(p.x - s.x, s.y - p.y); // x across, y down from the root",
+    // A steel thorn from its root, in its own space: x across, y out along it.
+    // Round, so it mirrors the heart's pink near the root and the sky towards the
+    // tip; the agent's colour tints the steel where it comes out of the heart.
+    "const float SPIKE_IN = " + SPIKE.inset.toFixed(4) + ", SPIKE_TINT = " + SPIKE.tint.toFixed(4) + ";",
+    "vec3 spike(vec2 u, vec4 s, vec2 dir, vec3 tint, vec3 c, float px) {",
     "  float t = clamp(u.y / s.z, 0.0, 1.0);",
     "  float w = s.w * pow(1.0 - t, 1.3); // wide at the root, curving in to a point",
     "  float d = max(abs(u.x) - w, max(-u.y, u.y - s.z));",
-    "  float across = u.x / max(w, 1e-4);",
-    "  vec3 tone = mix(DEEP, tint, smoothstep(0.2, 0.75, t)) * mix(1.12, 0.62, smoothstep(-1.0, 1.0, across));",
-    "  tone += vec3(1.0) * 0.55 * (1.0 - smoothstep(0.0, 0.25, abs(across + 0.45))) * (1.0 - 0.6 * t);",
-    "  vec3 part = mix(NAVY, tone, 1.0 - smoothstep(-px, px, d));",
-    "  return mix(c, part, 1.0 - smoothstep(-px, px, d - uLine));",
-    "}",
-    // The drip: a thread of the heart's liquid from its bottom point with a
-    // round drop at its end, the same skin as the heart.
-    "const float DROP = " + DRIP.drop.toFixed(4) + ";",
-    "float smin(float a, float b, float k) { float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0); return mix(b, a, h) - k * h * (1.0 - h); }",
-    "vec3 drip(vec2 p, vec3 c, float px) {",
-    "  vec2 r = p - uDripAt;",
-    "  float len = uDrip.x;",
-    "  float t = clamp(-r.y / max(len, 1e-4), 0.0, 1.0);",
-    "  float w = mix(0.024, 0.009, sqrt(t)); // thick where it leaves the heart, stretched thin above the drop",
-    "  float thread = max(abs(r.x) - w, max(r.y, -r.y - len));",
-    "  vec2 b = r - vec2(0.0, -len - uDrip.y - 0.8 * DROP);",
-    "  vec2 bq = b * vec2(1.0, 0.8); // a drop that hangs heavy, longer than wide",
-    "  float ball = length(bq) - DROP;",
-    "  float d = smin(thread, ball, 0.018);",
-    "  vec2 sx = ball < thread ? bq / DROP : vec2(r.x / w, 0.0); // round across the drop, a tube along the thread",
-    "  sx = clamp(sx, -0.98, 0.98);",
-    "  vec3 n = normalize(vec3(sx, sqrt(max(0.04, 1.0 - dot(sx, sx)))));",
-    "  return mix(c, surface(n, 0.0) + gloss(n), uDrip.z * (1.0 - smoothstep(-px, px, d)));",
+    "  float a = clamp(u.x / max(w, 1e-4), -1.0, 1.0);",
+    "  vec3 n = normalize(vec3(0.9 * a * vec2(-dir.y, dir.x) - mix(-0.3, 0.45, t) * dir, sqrt(max(0.06, 1.0 - a * a))));",
+    "  vec3 tone = chrome(n) * mix(0.8 * tint + 0.35, vec3(1.0), smoothstep(SPIKE_IN, SPIKE_IN + SPIKE_TINT, u.y));",
+    "  tone *= 0.7 + 0.3 * smoothstep(SPIKE_IN, SPIKE_IN + 0.012, u.y); // in the heart's shade where it comes out",
+    "  return mix(c, tone, 1.0 - smoothstep(-px, px, d));",
     "}",
     "void main() {",
     "  vec2 frag = gl_FragCoord.xy;",
@@ -570,14 +616,18 @@
     "  vec2 p = (frag - uHeart.xy) / uHeart.z;",
     "  float px = 1.0 / uHeart.z;",
     "  float d = body(p);",
+    "  float dl = nearDrip(p) ? smin(d, dripField(p), DRIP_K) : d; // the heart with its drip",
     "  col *= 1.0 - 0.1 * exp(-max(d, 0.0) * 22.0); // a faint shadow around the heart",
     "  for (int i = 0; i < " + SPIKE_SLOTS + "; i++) { // behind the heart, which hides their roots",
     "    vec4 s = uSpike[i];",
-    "    if (s.z <= 0.0 || abs(p.x - s.x) > s.w + 0.01 || p.y > s.y || p.y < s.y - s.z - 0.01) continue;",
-    "    col = spike(p, s, uSpikeTint[i], col, px);",
+    "    if (s.z <= 0.0) continue;",
+    "    vec2 dir = uSpikeDir[i], v = p - s.xy;",
+    "    vec2 u = vec2(dot(v, vec2(-dir.y, dir.x)), dot(v, dir));",
+    "    if (abs(u.x) > s.w + 0.01 || u.y < -0.01 || u.y > s.z + 0.01) continue;",
+    "    col = spike(u, s, dir, uSpikeTint[i], col, px);",
     "  }",
-    "  if (d < px) col = mix(col, skin(p, d), 1.0 - smoothstep(-px, px, d));",
-    "  if (uDrip.z > 0.0 && abs(p.x - uDripAt.x) < 0.04 && p.y < uDripAt.y + 0.02) col = drip(p, col, px);",
+    // The drip fades out (Reduce motion) by fading from the heart with it to the heart alone.
+    "  if (dl < px) col = mix(col, skin(p, dl), mix(1.0 - smoothstep(-px, px, d), 1.0 - smoothstep(-px, px, dl), uDrip.z));",
     "  for (int i = 0; i < " + DAGGER_SLOTS + "; i++) {",
     "    vec4 look = uDagLook[i];",
     "    if (look.x <= 0.0) continue;",
@@ -585,14 +635,14 @@
     "    vec2 v = p - pose.xy;",
     "    vec2 u = vec2(dot(v, vec2(pose.w, -pose.z)), dot(v, pose.zw));",
     "    if (abs(u.x) > GUARD.x + 0.01 || u.y < -0.03 || u.y > REACH + 0.01) continue;",
-    "    col = dagger(u, col, look, uDagHandle[i], d, px);",
+    "    col = dagger(u, pose.zw, col, look, uDagHandle[i], d, px);",
     "  }",
     "  col += (hash(frag) - 0.5) / 255.0; // no banding in the long gradients",
     "  gl_FragColor = vec4(col, 1.0);",
     "}",
   ]).join("\n");
 
-  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uLime", "uWobble", "uWobbleAmount", "uDagPose", "uDagLook", "uDagHandle", "uLine", "uSpike", "uSpikeTint", "uDrip", "uDripAt"];
+  var UNIFORMS = ["uRes", "uHeart", "uSkyTop", "uLime", "uWobble", "uWobbleAmount", "uDagPose", "uDagLook", "uDagHandle", "uMotion", "uSpike", "uSpikeDir", "uSpikeTint", "uDrip", "uDripAt"];
 
   function compile(gl, type, source) {
     var shader = gl.createShader(type);
@@ -620,6 +670,7 @@
     var dagLook = new Float32Array(DAGGER_SLOTS * 4);
     var dagHandle = new Float32Array(DAGGER_SLOTS * 4);
     var spikeShape = new Float32Array(SPIKE_SLOTS * 4), spikeTint = new Float32Array(SPIKE_SLOTS * 3);
+    var spikeDir = new Float32Array(SPIKE_SLOTS * 2), spikeX = new Float32Array(SPIKE_SLOTS); // where each thorn hangs
     // The song the drip follows (none on the second display or while an agent
     // waits), when the drop began to fall, and the drip as last drawn.
     var song = null, fellMs = null, drawnDrip = "";
@@ -727,14 +778,34 @@
       limits.forEach(function (limit, index) {
         var x = spikeOffset(index, count), used = usedPercent(limit, state.nowMs) / 100;
         var length = SPIKE.full * (SPIKE.least + (1 - SPIKE.least) * used);
+        spikeX[index] = x;
         spikeShape.set([x, 0, SPIKE.inset + length, width], index * 4);
         spikeTint.set(rgbOf(agentColour(limit.source)), index * 3);
       });
     }
 
+    // The way the heart's surface faces at (x, y), as an angle from straight
+    // down (positive: to the right), on the heart at moment t, or the still heart
+    // when amount is 0.
+    function slopeAt(x, y, t, amount) {
+      var e = 0.004;
+      return Math.atan2(fieldAt(x + e, y, t, amount) - fieldAt(x - e, y, t, amount),
+        fieldAt(x, y - e, t, amount) - fieldAt(x, y + e, t, amount));
+    }
+
+    // Each thorn comes out where the moving bottom edge crosses its x, a little
+    // less splayed than the still surface and swaying more than the moving one,
+    // with its root hidden inside the heart.
     function placeSpikes(t, amount) {
-      for (var o = 0; o < spikeShape.length; o += 4) {
-        if (spikeShape[o + 2] > 0) spikeShape[o + 1] = bottomAt(spikeShape[o], t, amount) + SPIKE.inset;
+      for (var i = 0; i < SPIKE_SLOTS; i++) {
+        var o = i * 4, x = spikeX[i];
+        if (spikeShape[o + 2] <= 0) continue;
+        var y = bottomAt(x, t, amount), rest = slopeAt(x, bottomAt(x, t, 0), t, 0);
+        var angle = SPIKE.splay * rest + SPIKE.sway * (slopeAt(x, y, t, amount) - rest);
+        var dx = Math.sin(angle), dy = -Math.cos(angle);
+        spikeDir.set([dx, dy], i * 2);
+        spikeShape[o] = x - dx * SPIKE.inset;
+        spikeShape[o + 1] = y - dy * SPIKE.inset;
       }
     }
 
@@ -751,27 +822,47 @@
     // edge the daggers find here.
     function wobbleClock(nowMs) { return reduce.matches ? WOBBLE.still : (nowMs - startMs) / 1000; }
 
-    // The drip this moment: the thread's length, how far the drop has fallen and
-    // its opacity, or null for no drip. A song with no length hangs it at half
-    // length; past 99% the drop falls once (fades with Reduce motion), then it is gone.
+    // The drip this moment, from the song alone: the thread's length, how deep
+    // the drop's centre hangs under the root, the drop's radius and its opacity,
+    // or null for no drip. The drop swells from a bud as the song plays. A song
+    // with no length hangs it at half length; past 99% the drop breaks off and
+    // falls once while the thread snaps back into the heart (with Reduce motion
+    // it fades), then it is gone.
     function dripAt(nowMs) {
       if (!song) return null;
       var progress = window.agentScreensaver.helpers.songProgress(song, nowMs);
-      if (progress === null) return { length: DRIP.full / 2, drop: 0, alpha: 1 };
-      if (progress < DRIP.fallAt) {
-        fellMs = null;
-        return { length: progress * DRIP.full, drop: 0, alpha: 1 };
-      }
+      if (progress === null) progress = 0.5;
+      else if (progress >= DRIP.fallAt) return fallingDrip(nowMs);
+      else fellMs = null;
+      var length = progress * DRIP.full, k = Math.min(1, progress / 0.7);
+      var radius = DRIP.drop * (DRIP.bud + (1 - DRIP.bud) * k * k * (3 - 2 * k));
+      return { length: length, depth: length + 0.8 * radius, radius: radius, alpha: 1 };
+    }
+
+    function fallingDrip(nowMs) {
       if (fellMs === null) fellMs = nowMs;
       var still = reduce.matches, t = (nowMs - fellMs) / (still ? FADE_MS : DRIP_FALL_MS);
       if (t >= 1) return null;
-      if (still) return { length: DRIP.full, drop: 0, alpha: 1 - t };
+      var hang = DRIP.full + 0.8 * DRIP.drop;
+      if (still) return { length: DRIP.full, depth: hang, radius: DRIP.drop, alpha: 1 - t };
       var s = (t * DRIP_FALL_MS) / 1000;
       return {
         length: DRIP.full * (1 - easeOut(Math.min(1, t / PULL))), // the thread snaps back into the heart
-        drop: 0.5 * GRAVITY * s * s,
+        depth: hang + 0.5 * GRAVITY * s * s,
+        radius: DRIP.drop,
         alpha: 1 - Math.max(0, (t - 0.6) / 0.4),
       };
+    }
+
+    // How the drip swings and stretches: it follows the point a moment late, so
+    // it swings to where the point was and stretches when the point rises.
+    // [the drop's swing to the side, how much longer the thread is].
+    function dripSwing(drip, t, amount) {
+      if (reduce.matches) return [0, 0];
+      var y = bottomAt(0, t, amount), now = wobbleAt(0, y, t, amount);
+      var then = wobbleAt(0, y, t - DRIP.lag, amount), before = wobbleAt(0, y, t - 0.9, amount);
+      var reach = Math.min(1, drip.depth / (DRIP.full + 0.8 * DRIP.drop));
+      return [DRIP.swing * (then[0] - now[0]) * reach, DRIP.stretch * Math.max(-0.5 * drip.length, now[1] - before[1]) * reach];
     }
 
     function size() {
@@ -818,14 +909,15 @@
       gl.uniform4fv(uniforms.uDagPose, dagPose);
       gl.uniform4fv(uniforms.uDagLook, dagLook);
       gl.uniform4fv(uniforms.uDagHandle, dagHandle);
-      gl.uniform1f(uniforms.uLine, (2 * canvas.width) / size().w / at.side); // 2 CSS px
+      gl.uniform1f(uniforms.uMotion, reduce.matches ? 0 : 1);
       gl.uniform4fv(uniforms.uSpike, spikeShape);
+      gl.uniform2fv(uniforms.uSpikeDir, spikeDir);
       gl.uniform3fv(uniforms.uSpikeTint, spikeTint);
-      gl.uniform3f(uniforms.uDrip, drip ? drip.length : 0, drip ? drip.drop : 0, drip ? drip.alpha : 0);
       if (drip) {
-        var root = dripRoot(t, amount);
-        gl.uniform2f(uniforms.uDripAt, root[0], root[1]);
-      }
+        var root = dripRoot(t, amount), swing = dripSwing(drip, t, amount);
+        gl.uniform4f(uniforms.uDrip, drip.length + swing[1], drip.depth + swing[1], drip.alpha, drip.radius);
+        gl.uniform3f(uniforms.uDripAt, root[0], root[1], swing[0]);
+      } else gl.uniform4f(uniforms.uDrip, 0, 0, 0, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 
@@ -834,7 +926,7 @@
       // The drip counts as changed once its length moved by a thousandth of the
       // heart, about every second and a half for a usual song.
       var drip = dripAt(nowMs);
-      var seen = drip ? Math.round(drip.length * 1000) + "/" + drip.alpha.toFixed(2) : "";
+      var seen = drip ? Math.round(drip.depth * 1000) + "/" + drip.alpha.toFixed(2) : "";
       if (seen !== drawnDrip) { drawnDrip = seen; dirty = true; }
       // With "Reduce motion" the sky is drawn only when something changed, and while a fade runs.
       if (reduce.matches && !dirty && !skyTop.moving(nowMs) && !daggersMoving(nowMs)) return;
