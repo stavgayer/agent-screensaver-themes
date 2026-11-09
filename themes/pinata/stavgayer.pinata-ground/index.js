@@ -86,7 +86,8 @@
   }
 
   // A finished turn with background jobs still running is still working.
-  function isWorking(card) { return card.kind !== "finished" || (Number.isFinite(card.background) && Math.floor(card.background) > 0); }
+  function jobsOf(card) { return Number.isFinite(card.background) && card.background > 0 ? Math.floor(card.background) : 0; }
+  function isWorking(card) { return card.kind !== "finished" || jobsOf(card) > 0; }
 
   // What the picture should be in each state: how dark the window is, how far
   // the call has taken over, how calm the colours are.

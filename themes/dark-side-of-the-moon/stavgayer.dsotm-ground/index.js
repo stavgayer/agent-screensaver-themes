@@ -136,7 +136,8 @@
   // How busy a task is, 0 to 1: it grows with the time it has run, full after 40 minutes.
   function busyOf(card, nowMs) {
     if (!isWorking(card)) return 0;
-    if (card.kind !== "running") return 0.35;
+    if (card.kind !== "finished" && card.kind !== "running") return 0.35;
+    if (!Number.isFinite(card.started_at_ms)) return 0.35;
     var ran = Math.max(0, nowMs - card.started_at_ms);
     return Math.sqrt(Math.min(1, ran / (40 * 60000)));
   }

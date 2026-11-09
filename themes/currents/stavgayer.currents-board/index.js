@@ -73,7 +73,8 @@
     "  color: var(--hue); letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; padding-bottom: 0.12em; }",
     ".csb .card .state .word { display: inline-block; }",
     // "N jobs running" is longer than the other state words, so it is set smaller to fit the card.
-    ".csb .card .state.jobs { font-size: min(5.2vmin, calc(100cqi / 7)); }",
+    ".csb .card .state.jobs { font-size: min(5.2vmin, calc(100cqi / 8)); }",
+    ".csb .card .state.jobs .word { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
     ".csb .card .state svg { flex: none; width: 0.7em; height: 0.7em; }",
     ".csb .card .state svg path { fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }",
     ".csb .card .what { margin-top: 1.4vmin; font-size: 2.9vmin; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em;",

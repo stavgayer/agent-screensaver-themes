@@ -28,7 +28,7 @@ http://localhost:8000/skills/create-agent-screensaver-theme/assets/preview.html?
 | `privacy` | `1`: what privacy mode does: no title, command, conversation name or branch on any card, and no song. |
 | `missing` | `1`: leaves out the fields the service may leave out: `project` and `approval_since_ms`. (`started_at_ms` and `updated_at_ms` are always sent.) |
 | `agent` | `unknown`: one more task from `gemini`, an agent with no extension, so it has no entry in `agents`. |
-| `jobs` | `N`: the first finished card (in `state=done`, the first card) gets `background: N`, as if the session still runs N background jobs. |
+| `jobs` | `N`: the first finished card (in `state=done`, the first card) gets `background: N`, as if the session still runs N background jobs. It has an effect only when a card is finished (for example with `state=done`). |
 
 The page fades in like the screen saver. A browser pane that is not visible may run no animation frames at all and no resize events: it shows the layout, but frame rates, "Reduce motion" and stills cannot be checked there. Use the headless check below for those, and load the page again for each screen size instead of resizing it.
 

@@ -84,7 +84,8 @@
     "  letter-spacing: -0.045em; text-transform: uppercase; white-space: nowrap; overflow: hidden; }",
     ".icb .card .state .word { display: inline-block; }",
     // "N jobs running" is longer than the other state words, so it is set smaller to fit the card.
-    ".icb .card .state.jobs { font-size: min(4.8vmin, calc((100cqi - 4.4vmin) / 6.4)); }",
+    ".icb .card .state.jobs { font-size: min(4.8vmin, calc((100cqi - 4.4vmin) / 7)); }",
+    ".icb .card .state.jobs .word { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
     ".icb .card .state svg { flex: none; width: 0.74em; height: 0.74em; }",
     ".icb .card .state svg path { fill: none; stroke: currentColor; stroke-width: 3.4; stroke-linecap: square; }",
     ".icb .card .what { padding: 0.8vmin 2.2vmin 0; font-size: 2.8vmin; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em;",

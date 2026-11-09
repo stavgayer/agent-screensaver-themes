@@ -62,6 +62,8 @@
     // the state word is a pixel stamp in a box, drawn into a tiny canvas and shown with its pixels hard
     // the box is as tall as the widest word (the stamp is about 4.0 times wider than tall) allows in the card, so the whole word always shows
     ".kab .card .state { display: block; margin-top: 1.6vmin; height: min(7.4vmin, calc(100cqi / 4)); overflow: hidden; }",
+    // "N jobs running" is about twice as long as the other words, so its box is shorter and the whole word still shows
+    ".kab .card .state.jobs { height: min(5.2vmin, calc(100cqi / 5.1)); }",
     ".kab canvas.stamp { display: block; height: 100%; width: auto; image-rendering: pixelated; image-rendering: crisp-edges; }",
     ".kab .card .what { margin-top: 1.6vmin; font-size: 2.9vmin; font-weight: 600; line-height: 1.25; font-stretch: 92%;",
     "  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }",
@@ -152,7 +154,7 @@
         return { tone: "working", word: "Working", since: duration(nowMs - card.started_at_ms) };
       case "finished":
         var jobs = jobsOf(card);
-        if (jobs > 0) return { tone: "working", word: jobs + (jobs === 1 ? " job running" : " jobs running"), since: typeof card.started_at_ms === "number" ? duration(nowMs - card.started_at_ms) : "" };
+        if (jobs > 0) return { tone: "working", long: true, word: jobs + (jobs === 1 ? " job running" : " jobs running"), since: typeof card.started_at_ms === "number" ? duration(nowMs - card.started_at_ms) : "" };
         var ago = nowMs - card.updated_at_ms;
         return { tone: "done", word: "Done", since: ago < MINUTE ? "just now" : duration(ago) + " ago" };
       case "no_activity":
@@ -409,6 +411,7 @@
       if (where !== "" && card.branch) where += " on " + card.branch;
       setText(parts.where, where);
       parts.where.hidden = where === "";
+      parts.state.classList.toggle("jobs", said.long === true);
       var changed = entry.word !== "" && (entry.word !== said.word || entry.tone !== said.tone);
       if (entry.tone !== said.tone) entry.node.classList.toggle("done", said.tone === "done");
       if (entry.word !== said.word || entry.tone !== said.tone) {

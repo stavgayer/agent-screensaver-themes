@@ -99,7 +99,7 @@ function moodOf(state) {
 }
 ```
 
-Why `isWorking`: when an agent ends its turn but a shell, a subagent or a monitor still runs, the work is not done, and "All done" would be a lie. Such a card keeps the working look and the working element in your picture, and where a running card says "working", it says "1 job running" or "N jobs running". An approval still wins: `call` comes first. Only a finite number above 0 counts, so a missing, `0` or odd `background` means no jobs, and "NaN" never prints. Privacy mode does not remove `background`.
+Why `isWorking`: when an agent ends its turn but a shell, a subagent or a monitor still runs, the work is not done, and "All done" would be a lie. Such a card keeps the working look and the working element in your picture, and where a running card says "working", it says "1 job running" or "N jobs running". An approval still wins: `call` comes first. Only a finite number above 0 counts, so a missing `background`, or any value that is not a finite number above 0, means no jobs, and "NaN" never prints. Privacy mode does not remove `background`.
 
 ## The entry file
 
