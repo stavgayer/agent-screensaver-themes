@@ -16,7 +16,6 @@
   var STALE_AFTER = { "5h": 30 * MINUTE, week: 6 * HOUR, plan: 6 * HOUR };
   var WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  var BATTERY = { battery: "#111111", charging: "#111111", low: "#111111" };
   var RADIUS = 20;
   var ARC = 2 * Math.PI * RADIUS;
 
@@ -131,10 +130,11 @@
     return "Battery " + Math.round(power.percent) + "%: plug in, " + (power.working === 1 ? "1 agent is" : power.working + " agents are") + " working";
   }
 
-  // The battery as one more ring; a low battery takes the stamp fill.
+  // The battery as one more ring in the ink, like the limits (no colour of its own,
+  // so it turns orange with them while an agent waits); a low battery takes the stamp fill.
   function batteryShown(power) {
     var shown = powerView(power);
-    return { hue: BATTERY[shown.tone], high: shown.tone === "low", name: "Battery", percent: shown.percent, detail: shown.detail, stale: false };
+    return { high: shown.tone === "low", name: "Battery", percent: shown.percent, detail: shown.detail, stale: false };
   }
 
   function svgNode(tag, attributes) {
