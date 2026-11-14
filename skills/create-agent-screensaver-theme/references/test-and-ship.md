@@ -29,6 +29,9 @@ http://localhost:8000/skills/create-agent-screensaver-theme/assets/preview.html?
 | `missing` | `1`: leaves out the fields the service may leave out: `project` and `approval_since_ms`. (`started_at_ms` and `updated_at_ms` are always sent.) |
 | `agent` | `unknown`: one more task from `gemini`, an agent with no extension, so it has no entry in `agents`. |
 | `jobs` | `N`: the first finished card (in `state=done`, the first card) gets `background: N`, as if the session still runs N background jobs. It has an effect only when a card is finished (for example with `state=done`). |
+| `power` | `none` (default: a Mac with no battery), `battery` (64%, 1h 50m left), `low` (18%, 34m left; `warn` while a task works), `idle-low` (18%, no task working, no `warn`), `nominutes` (on battery, no time known), `charging` (80%), `full` (100% on a power plug), `plugged` (79% on a power plug, not charging). |
+| `limits` | `many`: 13 usage limits instead of 4, from four agents. |
+| `nolimits` | `1`: no usage limits at all. |
 
 The page fades in like the screen saver. A browser pane that is not visible may run no animation frames at all and no resize events: it shows the layout, but frame rates, "Reduce motion" and stills cannot be checked there. Use the headless check below for those, and load the page again for each screen size instead of resizing it.
 
@@ -47,6 +50,8 @@ Check every theme in every cell before you ship it:
 | Unknown agent | `agent=unknown`: the task shows with a colour from your palette and a name |
 | No length | `song=stream`: the song shows without progress |
 | The song steps away | `state=call&song=normal`: hidden |
+| Battery | `power=battery`, `charging`, `full`, `plugged`, `nominutes`, `idle-low`: quiet, the right words, no empty line; `power=low` in `work`: the warning line; `state=call&power=low`: the warning steps away; `state=second&power=low` and `power=none`: no battery |
+| Many and no limits | `limits=many` and `nolimits=1`, with `power=battery`: everything fits, the battery still shows |
 | Screen shapes | 1440 × 900, 1024 × 768 (4:3), 1280 × 1024 (5:4), 2560 × 1080 (ultra-wide) |
 | Frame rate | `node assets/shoot.mjs <URL>`: the frames a second match your `fps` option, and stay low |
 | Reduce motion | `node assets/shoot.mjs <URL> --reduce`: 0 frames a second while nothing changes, and things fade |
