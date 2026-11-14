@@ -12,6 +12,10 @@
 // between the time and the limits, cut with "…" when that room is short, and
 // at the top of the field at rest. Its ring fills as the song plays. It steps away
 // while an agent waits for you, like everything but the open centre.
+// The battery (state.power, agent-screensaver 0.6.0 and later) is one more ring
+// after the limits: muted brown on battery, burnt orange on a power plug, deep
+// red when low. A low battery while agents work also gets one deep red line at
+// the foot of the limits label; it steps away while an agent waits for you.
 (function () {
   // ---- shared by the ground, the board and the bar: keep these in step ----
   var MAX_CARDS = 7;
@@ -169,6 +173,8 @@
   var STALE_AFTER = { "5h": 30 * MINUTE, week: 6 * HOUR, plan: 6 * HOUR };
   var WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  // Not an agent colour: muted brown, burnt orange and deep red, read on the cream label.
+  var BATTERY = { battery: "#74412b", charging: "#b5600f", low: "#86121a" };
   var RADIUS = 19;
   var ARC = 2 * Math.PI * RADIUS;
   var reduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
@@ -199,6 +205,9 @@
     ".skr .arc { fill: none; stroke: var(--hue); stroke-width: 4.5; }",
     ".skr .value { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--size) * 0.27); font-weight: 500; line-height: 1.2; }",
     ".skr .caption { display: flex; flex-direction: column; gap: 0.3vmin; font-size: calc(var(--size) * 0.37); line-height: 1.2; }",
+    ".skr .warn { flex: 0 0 100%; text-align: right; color: #86121a; font-size: calc(var(--size) * 0.37); line-height: 1.2; }",
+    ".skr .limits.low .warn { text-align: center; }",
+    ".skr .warn[hidden] { display: none; }",
     ".skr .detail { font-size: calc(var(--size) * 0.31); color: var(--muted); line-height: 1.2; }",
     // The slot takes only the room the time and the limits leave, so the song never makes the limits wrap.
     ".skr .slot { flex: 1 1 0; min-width: 0; display: flex; justify-content: center; }",
@@ -280,6 +289,31 @@
     });
   }
 
+  // The battery: the percent, what to say under it, and which of the three looks
+  // (from the skill's craft.md, so the words match the built-in themes).
+  function powerView(power) {
+    var detail;
+    if (power.on_battery) {
+      var minutes = Math.floor(power.minutes_left);
+      detail = minutes > 0 ? (minutes < 60 ? minutes + "m" : Math.floor(minutes / 60) + "h " + (minutes % 60) + "m") + " left" : "";
+    } else {
+      detail = power.charging ? "Charging" : power.percent >= 100 ? "Full" : "Plugged in";
+    }
+    return { percent: Math.round(power.percent), detail: detail, tone: power.low ? "low" : power.on_battery ? "battery" : "charging" };
+  }
+
+  // The line that asks to plug in while agents work, or "" when there is nothing to warn about.
+  function powerWarning(power) {
+    if (!power || !power.warn) return "";
+    return "Battery " + Math.round(power.percent) + "%: plug in, " + (power.working === 1 ? "1 agent is" : power.working + " agents are") + " working";
+  }
+
+  // The battery as one more ring, in its look's colour.
+  function batteryShown(power) {
+    var shown = powerView(power);
+    return { hue: BATTERY[shown.tone], name: "Battery", percent: shown.percent, detail: shown.detail, stale: false };
+  }
+
   function svgNode(tag, attributes) {
     var node = document.createElementNS("http://www.w3.org/2000/svg", tag);
     Object.keys(attributes).forEach(function (key) { node.setAttribute(key, attributes[key]); });
@@ -347,7 +381,7 @@
   }
 
   window.agentScreensaver.register(function () {
-    var box, stage, row, when, slot, time, date, limits, song, track, lastKey = "", low, cancelTick, cancelDrift, cancelSong, now;
+    var box, stage, row, when, slot, time, date, limits, warn, song, track, lastKey = "", low, cancelTick, cancelDrift, cancelSong, now;
 
     // The ring of the song moves on between the service's reads, a few times a second.
     function drawSong() {
@@ -420,6 +454,8 @@
         when.append(time, date);
         limits = document.createElement("div");
         limits.className = "label limits";
+        warn = text("warn", "");
+        warn.hidden = true;
         song = songLabel();
         slot = document.createElement("div");
         slot.className = "slot";
@@ -444,7 +480,10 @@
         when.classList.toggle("away", resting);
         // The second display shows the field and the time only.
         box.hidden = state.display !== "main";
-        limits.hidden = state.limits.length === 0;
+        var power = state.display === "main" ? state.power : undefined;
+        var shown = order(state.limits, state.agentOrder || []).map(function (limit) { return view(limit, state.nowMs); });
+        if (power) shown.push(batteryShown(power));
+        limits.hidden = shown.length === 0;
         if (low !== undefined && resting !== low && !limits.hidden) {
           // It changes place with the mood: it fades into the new one.
           var from = reduce.matches ? { opacity: 0 } : { opacity: 0, transform: (resting ? "translateX(-50%) " : "") + "translateY(1.6vmin)" };
@@ -455,11 +494,13 @@
         limits.classList.toggle("low", resting);
         place();
         showSong(state.nowPlaying, moodOf(state));
-        var shown = order(state.limits, state.agentOrder || []).map(function (limit) { return view(limit, state.nowMs); });
+        var warning = state.mode === "attention" ? "" : powerWarning(power);
+        warn.hidden = warning === "";
+        warn.textContent = warning;
         var key = JSON.stringify(shown);
         if (key === lastKey) return;
         lastKey = key;
-        limits.replaceChildren.apply(limits, shown.map(ring));
+        limits.replaceChildren.apply(limits, shown.map(ring).concat(warn));
       },
       unmount: function () {
         window.removeEventListener("resize", place);
@@ -468,7 +509,7 @@
         if (cancelSong) cancelSong();
         cancelTick = cancelDrift = cancelSong = undefined;
         if (box && box.parentElement) box.parentElement.replaceChildren();
-        box = stage = row = when = slot = time = date = limits = song = track = undefined;
+        box = stage = row = when = slot = time = date = limits = warn = song = track = undefined;
       },
     };
   });
