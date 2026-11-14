@@ -18,6 +18,8 @@ Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/r
 
 With "Show what's playing" on, the song that Spotify or Music plays gets one more printed card, as wide as the small photo and right under it: the app and the time in the orange band, the song in large type, the artist, and a bar that fills as the song plays. When the task cards reach that high, the song card moves up to stay clear of them; on a very wide screen it then covers the foot of the photo. It steps away while an agent waits for you. A song that Music streams has no time and no bar, because Music gives no length for it.
 
+On a Mac with a battery (agent-screensaver 0.6.0 and later), the battery is one more ring after the limits: the percent left, and the time left on battery, or `Charging`, `Full` or `Plugged in` on a power plug. The ring is black, like the other rings, and at 20% or less it fills black like a stamp. If the battery is low while agents still work, one bold black line on a small orange plate under the rings says so, for example `Battery 18%: plug in, 2 agents are working`. It steps away while an agent waits for you, and the battery never shows on the second display.
+
 Privacy mode keeps working. With privacy on, the title and the command are left out.
 
 With "Reduce motion" on in macOS, the rows and the photos stand still, and cards fade in and out without moving.
