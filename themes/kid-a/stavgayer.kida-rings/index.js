@@ -8,7 +8,10 @@
 // agent-screensaver 0.4.0 and later) gets a smaller plate of the same cut right
 // under it: an ice-white ring that fills as the song plays, the song, then its
 // artist. It never reaches the big word on the left, and steps away while an
-// agent waits for you.
+// agent waits for you. The battery (state.power, agent-screensaver 0.6.0 and
+// later) is one more ring after the limits: putty grey on battery, ice white on
+// a power plug, stain red when low; a low battery while agents work also gets
+// one stain red line under the plates.
 (function () {
   var scriptSrc = (document.currentScript && document.currentScript.src) || "";
   var base = scriptSrc.replace(/[^/]*$/, "");
@@ -21,6 +24,7 @@
   var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   var OWN = { claude: "#ff4b33", codex: "#4fc8ff", cursor: "#ffb21f" };
   var SPARE = ["#ff6fae", "#5fe0b4", "#b9a4ff", "#ffd36a", "#7fa8ff", "#ff8a4c"];
+  var BATTERY = { battery: "#a3adb8", charging: "#eef1f3", low: "#c8322a" };
   var RADIUS = 19;
   var ARC = 2 * Math.PI * RADIUS;
 
@@ -42,6 +46,9 @@
     ".kar .caption { display: flex; flex-direction: column; gap: 0.5vmin; font-size: calc(var(--size) * 0.29); line-height: 1.05; }",
     ".kar .detail { font-weight: 500; font-size: calc(var(--size) * 0.26); color: #a3adb8; }",
     ".kar-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 1.8vmin; }",
+    ".kaw { margin-right: -8vmin; padding: 1.1vmin 8vmin 1.1vmin 2.4vmin; background: #0c0f13; color: #c8322a; border-radius: 0 0 0 0.8vmin;",
+    "  font-family: 'KA Type', 'Helvetica Neue', sans-serif; font-weight: 700; font-size: 2.2vmin; white-space: nowrap; -webkit-font-smoothing: antialiased; }",
+    ".kaw[hidden] { display: none; }",
     // the big word takes up to about 100vmin from the left, so on a narrow screen the plate stops short of it
     ".kap { --size: 5.2vmin; --hue: #e9edef; display: flex; align-items: center; gap: calc(var(--size) * 0.3); height: calc(var(--size) + 2.6vmin); box-sizing: border-box;",
     "  max-width: min(36vw, calc(100vw - 100vmin)); margin-right: -8vmin; padding: 0 8vmin 0 2.4vmin; background: #0c0f13; color: #eef1f3; border-radius: 0 0 0 0.8vmin;",
@@ -138,6 +145,31 @@
     });
   }
 
+  // The battery: the percent, what to say under it, and which of the three looks
+  // (from the skill's craft.md, so the words match the built-in themes).
+  function powerView(power) {
+    var detail;
+    if (power.on_battery) {
+      var minutes = Math.floor(power.minutes_left);
+      detail = minutes > 0 ? (minutes < 60 ? minutes + "m" : Math.floor(minutes / 60) + "h " + (minutes % 60) + "m") + " left" : "";
+    } else {
+      detail = power.charging ? "Charging" : power.percent >= 100 ? "Full" : "Plugged in";
+    }
+    return { percent: Math.round(power.percent), detail: detail, tone: power.low ? "low" : power.on_battery ? "battery" : "charging" };
+  }
+
+  // The line that asks to plug in while agents work, or "" when there is nothing to warn about.
+  function powerWarning(power) {
+    if (!power || !power.warn) return "";
+    return "Battery " + Math.round(power.percent) + "%: plug in, " + (power.working === 1 ? "1 agent is" : power.working + " agents are") + " working";
+  }
+
+  // The battery as one more ring, in its look's colour.
+  function batteryShown(power) {
+    var shown = powerView(power);
+    return { hue: BATTERY[shown.tone], name: "Battery", percent: shown.percent, detail: shown.detail, stale: false };
+  }
+
   function svgNode(tag, attributes) {
     var node = document.createElementNS("http://www.w3.org/2000/svg", tag);
     Object.keys(attributes).forEach(function (key) { node.setAttribute(key, attributes[key]); });
@@ -190,7 +222,7 @@
   }
 
   window.agentScreensaver.register(function () {
-    var box, song, track, now, cancelSong, lastKey = "";
+    var box, warn, song, track, now, cancelSong, lastKey = "";
 
     // The ring of the song moves on between the service's reads, a few times a second.
     function drawSong() {
@@ -222,8 +254,10 @@
         stack.className = "kar-stack";
         box = document.createElement("div");
         box.className = "kar";
+        warn = text("kaw", "");
+        warn.hidden = true;
         song = songPlate();
-        stack.append(box, song.plate);
+        stack.append(box, warn, song.plate);
         root.append(style, stack);
         lastKey = "";
         now = function () { return ctx.now(); };
@@ -233,8 +267,13 @@
         if (!box) return;
         showSong(state.nowPlaying, state.mode === "attention");
         box.classList.toggle("big", state.cards.length === 0);
-        box.hidden = state.limits.length === 0;
+        var power = state.display === "main" ? state.power : undefined;
+        var warning = state.mode === "attention" ? "" : powerWarning(power);
+        warn.hidden = warning === "";
+        warn.textContent = warning;
         var shown = order(state.limits, state.agentOrder).map(function (limit) { return view(limit, state.nowMs); });
+        if (power) shown.push(batteryShown(power));
+        box.hidden = shown.length === 0;
         var key = JSON.stringify(shown);
         if (key === lastKey) return;
         lastKey = key;
@@ -244,7 +283,7 @@
         if (cancelSong) cancelSong();
         cancelSong = undefined;
         if (box && box.parentElement && box.parentElement.parentElement) box.parentElement.parentElement.replaceChildren();
-        box = song = track = undefined;
+        box = warn = song = track = undefined;
       },
     };
   });
