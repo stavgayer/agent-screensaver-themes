@@ -9,6 +9,9 @@
 // gets a smaller plate of the same shape right under it: a lilac ring that
 // fills as the song plays, the song, then its artist. It steps away while an
 // agent waits for you.
+// The battery (state.power, agent-screensaver 0.6.0 and later) is one more ring
+// after the limits: muted lilac on battery, cream on a power plug, thread red
+// when low; a low battery while agents work also gets one red line under the plate.
 (function () {
   var scriptSrc = (document.currentScript && document.currentScript.src) || "";
   var base = scriptSrc.replace(/[^/]*$/, "");
@@ -21,6 +24,7 @@
   var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   var OWN = { claude: "#ff6a3d", codex: "#9d8cff", cursor: "#ffc94a" };
   var SPARE = ["#ff5fa2", "#5fd3c4", "#ff8f5a", "#c7a6ff", "#f2e266", "#7fb2ff"];
+  var BATTERY = { battery: "#c3b6d6", charging: "#f4ecdf", low: "#e8343a" };
   var RADIUS = 19;
   var ARC = 2 * Math.PI * RADIUS;
 
@@ -42,6 +46,9 @@
     ".csr .caption { display: flex; flex-direction: column; gap: 0.5vmin; font-size: calc(var(--size) * 0.29); line-height: 1.05; }",
     ".csr .detail { font-weight: 500; font-size: calc(var(--size) * 0.26); color: #c3b6d6; }",
     ".csr-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 1.8vmin; }",
+    ".csw { margin-right: -8vmin; padding: 1.1vmin 8vmin 1.1vmin 2.4vmin; background: #120a1f; border-radius: 999px 0 0 999px; color: #e8343a;",
+    "  font-family: 'CS Text', 'Helvetica Neue', sans-serif; font-weight: 700; font-size: 2.2vmin; white-space: nowrap; -webkit-font-smoothing: antialiased; }",
+    ".csw[hidden] { display: none; }",
     ".csp { --size: 5.2vmin; --hue: #c7a6ff; display: flex; align-items: center; gap: calc(var(--size) * 0.3); height: calc(var(--size) + 2.6vmin); box-sizing: border-box;",
     "  max-width: 36vw; margin-right: -8vmin; padding: 0 8vmin 0 2.4vmin; background: #120a1f; color: #f4ecdf; border-radius: 999px 0 0 999px;",
     "  box-shadow: 0 1vmin 2.6vmin rgba(8, 3, 16, 0.35); transition: opacity 400ms cubic-bezier(0.23, 1, 0.32, 1);",
@@ -137,6 +144,31 @@
     });
   }
 
+  // The battery: the percent, what to say under it, and which of the three looks
+  // (from the skill's craft.md, so the words match the built-in themes).
+  function powerView(power) {
+    var detail;
+    if (power.on_battery) {
+      var minutes = Math.floor(power.minutes_left);
+      detail = minutes > 0 ? (minutes < 60 ? minutes + "m" : Math.floor(minutes / 60) + "h " + (minutes % 60) + "m") + " left" : "";
+    } else {
+      detail = power.charging ? "Charging" : power.percent >= 100 ? "Full" : "Plugged in";
+    }
+    return { percent: Math.round(power.percent), detail: detail, tone: power.low ? "low" : power.on_battery ? "battery" : "charging" };
+  }
+
+  // The line that asks to plug in while agents work, or "" when there is nothing to warn about.
+  function powerWarning(power) {
+    if (!power || !power.warn) return "";
+    return "Battery " + Math.round(power.percent) + "%: plug in, " + (power.working === 1 ? "1 agent is" : power.working + " agents are") + " working";
+  }
+
+  // The battery as one more ring, in its look's colour.
+  function batteryShown(power) {
+    var shown = powerView(power);
+    return { hue: BATTERY[shown.tone], name: "Battery", percent: shown.percent, detail: shown.detail, stale: false };
+  }
+
   function svgNode(tag, attributes) {
     var node = document.createElementNS("http://www.w3.org/2000/svg", tag);
     Object.keys(attributes).forEach(function (key) { node.setAttribute(key, attributes[key]); });
@@ -189,7 +221,7 @@
   }
 
   window.agentScreensaver.register(function () {
-    var box, song, track, now, cancelSong, lastKey = "";
+    var box, warn, song, track, now, cancelSong, lastKey = "";
 
     // The ring of the song moves on between the service's reads, a few times a second.
     function drawSong() {
@@ -213,6 +245,12 @@
       if (appears && !waiting) song.plate.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
     }
 
+    // Large rings that run off the left edge (a narrow screen, many limits and
+    // the battery) go back to their normal size.
+    function fitBig() {
+      if (box.classList.contains("big") && box.getBoundingClientRect().left < 0) box.classList.remove("big");
+    }
+
     return {
       mount: function (root, ctx) {
         var style = document.createElement("style");
@@ -221,8 +259,10 @@
         stack.className = "csr-stack";
         box = document.createElement("div");
         box.className = "csr";
+        warn = text("csw", "");
+        warn.hidden = true;
         song = songPlate();
-        stack.append(box, song.plate);
+        stack.append(box, warn, song.plate);
         root.append(style, stack);
         lastKey = "";
         now = function () { return ctx.now(); };
@@ -232,18 +272,24 @@
         if (!box) return;
         showSong(state.nowPlaying, state.mode === "attention");
         box.classList.toggle("big", state.cards.length === 0);
-        box.hidden = state.limits.length === 0;
+        var power = state.display === "main" ? state.power : undefined;
+        var warning = state.mode === "attention" ? "" : powerWarning(power);
+        warn.hidden = warning === "";
+        warn.textContent = warning;
         var shown = order(state.limits, state.agentOrder).map(function (limit) { return view(limit, state.nowMs); });
+        if (power) shown.push(batteryShown(power));
+        box.hidden = shown.length === 0;
         var key = JSON.stringify(shown);
-        if (key === lastKey) return;
+        if (key === lastKey) return fitBig();
         lastKey = key;
         box.replaceChildren.apply(box, shown.map(ring));
+        fitBig();
       },
       unmount: function () {
         if (cancelSong) cancelSong();
         cancelSong = undefined;
         if (box && box.parentElement && box.parentElement.parentElement) box.parentElement.parentElement.replaceChildren();
-        box = song = track = undefined;
+        box = warn = song = track = undefined;
       },
     };
   });
