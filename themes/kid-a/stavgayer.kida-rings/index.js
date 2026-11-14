@@ -246,6 +246,12 @@
       if (appears && !waiting) song.plate.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
     }
 
+    // Large rings that run off the left edge (a narrow screen, many limits and
+    // the battery) go back to their normal size.
+    function fitBig() {
+      if (box.classList.contains("big") && box.getBoundingClientRect().left < 0) box.classList.remove("big");
+    }
+
     return {
       mount: function (root, ctx) {
         var style = document.createElement("style");
@@ -275,9 +281,10 @@
         if (power) shown.push(batteryShown(power));
         box.hidden = shown.length === 0;
         var key = JSON.stringify(shown);
-        if (key === lastKey) return;
+        if (key === lastKey) return fitBig();
         lastKey = key;
         box.replaceChildren.apply(box, shown.map(ring));
+        fitBig();
       },
       unmount: function () {
         if (cancelSong) cancelSong();
