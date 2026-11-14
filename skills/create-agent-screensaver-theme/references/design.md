@@ -56,6 +56,8 @@ The screen saver has five states. Design each one on purpose; do not let one be 
 
 If the user turned on "Show what's playing", also design the song: its title, its artist and its progress, in the theme's own style, in a spot that is free in every state (see [craft.md](craft.md#the-song-that-plays)). It hides while an agent waits for you.
 
+If the Mac has a battery (agent-screensaver 0.6.0 and later), design the battery too, as one more item next to your limits, in the same style (see [craft.md](craft.md#the-battery)). Keep it quiet: the percent, and the time left or how it is on a power plug. Be loud only when `warn` is true. Never draw it on the second display.
+
 ## 4. Type and text
 
 - Use at most two families: one display face for big words and numbers, one text face for small text. Bundle them as files with their licence (the SIL Open Font License is the common one), because the page cannot load fonts from the internet.

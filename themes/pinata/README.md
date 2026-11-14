@@ -18,6 +18,8 @@ Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/r
 
 With "Show what's playing" on, the song gets a small black plate with a gold frame in the bottom right corner: the title, the artist and a thin gold bar that fills as the song plays. A long name is cut with "…". A song that Music streams has no bar, because Music gives no length for it. The song hides while an agent waits for you.
 
+On a Mac with a battery (agent-screensaver 0.6.0 and later), the battery is one more ring after the limits in the bottom border: the percent left, and the time left on battery, or `Charging`, `Full` or `Plugged in` on a power plug. The ring is cream on battery, gold on a power plug, and red at 20% or less. If the battery is low while agents still work, one red line on a small black plate under the limits says so, for example `Battery 18%: plug in, 2 agents are working`. Both step away while an agent waits for you, and the battery never shows on the second display.
+
 Each agent owns one colour from the park photo: Claude clay, Codex leaf green, Cursor sky grey. Other agents get a colour by their name. All small text sits on black plates with a gold frame, so it reads over the fur. Privacy mode keeps working: titles, commands and branches show only when the service sends them. Without a command the approval says "Look at the terminal".
 
 ## What it took from the cover

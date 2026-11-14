@@ -2,6 +2,23 @@
 
 The release notes of agent-screensaver-themes, newest first. This file is where they are written: the message of each release tag is made from the section of its version, and CI refuses to release a version that has no section here. See the README for how to release.
 
+## v1.5.0 (2026-11-15)
+
+## Every theme shows the battery
+
+agent-screensaver 0.6.0 tells the screen saver about the battery, so you see from across the room when a laptop that runs agents is about to die. Now all nine themes draw it, each in its own look:
+
+- **Favourite:** the battery is one more steel spike under the heart, the last on the right, with its own plate. The spike grows longer as the battery empties, like the limit spikes. The plate says `Battery`, the percent, and `2h 10m left` on battery, or `Charging`, `Full` or `Plugged in` on power.
+- **The other eight themes:** one more ring after the usage rings, in the theme's own ring style and colours, with the same captions.
+- **When it matters:** at 20% or less on battery while an agent still works, the theme shows `Battery 18%: plug in, 2 agents are working`. In Favourite it takes the place of the song line under the date.
+- On a Mac with no battery, or with an agent-screensaver older than 0.6.0, nothing changes.
+
+New versions: Currents 1.4.2, Prism 1.2.2, Favourite 1.4.3, In Colour 1.2.2, Kid A 1.3.2, Pablo 2.3.2, Piñata 1.1.2, Key of Life 1.2.2, Unknown Pleasures 1.3.2. Install the new zip over the old one to update. Each still needs agent-screensaver 0.5.0 or later; the battery shows from 0.6.0.
+
+## Also
+
+- The create-agent-screensaver-theme skill (1.6.0) teaches `state.power`: what it holds, how to show it, and a `power` parameter in the preview page to test every battery state.
+
 ## v1.4.2 (2026-11-09)
 
 ## Favourite flows more smoothly

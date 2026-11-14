@@ -6,6 +6,9 @@
 // Order, numbers and captions follow builtin.limit-rings: an old reading is
 // dimmed and says its age, an estimate says "est.", and a window that reset
 // since the reading is empty and says "Reset". Time comes from state.nowMs.
+// The battery (state.power, agent-screensaver 0.6.0 and later) is one more ring
+// after the limits: ink on battery, teal on a power plug, deep red when low.
+// A low battery while agents work also gets one red line on a leg under the rings.
 (function () {
   // A finished turn with background jobs still running is still working.
   function jobsOf(card) { return Number.isFinite(card.background) && card.background > 0 ? Math.floor(card.background) : 0; }
@@ -23,7 +26,8 @@
   var OWN = { claude: "#e6471d", codex: "#1d61ac", cursor: "#1a9d3f" };
   var SPARE = ["#da0581", "#f7a416", "#5c2578", "#159dd7", "#b0cc20", "#dd0834"];
   // On the dark wheel the deep hues need a lighter tint to read as rings.
-  var LIFT = { "#1d61ac": "#3f8fe0", "#5c2578": "#9a5bd0" };
+  var LIFT = { "#1d61ac": "#3f8fe0", "#5c2578": "#9a5bd0", "#0b0b0b": "#ffffff", "#b30f1f": "#ff5a5f" };
+  var BATTERY = { battery: "#0b0b0b", charging: "#12a89a", low: "#b30f1f" };
   var RADIUS = 19;
   var ARC = 2 * Math.PI * RADIUS;
 
@@ -48,6 +52,13 @@
     ".icr .value { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--size) * 0.29); letter-spacing: -0.03em; }",
     ".icr .caption { display: flex; flex-direction: column; gap: 0.5vmin; font-size: calc(var(--size) * 0.3); line-height: 1.05; }",
     ".icr .detail { font-weight: 500; font-size: calc(var(--size) * 0.27); }",
+    ".icw { margin: 0 -4vmin 0 0; padding: 1.2vmin 4.6vmin 1.2vmin 3vmin; background: #ffffff; color: " + BATTERY.low + ";",
+    "  clip-path: polygon(1.4vmin 0, 100% 0, 100% 100%, 0 100%); white-space: nowrap; font-family: 'IC Grotesk', 'Helvetica Neue', sans-serif;",
+    "  font-weight: 700; font-size: 2.2vmin; -webkit-font-smoothing: antialiased;",
+    "  transition: background-color 900ms cubic-bezier(0.23, 1, 0.32, 1), color 900ms cubic-bezier(0.23, 1, 0.32, 1); }",
+    ".icw.rest { background: transparent; color: " + LIFT[BATTERY.low] + "; }",
+    ".icw[hidden] { display: none; }",
+    ".icstack { display: flex; flex-direction: column; align-items: flex-end; }",
   ].join("\n");
 
   function hueOf(source) {
@@ -95,6 +106,31 @@
   function percentOf(used) {
     if (!Number.isFinite(used)) return 0;
     return Math.min(100, Math.max(0, Math.round(used)));
+  }
+
+  // The battery: the percent, what to say under it, and which of the three looks.
+  function powerView(power) {
+    var detail;
+    if (power.on_battery) {
+      var minutes = Math.floor(power.minutes_left);
+      detail = minutes > 0 ? (minutes < 60 ? minutes + "m" : Math.floor(minutes / 60) + "h " + (minutes % 60) + "m") + " left" : "";
+    } else {
+      detail = power.charging ? "Charging" : power.percent >= 100 ? "Full" : "Plugged in";
+    }
+    return { percent: Math.round(power.percent), detail: detail, tone: power.low ? "low" : power.on_battery ? "battery" : "charging" };
+  }
+
+  // The line that asks to plug in while agents work, or "" when there is nothing to warn about.
+  function powerWarning(power) {
+    if (!power || !power.warn) return "";
+    return "Battery " + Math.round(power.percent) + "%: plug in, " + (power.working === 1 ? "1 agent is" : power.working + " agents are") + " working";
+  }
+
+  // The battery as one more ring, in its look's colour.
+  function batteryShown(power) {
+    var shown = powerView(power);
+    var hue = BATTERY[shown.tone];
+    return { hue: hue, lift: LIFT[hue] || hue, name: "Battery", percent: shown.percent, detail: shown.detail, stale: false };
   }
 
   function view(limit, nowMs) {
@@ -161,14 +197,26 @@
   }
 
   window.agentScreensaver.register(function () {
-    var box, lastKey = "";
+    var box, warn, lastKey = "";
+
+    // Large rings that run off the left edge (many limits and the battery) go back to their normal size.
+    function fitBig() {
+      if (box.classList.contains("big") && box.getBoundingClientRect().left < 0) box.classList.remove("big");
+    }
+
     return {
       mount: function (root) {
         var style = document.createElement("style");
         style.textContent = STYLE;
         box = document.createElement("div");
         box.className = "icr";
-        root.append(style, box);
+        warn = document.createElement("div");
+        warn.className = "icw";
+        warn.hidden = true;
+        var stack = document.createElement("div");
+        stack.className = "icstack";
+        stack.append(box, warn);
+        root.append(style, stack);
         lastKey = "";
       },
       update: function (state) {
@@ -176,16 +224,23 @@
         var busy = state.cards.some(isWorking);
         box.classList.toggle("rest", !busy);
         box.classList.toggle("big", state.cards.length === 0);
-        box.hidden = state.limits.length === 0;
+        var power = state.display === "main" ? state.power : undefined;
+        var warning = state.mode === "attention" ? "" : powerWarning(power);
+        warn.classList.toggle("rest", !busy);
+        warn.hidden = warning === "";
+        warn.textContent = warning;
         var shown = order(state.limits, state.agentOrder).map(function (limit) { return view(limit, state.nowMs); });
+        if (power) shown.push(batteryShown(power));
+        box.hidden = shown.length === 0;
         var key = JSON.stringify(shown);
-        if (key === lastKey) return;
+        if (key === lastKey) return fitBig();
         lastKey = key;
         box.replaceChildren.apply(box, shown.map(ring));
+        fitBig();
       },
       unmount: function () {
-        if (box && box.parentElement) box.parentElement.replaceChildren();
-        box = undefined;
+        if (box && box.parentElement && box.parentElement.parentElement) box.parentElement.parentElement.replaceChildren();
+        box = warn = undefined;
       },
     };
   });

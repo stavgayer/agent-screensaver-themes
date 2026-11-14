@@ -13,6 +13,11 @@
 // It works out the five states from the view state, builds text only with
 // textContent, cuts long text with "…", measures instead of guessing where the
 // song fits, and cleans up in unmount.
+//
+// The battery (state.power, agent-screensaver 0.6.0 and later) is one more ring
+// after the limits: cream on battery, gold on a power plug, red when low. A low
+// battery while agents work also gets one red line on a small plate under the
+// limits. Both step away while an agent waits for you.
 (function () {
   var scriptSrc = (document.currentScript && document.currentScript.src) || "";
   var base = scriptSrc.replace(/[^/]*$/, "");
@@ -31,6 +36,7 @@
   var OWN = { claude: "#d9895b", codex: "#93b89c", cursor: "#9fb2c4" };
   var SPARE = ["#e3c58d", "#c7a17d", "#b7a9c9"];
   var GOLD = "#dbc086";
+  var BATTERY = { battery: "#f0ece5", charging: GOLD, low: "#d9553f" };
   var MAX_CARDS = 4;
   var RADIUS = 19;
   var ARC = 2 * Math.PI * RADIUS;
@@ -82,6 +88,8 @@
     // The bottom border: the limits, then the song in the room they leave.
     ".pn .row { position: absolute; left: 4vmin; right: 4vmin; bottom: 0; height: 15vmin; display: flex; align-items: center; gap: 3vmin; transition: opacity 500ms cubic-bezier(0.23, 1, 0.32, 1); }",
     ".pn .row.back { opacity: 0; }",
+    ".pn .left { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 0.8vmin; }",
+    ".pn .warn { --rim: 0.3vmin; padding: 0.4vmin 1.4vmin 0.5vmin; font-size: 1.7vmin; font-weight: 700; font-stretch: 80%; letter-spacing: 0.02em; color: " + BATTERY.low + "; white-space: nowrap; }",
     ".pn .limits { --rim: 0.3vmin; flex: none; flex-direction: row; align-items: center; gap: 2.4vmin; height: 9vmin; padding: 0 2.2vmin; }",
     ".pn .item { display: flex; align-items: center; gap: 1.1vmin; white-space: nowrap; }",
     ".pn .item.stale { opacity: 0.55; }",
@@ -214,6 +222,30 @@
     });
   }
 
+  // The battery: the percent, what to say under it, and which of the three looks.
+  function powerView(power) {
+    var detail;
+    if (power.on_battery) {
+      var minutes = Math.floor(power.minutes_left);
+      detail = minutes > 0 ? (minutes < 60 ? minutes + "m" : Math.floor(minutes / 60) + "h " + (minutes % 60) + "m") + " left" : "";
+    } else {
+      detail = power.charging ? "Charging" : power.percent >= 100 ? "Full" : "Plugged in";
+    }
+    return { percent: Math.round(power.percent), detail: detail, tone: power.low ? "low" : power.on_battery ? "battery" : "charging" };
+  }
+
+  // The line that asks to plug in while agents work, or "" when there is nothing to warn about.
+  function powerWarning(power) {
+    if (!power || !power.warn) return "";
+    return "Battery " + Math.round(power.percent) + "%: plug in, " + (power.working === 1 ? "1 agent is" : power.working + " agents are") + " working";
+  }
+
+  // The battery as one more ring, in its look's colour.
+  function batteryView(power) {
+    var shown = powerView(power);
+    return { hue: BATTERY[shown.tone], label: "Battery", percent: shown.percent, detail: shown.detail, stale: false };
+  }
+
   function svgNode(tag, attributes) {
     var node = document.createElementNS("http://www.w3.org/2000/svg", tag);
     Object.keys(attributes).forEach(function (key) { node.setAttribute(key, attributes[key]); });
@@ -237,7 +269,7 @@
   }
 
   window.agentScreensaver.register(function () {
-    var box, nameBand, name, win, big, cards, call, row, limits, song, track, show = "agents";
+    var box, nameBand, name, win, big, cards, call, row, limits, warn, song, track, show = "agents";
     var cancelSong, now, lastState, lastLimits = "", lastMood = "";
 
     function card(task, state) {
@@ -273,8 +305,9 @@
       if (progress !== null) song.querySelector(".fill").style.transform = "scaleX(" + progress.toFixed(4) + ")";
     }
 
-    function drawLimits(state) {
+    function drawLimits(state, power) {
       var shown = ordered(state.limits || [], state.agentOrder).map(function (limit) { return limitView(limit, state.nowMs); });
+      if (power) shown.push(batteryView(power));
       var key = JSON.stringify(shown);
       limits.hidden = shown.length === 0;
       if (key === lastLimits) return;
@@ -331,7 +364,11 @@
       var second = show === "time" || state.display !== "main";
       row.hidden = second;
       row.classList.toggle("back", calling);
-      if (!second) drawLimits(state);
+      var power = state.display === "main" ? state.power : undefined;
+      var warning = calling ? "" : powerWarning(power);
+      warn.hidden = warning === "";
+      warn.textContent = warning;
+      if (!second) drawLimits(state, power);
       track = !second && !calling && state.nowPlaying && state.nowPlaying.title ? state.nowPlaying : undefined;
       song.hidden = !track;
       if (track) {
@@ -369,6 +406,10 @@
         win.append(big, cards, call);
         row = el("row");
         limits = el("plate limits");
+        warn = el("plate warn");
+        warn.hidden = true;
+        var left = el("left");
+        left.append(limits, warn);
         song = el("plate song");
         var bar = el("bar");
         bar.appendChild(el("fill"));
@@ -376,7 +417,7 @@
         song.hidden = true;
         var slot = el("slot");
         slot.appendChild(song);
-        row.append(limits, slot);
+        row.append(left, slot);
         box.append(name, win, row);
         root.append(style, box);
         show = ctx.options.show === "time" ? "time" : "agents";
@@ -400,7 +441,7 @@
         if (cancelSong) cancelSong();
         window.removeEventListener("resize", redraw);
         if (box && box.parentElement) box.parentElement.replaceChildren();
-        box = nameBand = name = win = big = cards = call = row = limits = song = track = lastState = cancelSong = undefined;
+        box = nameBand = name = win = big = cards = call = row = limits = warn = song = track = lastState = cancelSong = undefined;
       },
     };
   });

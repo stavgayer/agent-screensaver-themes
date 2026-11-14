@@ -22,6 +22,11 @@
   missing  1: leave out the fields the service can leave out (project, approval_since_ms)
   agent    unknown: add one more task from an agent with no extension ("gemini")
   jobs     N: the first finished card (in state=done, the first card) still runs N background jobs; it has an effect only when a card is finished (for example with state=done)
+  power    none | battery | low | idle-low | nominutes | charging | full | plugged   (default: none, a Mac with no battery)
+           battery 64% with 1h 50m left; low 18% with 34m left, warn while a task works; idle-low the same with no task working;
+           nominutes on battery with no time known; charging 80%; full 100% on power; plugged 79% on power, not charging
+  limits   many: 13 usage limits instead of 4
+  nolimits 1: no usage limits at all
 
   The .preview folder is in .gitignore. Copy it again after you update agent-screensaver.
 -->
@@ -54,6 +59,9 @@
     const missing = params.get("missing") === "1";
     const unknownAgent = params.get("agent") === "unknown";
     const jobs = Math.max(0, Math.floor(Number(params.get("jobs"))) || 0);
+    const power = params.get("power") || "none";
+    const manyLimits = params.get("limits") === "many";
+    const noLimits = params.get("nolimits") === "1";
     const now = Date.now();
 
     // The extension folders of the pack, from the server's directory listing.
@@ -149,6 +157,30 @@
 
     const limit = (source, window, used) => ({ source, window, used_percent: used, resets_at: Math.round(now / 1000) + 7000, updated_at_ms: now });
 
+    function limits() {
+      if (noLimits) return [];
+      const four = [limit("claude", "5h", 42), limit("claude", "week", 28), limit("codex", "5h", 17), limit("codex", "week", 9)];
+      if (!manyLimits) return four;
+      return four.concat([["claude", "plan", 61], ["codex", "plan", 33], ["cursor", "5h", 74], ["cursor", "week", 50], ["cursor", "plan", 12], ["gemini", "5h", 88], ["gemini", "week", 47], ["gemini", "plan", 5], ["claude", "5h", 96]].map(([source, window, used]) => limit(source, window, used)));
+    }
+
+    // The battery as the service writes it. `working` counts the cards an agent still works on:
+    // not finished, or finished with background jobs (an approval counts).
+    function powerField(list) {
+      const working = list.filter((card) => card.kind !== "finished" || card.background > 0).length;
+      const onBattery = (percent, minutes, low) => ({ on_battery: true, percent, ...(minutes ? { minutes_left: minutes } : {}), charging: false, low, warn: low && working > 0, working });
+      const onPower = (percent, charging) => ({ on_battery: false, percent, charging, low: false, warn: false, working });
+      return {
+        battery: () => onBattery(64, 110, false),
+        low: () => onBattery(18, 34, true),
+        "idle-low": () => ({ ...onBattery(18, 34, true), warn: false, working: 0 }),
+        nominutes: () => onBattery(64, 0, false),
+        charging: () => onPower(80, true),
+        full: () => onPower(100, false),
+        plugged: () => onPower(79, false),
+      }[power]?.();
+    }
+
     function load(tag, attributes) {
       return new Promise((resolve, reject) => {
         const node = Object.assign(document.createElement(tag), attributes);
@@ -162,10 +194,12 @@
       .then(() => load("script", { src: `${ROOT}.preview/runtime/runtime.js` }))
       .then(view)
       .then((resolved) => {
+        const list = cards(), battery = powerField(list);
         const file = {
-          version: 1, generated_at_ms: now, service_ok: true, cards: cards(),
-          limits: [limit("claude", "5h", 42), limit("claude", "week", 28), limit("codex", "5h", 17), limit("codex", "week", 9)],
+          version: 1, generated_at_ms: now, service_ok: true, cards: list,
+          limits: limits(),
           ...(SONGS[song] && !privacy ? { now_playing: { ...SONGS[song], at_ms: now } } : {}),
+          ...(battery ? { power: battery } : {}),
           view: resolved,
         };
         window.agentScreensaver.setState(JSON.stringify(file), state === "second" ? "secondary" : "main");

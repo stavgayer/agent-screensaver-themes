@@ -76,7 +76,13 @@
   // limits and no cards, and only the limits that can be read count.
   function frameOf(state, width, height) {
     var main = state.display === "main";
-    return favouriteFrame(width, height, main ? limitsInOrder(state).length : 0, main ? state.cards.length : 0);
+    return favouriteFrame(width, height, main ? spikeCount(state) : 0, main ? state.cards.length : 0);
+  }
+
+  // The spikes and their labels: one per limit that can be read, then the battery
+  // when the Mac has one, always last on the right.
+  function spikeCount(state) {
+    return limitsInOrder(state).length + (state.power ? 1 : 0);
   }
 
   // Each agent owns one colour of the cover; an agent we do not know gets one by its name.
@@ -149,6 +155,8 @@
     ".fvb .time { line-height: 0.95; }",
     ".fvb .date { line-height: 1.1; }",
     ".fvb .song { color: var(--pink); font-weight: 500; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+    // the low-battery warning takes the song's place, in the lime that means "come back"
+    ".fvb .song.warn { color: var(--lime); font-weight: 600; }",
     // the cards and labels step back while an agent waits
     ".fvb .labels, .fvb .cards { transition: opacity 400ms cubic-bezier(0.23, 1, 0.32, 1); }",
     ".fvb.call .labels, .fvb.call .cards { opacity: 0.15; }",
@@ -160,6 +168,7 @@
     ".fvb .limit .percent { flex: none; margin-left: auto; font-weight: 700; }",
     ".fvb .limit .detail { font-size: min(1.7vmin, 13px); line-height: 1.2; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
     ".fvb .limit.stale > * { opacity: 0.55; }",
+    ".fvb .limit.low .percent { color: var(--lime); }",
     // the task cards: beside the heart, or in a row on narrow screens
     ".fvb .column, .fvb .row { position: absolute; }",
     ".fvb .stack { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; gap: " + GAP + "vmin; }",
@@ -270,6 +279,30 @@
     return { percent: Math.round(usedPercent(limit, nowMs)), detail: extra.concat(reset && "resets " + reset).filter(Boolean).join(" · "), stale: stale };
   }
 
+  // The battery's plate has the board's pale steel blue edge, like its spike's root: no agent owns it.
+  var BATTERY_COLOUR = "#a9c6da";
+  // No labels at all: not even the battery's (the time-only and second displays).
+  var NONE = [];
+
+  // The battery: the percent, what to say under it, and which of the three looks
+  // (from the skill's craft.md, so the words match the built-in themes).
+  function powerView(power) {
+    var detail;
+    if (power.on_battery) {
+      var minutes = Math.floor(power.minutes_left);
+      detail = minutes > 0 ? (minutes < 60 ? minutes + "m" : Math.floor(minutes / 60) + "h " + (minutes % 60) + "m") + " left" : "";
+    } else {
+      detail = power.charging ? "Charging" : power.percent >= 100 ? "Full" : "Plugged in";
+    }
+    return { percent: Math.round(power.percent), detail: detail, tone: power.low ? "low" : power.on_battery ? "battery" : "charging" };
+  }
+
+  // The line that asks to plug in while agents work, or "" when there is nothing to warn about.
+  function powerWarning(power) {
+    if (!power || !power.warn) return "";
+    return "Battery " + Math.round(power.percent) + "%: plug in, " + (power.working === 1 ? "1 agent is" : power.working + " agents are") + " working";
+  }
+
   // Centres for a row of labels `step` apart, each as close as it can be to the
   // spike above it: pushed apart left to right, then the row shifted back to the
   // spikes' middle and into the screen. A row wider than the screen is centred.
@@ -361,10 +394,13 @@
       time.style.fontSize = 0.66 * height + "px";
       date.style.fontSize = 0.19 * height + "px";
       // The song: title and artist in one line, only between the card columns.
+      // A low battery while agents work takes its place, in lime.
+      var warning = showSong ? powerWarning(state.power) : "";
       var track = showSong && state.nowPlaying && state.nowPlaying.title ? state.nowPlaying : undefined;
-      song.hidden = !track;
-      if (!track) return;
-      song.textContent = track.artist ? track.title + " · " + track.artist : track.title;
+      song.hidden = !warning && !track;
+      song.classList.toggle("warn", !!warning);
+      if (song.hidden) return;
+      song.textContent = warning || (track.artist ? track.title + " · " + track.artist : track.title);
       song.dir = "auto";
       song.style.fontSize = 0.15 * height + "px";
       var columns = frame.sideColumns, width = box.clientWidth, vmin = Math.min(width, box.clientHeight) / 100;
@@ -372,31 +408,49 @@
       song.style.maxWidth = room - 2 * FRAME.gutter * width - 2 * GAP * vmin + "px";
     }
 
-    // One label per limit, under its spike; past the twelfth spike they carry on after.
+    // One label per limit, under its spike, then the battery's; past the twelfth
+    // spike they carry on after.
     function drawLabels(limits, state, frame) {
       labels.replaceChildren();
-      var count = limits.length;
+      var count = limits.length + (state.power && limits !== NONE ? 1 : 0);
       if (count === 0) return;
       var width = box.clientWidth, vmin = Math.min(width, box.clientHeight) / 100, gutter = FRAME.gutter * width;
       var step = FRAME.labelWidth, plateWidth = step - 8, plateHeight = (FRAME.labelRow - 0.8) * vmin; // 8 px between plates
       var ideals = [];
-      limits.forEach(function (limit, index) {
+      for (var index = 0; index < count; index++) {
         ideals.push(index < FRAME.maxSpikes ? frame.heart.cx + spikeOffset(index, count) * frame.heart.size : ideals[index - 1] + step);
-      });
+      }
       var perRow = frame.labelRows === 1 ? count : Math.ceil(count / 2);
       for (var first = 0, rowIndex = 0; first < count; first += perRow, rowIndex++) {
         var centres = spread(ideals.slice(first, first + perRow), step, gutter, width - gutter);
         centres.forEach(function (centre, offset) {
-          var limit = limits[first + offset], view = limitView(limit, state.nowMs);
-          var node = el("div", "limit" + (view.stale ? " stale" : ""));
-          node.style.setProperty("--hue", agentColour(limit.source));
-          var top = el("div", "top");
-          top.append(el("span", "name", agentName(state, limit.source)), el("span", "percent", view.percent + "%"));
-          node.append(top, el("div", "detail", [limit.window, view.detail].filter(Boolean).join(" · ")));
+          var node = first + offset < limits.length ? limitLabel(limits[first + offset], state) : batteryLabel(state.power);
           place(node, centre - plateWidth / 2, frame.labelsTop + rowIndex * FRAME.labelRow * vmin, plateWidth, plateHeight);
           labels.appendChild(node);
         });
       }
+    }
+
+    function limitLabel(limit, state) {
+      var view = limitView(limit, state.nowMs);
+      var node = el("div", "limit" + (view.stale ? " stale" : ""));
+      node.style.setProperty("--hue", agentColour(limit.source));
+      var top = el("div", "top");
+      top.append(el("span", "name", agentName(state, limit.source)), el("span", "percent", view.percent + "%"));
+      node.append(top, el("div", "detail", [limit.window, view.detail].filter(Boolean).join(" · ")));
+      return node;
+    }
+
+    // The battery's plate, under its spike: the steel blue edge, the percent lime when low.
+    function batteryLabel(power) {
+      var view = powerView(power);
+      var node = el("div", "limit battery" + (view.tone === "low" ? " low" : ""));
+      node.style.setProperty("--hue", BATTERY_COLOUR);
+      var top = el("div", "top");
+      top.append(el("span", "name", "Battery"), el("span", "percent", view.percent + "%"));
+      node.append(top);
+      if (view.detail) node.append(el("div", "detail", view.detail));
+      return node;
     }
 
     // Puts cards from `nodes[from]` into a column while they fit its height.
@@ -500,7 +554,7 @@
       var frame = frameOf(state, box.clientWidth, box.clientHeight);
       box.classList.toggle("call", mood === "call");
       drawClock(state, frame, !timeOnly && mood !== "call");
-      drawLabels(timeOnly ? [] : limitsInOrder(state), state, frame);
+      drawLabels(timeOnly ? NONE : limitsInOrder(state), state, frame);
       drawCards(timeOnly ? [] : state.cards, state, frame);
       drawCall(mood === "call" ? approvals(state.cards) : [], state, frame);
     }

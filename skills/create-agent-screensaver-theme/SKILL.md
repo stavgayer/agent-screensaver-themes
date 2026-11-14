@@ -8,7 +8,7 @@ description: >
 license: MIT
 metadata:
   author: stavgayer
-  version: "1.5.0"
+  version: "1.6.0"
 ---
 
 # Create an agent-screensaver theme
@@ -62,7 +62,7 @@ The full rules for extension code are in [extension-code-rules.md](https://githu
 # Preview a theme in any state (setup in references/test-and-ship.md); any free port works
 python3 -m http.server 8000
 # then open .../skills/create-agent-screensaver-theme/assets/preview.html?pack=themes/my-theme&state=work&song=long
-# more parameters: tasks=7, title=long, privacy=1, missing=1, agent=unknown
+# more parameters: tasks=7, title=long, privacy=1, missing=1, agent=unknown, jobs=3, power=low, limits=many
 
 # Frame rate, Reduce motion, lost context, console errors, and the stills
 node skills/create-agent-screensaver-theme/assets/shoot.mjs "<preview URL>" [--reduce] [--lose-context] [--out still.jpg]

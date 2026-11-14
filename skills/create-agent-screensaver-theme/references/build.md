@@ -149,8 +149,9 @@ The view state your `update` gets:
 | `serviceOk` | Whether the service runs. |
 | `display` | `"main"` or `"secondary"`. |
 | `nowPlaying` | Only when the user turned on "Show what's playing" and a song plays: `app`, `title`, `artist` (can be `""`), `position_ms`, `duration_ms` (`0` when the app gives no length), `at_ms`. Needs agent-screensaver 0.4.0. |
+| `power` | The battery, whenever the Mac has one, on battery or on a power plug; left out on a Mac without a battery: `on_battery`, `percent`, `minutes_left` (left out on a power plug, and when the system cannot tell yet), `charging`, `low`, `warn`, `working`. `on_battery` is false on a power plug, and then `low` and `warn` are false. On battery, `low` is true at 20% or less. `warn` is true when it is low and at least one agent works (a card that is not finished, or a finished card that still has background jobs; a card that waits for approval counts). `working` is how many cards work. The service works out `low` and `warn`, so read them and do not repeat the rule. Optional, so a theme that does not know it keeps working, with no `api` or `requires` change. Needs agent-screensaver 0.6.0. |
 
-Any field marked "when known" can be missing, and privacy mode removes `title`, `request`, `name` and `branch` from every card and leaves out `nowPlaying`. Show what is there and leave out what is not. A guard costs nothing even for the fields that are always sent: never let a number that is not there print as "NaN".
+Any field marked "when known" can be missing, and privacy mode removes `title`, `request`, `name` and `branch` from every card and leaves out `nowPlaying`. It keeps `power`, because the battery says nothing about your work. Show what is there and leave out what is not. A guard costs nothing even for the fields that are always sent: never let a number that is not there print as "NaN".
 
 `update` runs on every new state and once a minute. It does not run when the screen changes size. If anything you draw depends on the size (how many cards fit, where the song goes), listen for `resize` on `window`, keep the last state, and draw it again; remove the listener in `unmount` or `stop`.
 

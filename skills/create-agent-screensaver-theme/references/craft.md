@@ -120,6 +120,40 @@ function songProgress(track, nowMs) {
 - Hide it while an agent waits for you (`state.mode === "attention"`), and when `nowPlaying` is missing.
 - Find a spot that is free in every state, and measure your neighbours (see above). The themes here use: under the limits (Currents, Kid A), the top row between the clock and the limits (Unknown Pleasures, Prism), one more card under a photo (Pablo), one more white bar under the statement (In Colour), a label between the time and the limits (Key of Life).
 
+## The battery
+
+On a Mac with a battery (agent-screensaver 0.6.0 and later), `state.power` holds it, on battery and on a power plug; see [build.md](build.md#the-entry-file) for every field. Draw it like one more limit, in your theme's own style:
+
+- Show the percent left, and under it the time left on battery (`1h 50m left`), or `Charging`, `Full` or `Plugged in` on a power plug.
+- Give it three looks: on battery, on a power plug, and `low`. A low battery while nothing works harms nothing, so keep that look calm enough.
+- Be loud only when `warn` is true: one line, with the `working` count in it, in your attention colour. Hide it while an agent waits for you, like the song.
+- Draw it only on the main display (`state.display === "main"`), and draw nothing when `power` is missing.
+- Read `low` and `warn` from the field. Never work them out from the percent.
+
+The themes here copy this code, so the words match the built-in themes:
+
+```js
+// The battery: the percent, what to say under it, and which of the three looks.
+function powerView(power) {
+  var detail;
+  if (power.on_battery) {
+    var minutes = Math.floor(power.minutes_left);
+    detail = minutes > 0 ? (minutes < 60 ? minutes + "m" : Math.floor(minutes / 60) + "h " + (minutes % 60) + "m") + " left" : "";
+  } else {
+    detail = power.charging ? "Charging" : power.percent >= 100 ? "Full" : "Plugged in";
+  }
+  return { percent: Math.round(power.percent), detail: detail, tone: power.low ? "low" : power.on_battery ? "battery" : "charging" };
+}
+
+// The line that asks to plug in while agents work, or "" when there is nothing to warn about.
+function powerWarning(power) {
+  if (!power || !power.warn) return "";
+  return "Battery " + Math.round(power.percent) + "%: plug in, " + (power.working === 1 ? "1 agent is" : power.working + " agents are") + " working";
+}
+```
+
+Check it with `power=battery`, `low`, `idle-low`, `nominutes`, `charging`, `full`, `plugged` and `none` in the preview ([test-and-ship.md](test-and-ship.md#the-test-matrix)).
+
 ## The usage limits
 
 Use `builtin.limit-rings` in your layout, or draw your own from a copy of a theme's rings component here. The built-in rings draw light text with no plate or halo behind it: they read on a dark background, not on a light or busy one. Over a light picture, draw your own rings on a plate in your theme's style. Keep its rules, so a limit never misleads: order by `agentOrder`, dim a reading older than 30 minutes (5h window) or 6 hours (week and plan) and say its age, add "est." to an estimate, and show an empty ring that says "Reset" once `nowMs` passes `resets_at`.

@@ -18,6 +18,8 @@ Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/r
 
 With "Show what's playing" on, the song that Spotify or Music plays gets a smaller near-black plate right under the limits: an ice-white ring that fills as the song plays, the song, and its artist. It grows with the limits when nothing runs, a long name is cut with "…", it stops short of the big word on narrow screens, and it steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
 
+On a Mac with a battery (agent-screensaver 0.6.0 and later), the battery is one more ring after the limits: the percent left, and the time left on battery, or `Charging`, `Full` or `Plugged in` on a power plug. The ring is putty grey on battery, ice white on a power plug, and stain red at 20% or less. If the battery is low while agents still work, one stain red line under the limits says so, for example `Battery 18%: plug in, 2 agents are working`. It steps away while an agent waits for you, and the battery never shows on the second display.
+
 Each agent owns one colour: Claude red, Codex ice blue, Cursor amber. Other agents get colours by their name. All small text sits on near-black plates or snow-white cards, and the big words stand on the black sky with the dots kept away from them, so text reads everywhere. The approval command keeps one line and gets smaller to fit; only a very long command breaks, at spaces, into up to four lines. Privacy mode keeps working: titles, commands, names and branches are shown only when the service sends them. Without a command the approval card says "Look at the terminal".
 
 ## Motion

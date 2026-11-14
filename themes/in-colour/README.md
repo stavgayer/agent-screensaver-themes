@@ -18,6 +18,8 @@ Needs [agent-screensaver 0.5.0](https://github.com/stavgayer/agent-screensaver/r
 
 With "Show what's playing" on, the song that Spotify or Music plays gets a white leg of its own, cut at 45 degrees like the others: a small ring that fills as the song plays, the song, and its artist. It hangs under the lowest leg shown and stays above the task cards. On the dark wheel at rest it drops its white bar and turns white, like the rest. It steps away while an agent waits for you. A song that Music streams has no ring, because Music gives no length for it.
 
+On a Mac with a battery (agent-screensaver 0.6.0 and later), the battery is one more ring after the limits: the percent left, and the time left on battery, or `Charging`, `Full` or `Plugged in` on a power plug. The ring is black on battery, teal on a power plug, and deep red at 20% or less. If the battery is low while agents still work, one red line on a white leg under the rings says so, for example `Battery 18%: plug in, 2 agents are working`. It steps away while an agent waits for you, and the battery never shows on the second display.
+
 Each agent owns one hue: Claude vermilion, Codex blue, Cursor green. Other agents get a hue by their name. Privacy mode keeps working: titles, commands, names and branches are shown only when the service sends them.
 
 With "Reduce motion" on in macOS, the wheel and the words stand still, and things fade instead of moving.

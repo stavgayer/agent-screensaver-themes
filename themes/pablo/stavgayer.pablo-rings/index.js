@@ -4,6 +4,10 @@
 // an estimate says "est.", and a window that reset since the reading is empty and
 // says "Reset". Above 80% the disc fills black and the number turns ground color,
 // like a stamp. Time comes from state.nowMs only.
+// The battery (state.power, agent-screensaver 0.6.0 and later) is one more ring after
+// the limits. Pablo has only orange and black, so it is black in every look, and a low
+// battery gets the stamp fill. A low battery while agents work also gets one bold line
+// on a small orange plate under the rings. It steps away while an agent waits for you.
 (function () {
   var MINUTE = 60000;
   var HOUR = 60 * MINUTE;
@@ -16,6 +20,11 @@
   var ARC = 2 * Math.PI * RADIUS;
 
   var STYLE =
+    ".pablo-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 1.6vmin; }" +
+    ".pablo-warning { position: relative; z-index: 2; color: var(--pablo-ink, #111111); font-family: Arial, \"Helvetica Neue\", Helvetica, sans-serif; font-weight: 700;" +
+    "  font-size: 2.2vmin; line-height: 1.1; text-transform: uppercase; letter-spacing: 0.01em; white-space: nowrap;" +
+    "  background: var(--pablo-ground, #f58a3c); border: 0.35vmin solid currentColor; padding: 0.7vmin 1.2vmin; }" +
+    ".pablo-warning[hidden] { display: none; }" +
     ".pablo-rings { display: flex; gap: 3.6vmin; align-items: center; color: var(--pablo-ink, #111111);" +
     "  font-family: Arial, \"Helvetica Neue\", Helvetica, sans-serif; font-weight: 700; font-variant-numeric: tabular-nums; }" +
     ".pablo-rings .item { display: flex; align-items: center; gap: 1.1vmin; white-space: nowrap; }" +
@@ -31,7 +40,11 @@
     ".pablo-rings .caption { display: flex; flex-direction: column; gap: 0.4vmin; font-size: 2.2vmin; line-height: 1.1;" +
     "  text-transform: uppercase; letter-spacing: 0.01em; }" +
         ".pablo-rings { transition: color 320ms cubic-bezier(0.23, 1, 0.32, 1); }" +
-    ".pablo-rings.calling { color: var(--pablo-ground, #f58a3c); }" +
+    ".pablo-rings.tight { gap: 2.2vmin; }" +
+    ".pablo-rings.tight .ring { width: 6.4vmin; height: 6.4vmin; }" +
+    ".pablo-rings.tight .value { font-size: 1.9vmin; }" +
+    ".pablo-rings.tight .caption { font-size: 1.75vmin; }" +
+    ".pablo-rings.calling, .pablo-rings.calling .item { color: var(--pablo-ground, #f58a3c); }" +
     ".pablo-rings.calling .high .value { color: var(--pablo-ink, #111111); }";
 
   function pad2(value) {
@@ -98,6 +111,32 @@
     });
   }
 
+  // The battery: the percent, what to say under it, and which of the three looks
+  // (from the skill's craft.md, so the words match the built-in themes).
+  function powerView(power) {
+    var detail;
+    if (power.on_battery) {
+      var minutes = Math.floor(power.minutes_left);
+      detail = minutes > 0 ? (minutes < 60 ? minutes + "m" : Math.floor(minutes / 60) + "h " + (minutes % 60) + "m") + " left" : "";
+    } else {
+      detail = power.charging ? "Charging" : power.percent >= 100 ? "Full" : "Plugged in";
+    }
+    return { percent: Math.round(power.percent), detail: detail, tone: power.low ? "low" : power.on_battery ? "battery" : "charging" };
+  }
+
+  // The line that asks to plug in while agents work, or "" when there is nothing to warn about.
+  function powerWarning(power) {
+    if (!power || !power.warn) return "";
+    return "Battery " + Math.round(power.percent) + "%: plug in, " + (power.working === 1 ? "1 agent is" : power.working + " agents are") + " working";
+  }
+
+  // The battery as one more ring in the ink, like the limits (no colour of its own,
+  // so it turns orange with them while an agent waits); a low battery takes the stamp fill.
+  function batteryShown(power) {
+    var shown = powerView(power);
+    return { high: shown.tone === "low", name: "Battery", percent: shown.percent, detail: shown.detail, stale: false };
+  }
+
   function svgNode(tag, attributes) {
     var node = document.createElementNS("http://www.w3.org/2000/svg", tag);
     Object.keys(attributes).forEach(function (key) { node.setAttribute(key, attributes[key]); });
@@ -114,8 +153,9 @@
   function ring(shown) {
     var item = document.createElement("div");
     item.className = "item" + (shown.stale ? " stale" : "");
+    if (shown.hue) item.style.color = shown.hue;
     var holder = document.createElement("div");
-    holder.className = "ring" + (shown.percent > 80 ? " high" : "");
+    holder.className = "ring" + (shown.high || shown.percent > 80 ? " high" : "");
     var svg = svgNode("svg", { viewBox: "0 0 48 48", "aria-hidden": "true" });
     svg.append(
       svgNode("circle", { class: "disc", cx: 24, cy: 24, r: RADIUS + 2.5 }),
@@ -130,29 +170,49 @@
     return item;
   }
 
+  // A row that runs into the clock (many limits and the battery on a narrow screen)
+  // goes to the smaller size.
+  function fitRow(box) {
+    var clock = document.querySelector(".pablo-clock");
+    box.classList.remove("tight");
+    var clockRight = clock ? clock.getBoundingClientRect().right : 0;
+    if (clockRight > 0 && box.getBoundingClientRect().left < clockRight + window.innerHeight * 0.03) box.classList.add("tight");
+  }
+
   window.agentScreensaver.register(function () {
-    var box, lastKey = "";
+    var box, warn, lastKey = "";
     return {
       mount: function (root) {
         var style = document.createElement("style");
         style.textContent = STYLE;
         box = document.createElement("div");
         box.className = "pablo-rings";
-        root.append(style, box);
+        warn = text("div", "pablo-warning", "");
+        warn.hidden = true;
+        var stack = document.createElement("div");
+        stack.className = "pablo-stack";
+        stack.append(box, warn);
+        root.append(style, stack);
         lastKey = "";
       },
       update: function (state) {
         var shown = order(state.limits, state.agentOrder).map(function (limit) { return view(limit, state.nowMs); });
+        var power = state.display === "main" ? state.power : undefined;
+        if (power) shown.push(batteryShown(power));
         var key = JSON.stringify(shown);
         if (!box) return;
         box.classList.toggle("calling", state.cards.some(function (card) { return card.kind === "approval"; }));
+        var warning = state.mode === "attention" ? "" : powerWarning(power);
+        warn.hidden = warning === "";
+        warn.textContent = warning;
         if (key === lastKey) return;
         lastKey = key;
         box.replaceChildren.apply(box, shown.map(ring));
+        fitRow(box);
       },
       unmount: function () {
-        if (box && box.parentElement) box.parentElement.replaceChildren();
-        box = undefined;
+        if (box && box.parentElement && box.parentElement.parentElement) box.parentElement.parentElement.replaceChildren();
+        box = warn = undefined;
       },
     };
   });
