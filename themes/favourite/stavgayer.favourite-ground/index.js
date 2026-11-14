@@ -89,7 +89,13 @@
   // limits and no cards, and only the limits that can be read count.
   function frameOf(state, width, height) {
     var main = state.display === "main";
-    return favouriteFrame(width, height, main ? limitsInOrder(state).length : 0, main ? state.cards.length : 0);
+    return favouriteFrame(width, height, main ? spikeCount(state) : 0, main ? state.cards.length : 0);
+  }
+
+  // The spikes and their labels: one per limit that can be read, then the battery
+  // when the Mac has one, always last on the right.
+  function spikeCount(state) {
+    return limitsInOrder(state).length + (state.power ? 1 : 0);
   }
 
   // Each agent owns one colour of the cover; an agent we do not know gets one by its name.
@@ -227,6 +233,9 @@
   var SINK_MS = 60 * 60000, STAB_MS = 400, GLINT_MS = 600, FALL_MS = 800;
   var PULL = 0.35; // the share of the fall spent sliding out of the heart
   var GRAVITY = 12; // heart sides per second squared
+
+  // The battery's spike has the board's pale steel blue at its root: no agent owns it.
+  var BATTERY_COLOUR = "#a9c6da";
 
   // The spikes: one steel thorn per usage limit, coming out of the bottom edge of
   // the heart, square to its surface (a little less, so they do not splay) and
@@ -787,20 +796,29 @@
       }) || dagSize.moving(nowMs) || dagGuard.moving(nowMs);
     }
 
-    // One spike per limit, in label order, longer the more of the limit is used.
+    // One spike per limit, in label order, longer the more of the limit is used,
+    // then the battery's, longer the emptier the battery, so every spike reads the
+    // same way: longer is closer to running out.
     // Its root's height is found each frame on the moving edge (placeSpikes).
     function syncSpikes(state) {
-      var limits = state.display === "main" ? limitsInOrder(state).slice(0, SPIKE_SLOTS) : [];
-      var count = limits.length, spacing = count < 2 ? 1 : (2 * FRAME.spikeSpread) / (count - 1);
+      var spikes = [];
+      if (state.display === "main") {
+        limitsInOrder(state).forEach(function (limit) {
+          spikes.push({ used: usedPercent(limit, state.nowMs) / 100, colour: agentColour(limit.source) });
+        });
+        if (state.power) spikes.push({ used: 1 - Math.min(100, Math.max(0, state.power.percent)) / 100, colour: BATTERY_COLOUR });
+      }
+      spikes = spikes.slice(0, SPIKE_SLOTS);
+      var count = spikes.length, spacing = count < 2 ? 1 : (2 * FRAME.spikeSpread) / (count - 1);
       var width = Math.min(SPIKE.width, 0.36 * spacing);
       spikeShape.fill(0);
-      limits.forEach(function (limit, index) {
-        var x = spikeOffset(index, count), used = usedPercent(limit, state.nowMs) / 100;
-        var length = SPIKE.full * (SPIKE.least + (1 - SPIKE.least) * used);
+      spikes.forEach(function (spike, index) {
+        var x = spikeOffset(index, count);
+        var length = SPIKE.full * (SPIKE.least + (1 - SPIKE.least) * spike.used);
         spikeX[index] = x;
         spikeRest[index] = slopeAt(x, bottomAt(x, 0, 0), 0, 0);
         spikeShape.set([x, 0, SPIKE.inset + length, width], index * 4);
-        spikeTint.set(rgbOf(agentColour(limit.source)), index * 3);
+        spikeTint.set(rgbOf(spike.colour), index * 3);
       });
     }
 
