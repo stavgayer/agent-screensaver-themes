@@ -9,7 +9,10 @@
 // set like one more ring: a thin ring that fills as the song plays, the song,
 // then its artist. While tasks run it stands in the top row, centred between
 // the clock and the limits; with no tasks, under the limits in the column. It
-// steps away while an agent waits for you.
+// steps away while an agent waits for you. The battery (state.power,
+// agent-screensaver 0.6.0 and later) is one more ring after the limits: grey on
+// battery, white on a power plug, red when low; a low battery while agents work
+// also gets one red line right under the rings, above the song.
 (function () {
   var scriptSrc = (document.currentScript && document.currentScript.src) || "";
   var base = scriptSrc.replace(/[^/]*$/, "");
@@ -22,6 +25,7 @@
   var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   var OWN = { claude: "#ff5b3d", codex: "#57c7ff", cursor: "#ffb52e" };
   var SPARE = ["#ff6fae", "#5fe0b4", "#b9a4ff", "#ffd36a", "#7fa8ff", "#ff8a4c"];
+  var BATTERY = { battery: "#9c9a93", charging: "#ecebe6", low: "#e0302a" };
   var RADIUS = 20;
   var ARC = 2 * Math.PI * RADIUS;
   var reduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
@@ -43,6 +47,10 @@
     ".upr.big .caption { font-size: calc(var(--size) * 0.31); }",
     ".upr .detail { font-size: calc(var(--size) * 0.31); color: #9c9a93; }",
     ".upr.big .detail { font-size: calc(var(--size) * 0.27); }",
+    // the low-battery line: placeSong puts it under the rings
+    ".upw { position: absolute; color: #e0302a; font-family: 'UP Sans', 'Helvetica Neue', sans-serif; font-weight: 600; font-size: 2vmin;",
+    "  white-space: nowrap; -webkit-font-smoothing: antialiased; }",
+    ".upw[hidden] { display: none; }",
     // the song: placeSong sets where it stands and how wide it may grow
     ".ups { --size: 4.6vmin; position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: calc(var(--size) * 0.3); color: #ecebe6;",
     "  font-family: 'UP Sans', 'Helvetica Neue', sans-serif; font-weight: 500; -webkit-font-smoothing: antialiased; transition: opacity 400ms cubic-bezier(0.23, 1, 0.32, 1); }",
@@ -136,6 +144,31 @@
     });
   }
 
+  // The battery: the percent, what to say under it, and which of the three looks
+  // (from the skill's craft.md, so the words match the built-in themes).
+  function powerView(power) {
+    var detail;
+    if (power.on_battery) {
+      var minutes = Math.floor(power.minutes_left);
+      detail = minutes > 0 ? (minutes < 60 ? minutes + "m" : Math.floor(minutes / 60) + "h " + (minutes % 60) + "m") + " left" : "";
+    } else {
+      detail = power.charging ? "Charging" : power.percent >= 100 ? "Full" : "Plugged in";
+    }
+    return { percent: Math.round(power.percent), detail: detail, tone: power.low ? "low" : power.on_battery ? "battery" : "charging" };
+  }
+
+  // The line that asks to plug in while agents work, or "" when there is nothing to warn about.
+  function powerWarning(power) {
+    if (!power || !power.warn) return "";
+    return "Battery " + Math.round(power.percent) + "%: plug in, " + (power.working === 1 ? "1 agent is" : power.working + " agents are") + " working";
+  }
+
+  // The battery as one more ring, in its look's colour.
+  function batteryShown(power) {
+    var shown = powerView(power);
+    return { hue: BATTERY[shown.tone], name: "Battery", percent: shown.percent, detail: shown.detail, stale: false };
+  }
+
   function svgNode(tag, attributes) {
     var node = document.createElementNS("http://www.w3.org/2000/svg", tag);
     Object.keys(attributes).forEach(function (key) { node.setAttribute(key, attributes[key]); });
@@ -188,12 +221,23 @@
   }
 
   window.agentScreensaver.register(function () {
-    var box, lastKey = "", big, song, track, waiting = false, now, cancelSong;
+    var box, warn, lastKey = "", big, song, track, waiting = false, now, cancelSong;
 
     // With no tasks: in the column under the limits. While tasks run: in the
     // top row, centred in the room between the clock (the clock component, in
     // the same full-screen layer) and the limits, cut with "…" when short.
+    // The low-battery line sits right under the rings, at their right edge (or
+    // their left edge in the column), and the song moves down under it.
+    function placeWarn() {
+      if (!warn || warn.hidden) return 0;
+      var vmin = Math.min(window.innerWidth, window.innerHeight) / 100;
+      warn.style.top = box.offsetTop + box.offsetHeight + 1.6 * vmin + "px";
+      warn.style.left = (big ? box.offsetLeft : box.offsetLeft + box.offsetWidth - warn.offsetWidth) + "px";
+      return warn.offsetHeight + 1.6 * vmin;
+    }
+
     function placeSong() {
+      var below = placeWarn();
       if (!song || song.node.hidden) return;
       var vw = window.innerWidth / 100, vh = window.innerHeight / 100, vmin = Math.min(vw, vh);
       var node = song.node, ringsShown = !box.hidden;
@@ -201,7 +245,7 @@
       if (big) {
         node.style.maxWidth = 25 * vw + "px";
         node.style.left = (ringsShown ? box.offsetLeft : 70.5 * vw) + "px";
-        node.style.top = (ringsShown ? box.offsetTop + box.offsetHeight : 56 * vh) + 4.4 * vmin + "px";
+        node.style.top = (ringsShown ? box.offsetTop + box.offsetHeight + below : 56 * vh) + 4.4 * vmin + "px";
         return;
       }
       var clock = document.querySelector(".upc");
@@ -245,7 +289,10 @@
         box = document.createElement("div");
         box.className = "upr";
         song = songItem();
-        root.append(style, box, song.node);
+        warn = document.createElement("div");
+        warn.className = "upw";
+        warn.hidden = true;
+        root.append(style, box, warn, song.node);
         lastKey = "";
         big = undefined;
         now = function () { return ctx.now(); };
@@ -254,7 +301,10 @@
       update: function (state) {
         if (!box) return;
         var nowBig = state.cards.length === 0;
-        box.hidden = state.limits.length === 0;
+        var power = state.display === "main" ? state.power : undefined;
+        var shown = order(state.limits, state.agentOrder).map(function (limit) { return view(limit, state.nowMs); });
+        if (power) shown.push(batteryShown(power));
+        box.hidden = shown.length === 0;
         if (big !== undefined && nowBig !== big) {
           // It changes place with the mood: it fades into the new one.
           var from = reduce.matches ? { opacity: 0 } : { opacity: 0, transform: "translateY(1.6vmin)" };
@@ -264,8 +314,10 @@
         box.classList.toggle("big", nowBig);
         waiting = state.mode === "attention";
         showSong(state.nowPlaying);
-        var shown = order(state.limits, state.agentOrder).map(function (limit) { return view(limit, state.nowMs); });
-        var key = JSON.stringify(shown);
+        var warning = waiting ? "" : powerWarning(power);
+        warn.hidden = warning === "";
+        warn.textContent = warning;
+        var key = JSON.stringify([shown, warning]);
         if (key === lastKey) return;
         lastKey = key;
         box.replaceChildren.apply(box, shown.map(ring));
@@ -275,7 +327,7 @@
         if (cancelSong) cancelSong();
         cancelSong = undefined;
         if (box && box.parentElement) box.parentElement.replaceChildren();
-        box = song = track = undefined;
+        box = warn = song = track = undefined;
       },
     };
   });
