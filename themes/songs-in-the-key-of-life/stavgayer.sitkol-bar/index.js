@@ -14,8 +14,9 @@
 // while an agent waits for you, like everything but the open centre.
 // The battery (state.power, agent-screensaver 0.6.0 and later) is one more ring
 // after the limits: muted brown on battery, burnt orange on a power plug, deep
-// red when low. A low battery while agents work also gets one deep red line at
-// the foot of the limits label; it steps away while an agent waits for you.
+// red when low. A low battery while agents work also gets its own small cream
+// label with one deep red line, right under the limits label; it steps away
+// while an agent waits for you.
 (function () {
   // ---- shared by the ground, the board and the bar: keep these in step ----
   var MAX_CARDS = 7;
@@ -205,8 +206,9 @@
     ".skr .arc { fill: none; stroke: var(--hue); stroke-width: 4.5; }",
     ".skr .value { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--size) * 0.27); font-weight: 500; line-height: 1.2; }",
     ".skr .caption { display: flex; flex-direction: column; gap: 0.3vmin; font-size: calc(var(--size) * 0.37); line-height: 1.2; }",
-    ".skr .warn { flex: 0 0 100%; text-align: right; color: #86121a; font-size: calc(var(--size) * 0.37); line-height: 1.2; }",
-    ".skr .limits.low .warn { text-align: center; }",
+    // the low-battery line: its own small label, placed under the limits by placeWarn
+    ".skr .warn { position: absolute; padding: 0.8vmin 2.2vmin; color: #86121a; font-size: 2vmin; font-weight: 600; line-height: 1.2; white-space: nowrap; }",
+    ".skr .warn.centred { transform: translateX(-50%); }",
     ".skr .warn[hidden] { display: none; }",
     ".skr .detail { font-size: calc(var(--size) * 0.31); color: var(--muted); line-height: 1.2; }",
     // The slot takes only the room the time and the limits leave, so the song never makes the limits wrap.
@@ -427,12 +429,25 @@
       if (!low) {
         if (limits.parentElement !== row) row.appendChild(limits);
         limits.style.left = limits.style.top = "";
+        placeWarn();
         return;
       }
       if (limits.parentElement !== stage) stage.appendChild(limits);
       var g = geometry(window.innerWidth, window.innerHeight, "rest", 0);
       limits.style.left = g.cx + "px";
       limits.style.top = Math.max(g.cy + g.r[1] + 4 * g.vmin, 0.8 * g.h) + "px";
+      placeWarn();
+    }
+
+    // The low-battery label stands right under the limits: at their right edge
+    // while tasks run, centred under them at rest.
+    function placeWarn() {
+      if (!warn || warn.hidden || limits.hidden) return;
+      var at = limits.getBoundingClientRect(), vmin = Math.min(window.innerWidth, window.innerHeight) / 100;
+      warn.classList.toggle("centred", low === true);
+      warn.style.top = at.bottom + 1.2 * vmin + "px";
+      warn.style.left = low ? at.left + at.width / 2 + "px" : "";
+      warn.style.right = low ? "" : window.innerWidth - at.right + "px";
     }
 
     return {
@@ -454,14 +469,14 @@
         when.append(time, date);
         limits = document.createElement("div");
         limits.className = "label limits";
-        warn = text("warn", "");
+        warn = text("label warn", "");
         warn.hidden = true;
         song = songLabel();
         slot = document.createElement("div");
         slot.className = "slot";
         slot.appendChild(song.label);
         row.append(when, slot, limits);
-        stage.appendChild(row);
+        stage.append(row, warn);
         box.appendChild(stage);
         root.append(style, box);
         now = function () { return ctx.now(); };
@@ -495,12 +510,14 @@
         place();
         showSong(state.nowPlaying, moodOf(state));
         var warning = state.mode === "attention" ? "" : powerWarning(power);
-        warn.hidden = warning === "";
+        warn.hidden = warning === "" || limits.hidden;
         warn.textContent = warning;
         var key = JSON.stringify(shown);
-        if (key === lastKey) return;
-        lastKey = key;
-        limits.replaceChildren.apply(limits, shown.map(ring).concat(warn));
+        if (key !== lastKey) {
+          lastKey = key;
+          limits.replaceChildren.apply(limits, shown.map(ring));
+        }
+        placeWarn();
       },
       unmount: function () {
         window.removeEventListener("resize", place);
